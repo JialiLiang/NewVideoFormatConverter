@@ -60,6 +60,14 @@ def generate_job_id():
 def index():
     return render_template('index.html')
 
+@app.route('/health')
+def health_check():
+    return jsonify({
+        'status': 'healthy', 
+        'timestamp': datetime.now().isoformat(),
+        'port': request.environ.get('SERVER_PORT', 'unknown')
+    })
+
 @app.route('/upload', methods=['POST'])
 def upload_files():
     if 'files' not in request.files:
@@ -336,8 +344,22 @@ cleanup_thread.daemon = True
 cleanup_thread.start()
 
 if __name__ == '__main__':
+    # For Railway deployment, use PORT environment variable
+    # For local development, use command line args
+    port = int(os.environ.get('PORT', 8000))
+    
     parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=8000, help='Port to run the server on')
+    parser.add_argument('--port', type=int, default=port, help='Port to run the server on')
     args = parser.parse_args()
     
-    app.run(host='0.0.0.0', port=args.port) 
+    # Use Railway's PORT if available, otherwise use command line args
+    final_port = int(os.environ.get('PORT', args.port))
+    
+    print(f"Starting Flask app on port {final_port}")
+    print(f"Environment PORT: {os.environ.get('PORT', 'Not set')}")
+    
+    try:
+        app.run(host='0.0.0.0', port=final_port, debug=False)
+    except Exception as e:
+        print(f"Failed to start Flask app: {e}")
+        raise 
