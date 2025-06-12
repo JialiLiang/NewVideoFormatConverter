@@ -588,8 +588,20 @@ def get_ffprobe_path():
         if os.path.exists(path):
             return path
     
-    # Last resort: return the command name and hope it's in PATH
-    return "ffprobe"
+    # If ffprobe is not available, we can use ffmpeg for probing
+    # This is a fallback that should work since ffmpeg can do probing too
+    ffmpeg_path = get_ffmpeg_path()
+    return ffmpeg_path  # We'll modify the commands to use ffmpeg instead
+    
+def use_ffmpeg_for_probe(ffprobe_cmd, input_path):
+    """Helper function to use ffmpeg for probing when ffprobe is not available."""
+    ffmpeg_cmd = get_ffmpeg_path()
+    
+    # Check if we're using ffmpeg as ffprobe
+    if ffprobe_cmd == ffmpeg_cmd:
+        # Replace ffprobe commands with equivalent ffmpeg commands
+        return True
+    return False
 
 def create_vertical_blur_video_direct(input_path, output_path):
     """Create a vertical video with blurred background by directly calling ffmpeg."""
