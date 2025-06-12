@@ -546,29 +546,50 @@ def get_video_metadata(video_path):
 
 # Define helper functions to get the ffmpeg and ffprobe binary paths
 def get_ffmpeg_path():
-    """Get the ffmpeg binary path, either from moviepy's config or our environment variable."""
-    from moviepy.config import get_setting
-    try:
-        return get_setting("FFMPEG_BINARY")
-    except:
-        # Fallback to direct command
-        return "ffmpeg"
+    """Get the ffmpeg binary path - use system ffmpeg for better compatibility."""
+    import shutil
+    
+    # First, try to find ffmpeg in system PATH
+    ffmpeg_path = shutil.which("ffmpeg")
+    if ffmpeg_path:
+        return ffmpeg_path
+    
+    # If not in PATH, try common locations
+    common_paths = [
+        "/usr/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/opt/homebrew/bin/ffmpeg"
+    ]
+    
+    for path in common_paths:
+        if os.path.exists(path):
+            return path
+    
+    # Last resort: return the command name and hope it's in PATH
+    return "ffmpeg"
 
 def get_ffprobe_path():
-    """Get the ffprobe binary path, similar to ffmpeg."""
-    from moviepy.config import get_setting
-    try:
-        # Try to get ffprobe from the same directory as ffmpeg
-        ffmpeg_path = get_setting("FFMPEG_BINARY")
-        if ffmpeg_path and ffmpeg_path != "ffmpeg":
-            # Replace 'ffmpeg' with 'ffprobe' in the path
-            ffprobe_path = ffmpeg_path.replace("ffmpeg", "ffprobe")
-            return ffprobe_path
-        else:
-            return "ffprobe"
-    except:
-        # Fallback to direct command
-        return "ffprobe"
+    """Get the ffprobe binary path - use system ffprobe for better compatibility."""
+    import shutil
+    
+    # First, try to find ffprobe in system PATH
+    ffprobe_path = shutil.which("ffprobe")
+    if ffprobe_path:
+        return ffprobe_path
+    
+    # If not in PATH, try common locations
+    common_paths = [
+        "/usr/bin/ffprobe",
+        "/usr/local/bin/ffprobe", 
+        "/opt/homebrew/bin/ffprobe"
+    ]
+    
+    for path in common_paths:
+        if os.path.exists(path):
+            return path
+    
+    # Last resort: return the command name and hope it's in PATH
+    return "ffprobe"
 
 def create_vertical_blur_video_direct(input_path, output_path):
     """Create a vertical video with blurred background by directly calling ffmpeg."""
