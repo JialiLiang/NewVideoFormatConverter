@@ -546,15 +546,35 @@ def get_video_metadata(video_path):
 
 # Define helper functions to get the ffmpeg and ffprobe binary paths
 def get_ffmpeg_path():
-    """Get the ffmpeg binary path - use system ffmpeg for better compatibility."""
+    """Get the ffmpeg binary path - prioritize static-ffmpeg for deployment reliability."""
     import shutil
+    import logging
     
-    # First, try to find ffmpeg in system PATH
+    # First, try static-ffmpeg (Python package)
+    try:
+        import static_ffmpeg
+        ffmpeg_path = static_ffmpeg.run.ffmpeg_path
+        if ffmpeg_path and os.path.exists(ffmpeg_path):
+            logging.info(f"Found static-ffmpeg: {ffmpeg_path}")
+            return ffmpeg_path
+    except ImportError:
+        logging.info("static-ffmpeg not available, trying system ffmpeg")
+    except Exception as e:
+        logging.warning(f"Error with static-ffmpeg: {e}")
+    
+    # Try environment variable
+    env_ffmpeg = os.environ.get('FFMPEG_BINARY')
+    if env_ffmpeg and os.path.exists(env_ffmpeg):
+        logging.info(f"Found ffmpeg via environment: {env_ffmpeg}")
+        return env_ffmpeg
+    
+    # Try system PATH
     ffmpeg_path = shutil.which("ffmpeg")
     if ffmpeg_path:
+        logging.info(f"Found ffmpeg in PATH: {ffmpeg_path}")
         return ffmpeg_path
     
-    # If not in PATH, try common locations
+    # Try common locations
     common_paths = [
         "/usr/bin/ffmpeg",
         "/usr/local/bin/ffmpeg",
@@ -563,21 +583,36 @@ def get_ffmpeg_path():
     
     for path in common_paths:
         if os.path.exists(path):
+            logging.info(f"Found ffmpeg at: {path}")
             return path
     
-    # Last resort: return the command name and hope it's in PATH
+    logging.error("Could not find ffmpeg anywhere!")
     return "ffmpeg"
 
 def get_ffprobe_path():
-    """Get the ffprobe binary path - use system ffprobe for better compatibility."""
+    """Get the ffprobe binary path - prioritize static-ffmpeg for deployment reliability."""
     import shutil
+    import logging
     
-    # First, try to find ffprobe in system PATH
+    # First, try static-ffmpeg (Python package)
+    try:
+        import static_ffmpeg
+        ffprobe_path = static_ffmpeg.run.ffprobe_path
+        if ffprobe_path and os.path.exists(ffprobe_path):
+            logging.info(f"Found static-ffprobe: {ffprobe_path}")
+            return ffprobe_path
+    except ImportError:
+        logging.info("static-ffmpeg not available, trying system ffprobe")
+    except Exception as e:
+        logging.warning(f"Error with static-ffprobe: {e}")
+    
+    # Try system PATH
     ffprobe_path = shutil.which("ffprobe")
     if ffprobe_path:
+        logging.info(f"Found ffprobe in PATH: {ffprobe_path}")
         return ffprobe_path
     
-    # If not in PATH, try common locations
+    # Try common locations
     common_paths = [
         "/usr/bin/ffprobe",
         "/usr/local/bin/ffprobe", 
@@ -586,12 +621,13 @@ def get_ffprobe_path():
     
     for path in common_paths:
         if os.path.exists(path):
+            logging.info(f"Found ffprobe at: {path}")
             return path
     
     # If ffprobe is not available, we can use ffmpeg for probing
-    # This is a fallback that should work since ffmpeg can do probing too
+    logging.warning("ffprobe not found, using ffmpeg as fallback")
     ffmpeg_path = get_ffmpeg_path()
-    return ffmpeg_path  # We'll modify the commands to use ffmpeg instead
+    return ffmpeg_path
     
 def use_ffmpeg_for_probe(ffprobe_cmd, input_path):
     """Helper function to use ffmpeg for probing when ffprobe is not available."""
