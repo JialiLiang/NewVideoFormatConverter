@@ -12,6 +12,7 @@ from datetime import datetime
 import concurrent.futures
 import threading
 import time
+import argparse
 
 # Import the video processing functions from the original file
 from video_converter import (
@@ -335,5 +336,8 @@ cleanup_thread.daemon = True
 cleanup_thread.start()
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8000))
-    app.run(host='0.0.0.0', port=port, debug=False) 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--port', type=int, default=8000, help='Port to run the server on')
+    args = parser.parse_args()
+    
+    app.run(host='0.0.0.0', port=args.port) 
