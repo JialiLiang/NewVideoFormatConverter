@@ -4,5 +4,4 @@ moviepy==1.0.3
 Pillow==10.2.0
 numpy==1.26.4
 ffmpeg-python==0.2.0
-imageio-ffmpeg==0.4.8
-static-ffmpeg==2.13 
+imageio-ffmpeg==0.4.8 

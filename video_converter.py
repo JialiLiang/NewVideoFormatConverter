@@ -546,29 +546,17 @@ def get_video_metadata(video_path):
 
 # Define helper functions to get the ffmpeg and ffprobe binary paths
 def get_ffmpeg_path():
-    """Get the ffmpeg binary path - prioritize static-ffmpeg for deployment reliability."""
+    """Get the ffmpeg binary path - use system-installed ffmpeg from nixpacks."""
     import shutil
     import logging
     
-    # First, try static-ffmpeg (Python package)
-    try:
-        import static_ffmpeg
-        ffmpeg_path = static_ffmpeg.run.ffmpeg_path
-        if ffmpeg_path and os.path.exists(ffmpeg_path):
-            logging.info(f"Found static-ffmpeg: {ffmpeg_path}")
-            return ffmpeg_path
-    except ImportError:
-        logging.info("static-ffmpeg not available, trying system ffmpeg")
-    except Exception as e:
-        logging.warning(f"Error with static-ffmpeg: {e}")
-    
-    # Try environment variable
+    # Try environment variable first
     env_ffmpeg = os.environ.get('FFMPEG_BINARY')
     if env_ffmpeg and os.path.exists(env_ffmpeg):
         logging.info(f"Found ffmpeg via environment: {env_ffmpeg}")
         return env_ffmpeg
     
-    # Try system PATH
+    # Try system PATH (Railway's nixpacks installs ffmpeg here)
     ffmpeg_path = shutil.which("ffmpeg")
     if ffmpeg_path:
         logging.info(f"Found ffmpeg in PATH: {ffmpeg_path}")
@@ -578,7 +566,8 @@ def get_ffmpeg_path():
     common_paths = [
         "/usr/bin/ffmpeg",
         "/usr/local/bin/ffmpeg",
-        "/opt/homebrew/bin/ffmpeg"
+        "/opt/homebrew/bin/ffmpeg",
+        "/nix/store/*/bin/ffmpeg"  # Nix store location
     ]
     
     for path in common_paths:
@@ -587,26 +576,20 @@ def get_ffmpeg_path():
             return path
     
     logging.error("Could not find ffmpeg anywhere!")
-    return "ffmpeg"
+    raise FileNotFoundError("ffmpeg not found. Please ensure ffmpeg is installed via nixpacks.")
 
 def get_ffprobe_path():
-    """Get the ffprobe binary path - prioritize static-ffmpeg for deployment reliability."""
+    """Get the ffprobe binary path - use system-installed ffprobe from nixpacks."""
     import shutil
     import logging
     
-    # First, try static-ffmpeg (Python package)
-    try:
-        import static_ffmpeg
-        ffprobe_path = static_ffmpeg.run.ffprobe_path
-        if ffprobe_path and os.path.exists(ffprobe_path):
-            logging.info(f"Found static-ffprobe: {ffprobe_path}")
-            return ffprobe_path
-    except ImportError:
-        logging.info("static-ffmpeg not available, trying system ffprobe")
-    except Exception as e:
-        logging.warning(f"Error with static-ffprobe: {e}")
+    # Try environment variable first
+    env_ffprobe = os.environ.get('FFPROBE_BINARY')
+    if env_ffprobe and os.path.exists(env_ffprobe):
+        logging.info(f"Found ffprobe via environment: {env_ffprobe}")
+        return env_ffprobe
     
-    # Try system PATH
+    # Try system PATH (Railway's nixpacks installs ffprobe here)
     ffprobe_path = shutil.which("ffprobe")
     if ffprobe_path:
         logging.info(f"Found ffprobe in PATH: {ffprobe_path}")
@@ -616,7 +599,8 @@ def get_ffprobe_path():
     common_paths = [
         "/usr/bin/ffprobe",
         "/usr/local/bin/ffprobe", 
-        "/opt/homebrew/bin/ffprobe"
+        "/opt/homebrew/bin/ffprobe",
+        "/nix/store/*/bin/ffprobe"  # Nix store location
     ]
     
     for path in common_paths:
@@ -626,8 +610,12 @@ def get_ffprobe_path():
     
     # If ffprobe is not available, we can use ffmpeg for probing
     logging.warning("ffprobe not found, using ffmpeg as fallback")
-    ffmpeg_path = get_ffmpeg_path()
-    return ffmpeg_path
+    try:
+        ffmpeg_path = get_ffmpeg_path()
+        return ffmpeg_path
+    except FileNotFoundError:
+        logging.error("Could not find ffprobe or ffmpeg anywhere!")
+        raise FileNotFoundError("ffprobe not found. Please ensure ffmpeg is installed via nixpacks.")
     
 def use_ffmpeg_for_probe(ffprobe_cmd, input_path):
     """Helper function to use ffmpeg for probing when ffprobe is not available."""

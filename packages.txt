@@ -1,3 +1,0 @@
-ffmpeg
-libavcodec-extra
-libav-tools 
