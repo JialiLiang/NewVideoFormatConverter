@@ -1,57 +1,73 @@
 # Video Format Converter
 
-A Streamlit application for converting videos to different formats for various platforms.
+A modern Flask web application for converting videos to different formats with smart processing and real-time downloads.
 
-## Features
+## ✨ Features
 
-- Convert videos to square format (1080x1080) for Google Ads
-- Create square videos with blurred background (1080x1080) that maintain original aspect ratio
-- Create landscape videos (1920x1080) with blurred background for YouTube
+* **Square Format (1080x1080)** - Pure crop to square
+* **Square with Blur (1080x1080)** - Original video centered with blurred background
+* **Landscape with Blur (1920x1080)** - Original video centered with blurred sides
+* **Vertical with Blur (1080x1920)** - Original video centered with blurred top/bottom
+* **Smart Processing** - Automatically handles any input video orientation
+* **Progressive Downloads** - Download videos as soon as they're ready
+* **Batch Processing** - Convert multiple videos at once
 
-## Installation
+## 🚀 Live Demo
 
-1. Clone this repository
-2. Install dependencies:
+Visit the live app: [Railway Deployment](https://newvideoformatconverter.up.railway.app)
 
+## 💻 Installation
+
+1. Clone this repository:
+```bash
+git clone https://github.com/JialiLiang/NewVideoFormatConverter.git
+cd NewVideoFormatConverter
+```
+
+2. Install Python dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Ensure ffmpeg is installed on your system:
+3. Install ffmpeg:
+* **Linux**: `sudo apt-get install ffmpeg`
+* **macOS**: `brew install ffmpeg`
+* **Windows**: Download from ffmpeg.org and add to PATH
 
-- **Linux**: `sudo apt-get install ffmpeg`
-- **macOS**: `brew install ffmpeg`
-- **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH
-
-## Deployment
-
-### Local Development
+## 🏃‍♂️ Running Locally
 
 ```bash
-streamlit run video_converter.py
+python app.py
 ```
+Then open http://localhost:8000 in your browser.
 
-### Streamlit Cloud Deployment
+## 🌟 Key Features
 
-When deploying to Streamlit Cloud, the app will automatically install ffmpeg from the packages.txt file.
+* **Smart Video Processing**
+  - Maintains aspect ratio for all formats
+  - Adds beautiful blur effects where needed
+  - Works with any input video orientation
 
-### Troubleshooting
+* **Modern UI**
+  - Real-time progress updates
+  - Progressive downloads
+  - Drag-and-drop upload
+  - Mobile-friendly design
 
-If you encounter `FileNotFoundError: [Errno 2] No such file or directory: 'ffmpeg'`, ensure that:
+* **Robust Processing**
+  - Processes one video at a time to prevent resource overload
+  - Automatic cleanup of temporary files
+  - Error handling and recovery
 
-1. FFmpeg is properly installed on your system
-2. FFmpeg is in your system PATH
-3. For Streamlit Cloud deployment, make sure the packages.txt file contains `ffmpeg`
+## 🛠️ Dependencies
 
-## Dependencies
+* Flask==2.3.3 - Web framework
+* moviepy==1.0.3 - Video processing
+* Pillow==10.2.0 - Image processing
+* numpy==1.26.4 - Numerical computing
+* ffmpeg-python==0.2.0 - FFmpeg integration
+* imageio-ffmpeg==0.4.8 - FFmpeg support
 
-- streamlit==1.32.0 - Web app framework
-- moviepy==1.0.3 - Video editing library
-- Pillow==10.2.0 - Image processing library
-- numpy==1.26.4 - Numerical computing library
-- ffmpeg-python==0.2.0 - Python bindings for FFmpeg
-- imageio-ffmpeg==0.4.8 - FFmpeg bindings for imageio
-
-## License
+## 📝 License
 
 MIT 
