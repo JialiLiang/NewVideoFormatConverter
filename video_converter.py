@@ -233,7 +233,7 @@ def create_square_blur_video_direct(input_path, output_path):
     """Create a square video with blurred background by directly calling ffmpeg."""
     # Get ffmpeg command
     ffmpeg_cmd = get_ffmpeg_path()
-    ffprobe_cmd = "ffprobe"  # Also handle ffprobe
+    ffprobe_cmd = get_ffprobe_path()
     
     try:
         # Create a temporary directory for intermediate files
@@ -380,7 +380,7 @@ def create_landscape_video_direct(input_path, output_path):
     """Create a landscape video by directly calling ffmpeg."""
     # Get ffmpeg command
     ffmpeg_cmd = get_ffmpeg_path()
-    ffprobe_cmd = "ffprobe"  # Also handle ffprobe
+    ffprobe_cmd = get_ffprobe_path()
     
     try:
         # Create a temporary directory for intermediate files
@@ -544,7 +544,7 @@ def get_video_metadata(video_path):
             "size": "Unknown"
         }
 
-# Define a helper function to get the ffmpeg binary path
+# Define helper functions to get the ffmpeg and ffprobe binary paths
 def get_ffmpeg_path():
     """Get the ffmpeg binary path, either from moviepy's config or our environment variable."""
     from moviepy.config import get_setting
@@ -554,11 +554,27 @@ def get_ffmpeg_path():
         # Fallback to direct command
         return "ffmpeg"
 
+def get_ffprobe_path():
+    """Get the ffprobe binary path, similar to ffmpeg."""
+    from moviepy.config import get_setting
+    try:
+        # Try to get ffprobe from the same directory as ffmpeg
+        ffmpeg_path = get_setting("FFMPEG_BINARY")
+        if ffmpeg_path and ffmpeg_path != "ffmpeg":
+            # Replace 'ffmpeg' with 'ffprobe' in the path
+            ffprobe_path = ffmpeg_path.replace("ffmpeg", "ffprobe")
+            return ffprobe_path
+        else:
+            return "ffprobe"
+    except:
+        # Fallback to direct command
+        return "ffprobe"
+
 def create_vertical_blur_video_direct(input_path, output_path):
     """Create a vertical video with blurred background by directly calling ffmpeg."""
     # Get ffmpeg command
     ffmpeg_cmd = get_ffmpeg_path()
-    ffprobe_cmd = "ffprobe"  # Also handle ffprobe
+    ffprobe_cmd = get_ffprobe_path()
     
     try:
         # Create a temporary directory for intermediate files
