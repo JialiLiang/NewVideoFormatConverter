@@ -171,11 +171,8 @@
                             <h5 class="mb-3">📁 Upload Videos</h5>
                             <div class="upload-area" id="uploadArea">
                                 <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-muted"></i>
-                                <p class="mb-3">Drag and drop your videos here, or click to browse</p>
+                                <p class="mb-3">Drag and drop your videos here</p>
                                 <input type="file" id="fileInput" multiple accept=".mp4,.mov" class="d-none">
-                                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
-                                    <i class="fas fa-folder-open"></i> Browse Files
-                                </button>
                             </div>
                             <div id="fileList" class="mt-3"></div>
                         </div>
@@ -297,11 +294,6 @@
         uploadArea.addEventListener('dragover', handleDragOver);
         uploadArea.addEventListener('drop', handleDrop);
         uploadArea.addEventListener('dragleave', handleDragLeave);
-        uploadArea.addEventListener('click', (e) => {
-            if (e.target === uploadArea || e.target.closest('.upload-area')) {
-                fileInput.click();
-            }
-        });
 
         // Format card handling
         document.querySelectorAll('.format-card').forEach(card => {
