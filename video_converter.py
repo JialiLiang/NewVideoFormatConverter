@@ -210,6 +210,8 @@ def create_square_video(input_path, output_path):
             audio_bitrate='320k',  # High audio bitrate
             preset='slow',  # Slower encoding for better quality
             threads=4,  # Use multiple threads for faster processing
+            verbose=False,  # Suppress MoviePy verbose output
+            logger=None,    # Disable MoviePy progress bars
             ffmpeg_params=[
                 '-profile:v', 'high',  # High profile for better quality
                 '-level', '4.1',  # Higher level for better quality
@@ -309,6 +311,7 @@ def create_square_blur_video_direct(input_path, output_path):
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 "scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080,boxblur=30:5", 
                 "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "23", 
+                "-loglevel", "error",  # Only show errors
                 blurred_bg
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
