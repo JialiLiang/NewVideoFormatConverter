@@ -79,9 +79,7 @@ def upload_files():
     if not files or not formats:
         return jsonify({'error': 'No files or formats selected'}), 400
     
-    # Validate file count (limit for Standard plan performance)
-    if len(files) > 10:
-        return jsonify({'error': 'Maximum 10 videos allowed per batch for optimal performance'}), 400
+    # No file count limit - processing is sequential anyway
     
     # Validate files
     valid_files = []
