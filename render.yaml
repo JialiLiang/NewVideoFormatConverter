@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: video-format-converter
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: FLASK_ENV
+        value: production 
