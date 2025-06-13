@@ -6,4 +6,5 @@ numpy
 ffmpeg-python==0.2.0
 imageio-ffmpeg==0.4.8
 decorator
-imageio 
+imageio
+setuptools 
