@@ -215,7 +215,7 @@ def create_square_video(input_path, output_path):
             ffmpeg_params=[
                 '-profile:v', 'high',  # High profile for better quality
                 '-level', '4.1',  # Higher level for better quality
-                '-crf', '17',  # Lower CRF value for higher quality (range 0-51, lower is better)
+                '-crf', '28',  # Higher CRF value for faster processing (range 0-51, higher is faster)
                 '-movflags', '+faststart'  # Enable fast start for web playback
             ]
         )
@@ -310,7 +310,7 @@ def create_square_blur_video_direct(input_path, output_path):
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 "scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080,boxblur=30:5", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "23", 
+                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
                 "-loglevel", "error",  # Only show errors
                 blurred_bg
             ], check=True, capture_output=True, text=True)
@@ -323,7 +323,7 @@ def create_square_blur_video_direct(input_path, output_path):
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={visible_width}:{visible_height}", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "23", 
+                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
                 resized_center
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -457,7 +457,7 @@ def create_landscape_video_direct(input_path, output_path):
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,boxblur=20:5", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "23", 
+                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
                 blurred_bg
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -469,7 +469,7 @@ def create_landscape_video_direct(input_path, output_path):
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={target_width}:{target_height}", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "23", 
+                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
                 resized_center
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -712,7 +712,7 @@ def create_vertical_blur_video_direct(input_path, output_path):
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={canvas_width}:{canvas_height}:force_original_aspect_ratio=increase,crop={canvas_width}:{canvas_height},boxblur=30:5", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "23", 
+                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
                 blurred_bg
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -724,7 +724,7 @@ def create_vertical_blur_video_direct(input_path, output_path):
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={visible_width}:{visible_height}", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "23", 
+                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
                 resized_center
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
