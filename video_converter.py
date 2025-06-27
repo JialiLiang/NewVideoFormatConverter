@@ -53,32 +53,30 @@ def check_hw_accel():
     return None  # No hardware acceleration available
 
 # Get optimal FFmpeg parameters based on available hardware
-def get_ffmpeg_params():
-    """Get optimized FFmpeg parameters based on available hardware"""
+def get_ffmpeg_params_for_processing():
+    """Get optimized FFmpeg parameters for video processing operations"""
     hw_accel = check_hw_accel()
     
     if hw_accel == "h264_nvenc":
         return {
             "codec": "h264_nvenc",
-            "preset": "p4",  # Faster preset for NVIDIA
-            "crf": "23",
-            "hwaccel": "cuda",
-            "hwaccel_output_format": "cuda"
+            "preset": "p2",  # Fastest NVIDIA preset
+            "crf": "28",
+            "extra_params": ["-gpu", "0"]
         }
     elif hw_accel == "h264_qsv":
         return {
-            "codec": "h264_qsv",
+            "codec": "h264_qsv", 
             "preset": "veryfast",
-            "crf": "23",
-            "hwaccel": "qsv",
-            "hwaccel_output_format": "qsv"
+            "crf": "28",
+            "extra_params": ["-hwaccel", "qsv"]
         }
     else:
         return {
             "codec": "libx264",
-            "preset": "veryfast",  # Faster preset
-            "crf": "23",
-            "threads": str(os.cpu_count() or 4)  # Use all available CPU cores
+            "preset": "veryfast",
+            "crf": "28", 
+            "extra_params": ["-threads", str(os.cpu_count() or 4)]
         }
 
 # Process a single video with the given format
@@ -208,7 +206,7 @@ def create_square_video(input_path, output_path):
             fps=30,
             bitrate='6000k',  # High bitrate for better quality
             audio_bitrate='320k',  # High audio bitrate
-            preset='slow',  # Slower encoding for better quality
+            preset='veryfast',  # Faster encoding for better performance
             threads=4,  # Use multiple threads for faster processing
             verbose=False,  # Suppress MoviePy verbose output
             logger=None,    # Disable MoviePy progress bars
@@ -309,8 +307,9 @@ def create_square_blur_video_direct(input_path, output_path):
         try:
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
-                "scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080,boxblur=30:5", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
+                "scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080,boxblur=20:3", 
+                "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
+                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
                 "-loglevel", "error",  # Only show errors
                 blurred_bg
             ], check=True, capture_output=True, text=True)
@@ -323,7 +322,8 @@ def create_square_blur_video_direct(input_path, output_path):
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={visible_width}:{visible_height}", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
+                "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
+                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
                 resized_center
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -457,7 +457,8 @@ def create_landscape_video_direct(input_path, output_path):
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,boxblur=20:5", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
+                "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
+                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
                 blurred_bg
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -469,7 +470,8 @@ def create_landscape_video_direct(input_path, output_path):
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={target_width}:{target_height}", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
+                "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
+                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
                 resized_center
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -733,8 +735,9 @@ def create_vertical_blur_video_direct(input_path, output_path):
         try:
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
-                f"scale={canvas_width}:{canvas_height}:force_original_aspect_ratio=increase,crop={canvas_width}:{canvas_height},boxblur=30:5", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
+                f"scale={canvas_width}:{canvas_height}:force_original_aspect_ratio=increase,crop={canvas_width}:{canvas_height},boxblur=20:3", 
+                "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
+                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
                 blurred_bg
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -746,7 +749,8 @@ def create_vertical_blur_video_direct(input_path, output_path):
             subprocess.run([
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={visible_width}:{visible_height}", 
-                "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28", 
+                "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
+                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
                 resized_center
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
