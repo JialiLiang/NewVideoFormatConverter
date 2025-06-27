@@ -547,9 +547,18 @@ def get_video_metadata(video_path):
             "size": "Unknown"
         }
 
-# Define helper functions to get the ffmpeg and ffprobe binary paths
+# Cache for ffmpeg and ffprobe paths to avoid repeated detection
+_ffmpeg_cache = None
+_ffprobe_cache = None
+
 def get_ffmpeg_path():
     """Get the ffmpeg binary path - use system-installed ffmpeg from nixpacks."""
+    global _ffmpeg_cache
+    
+    # Return cached result if available
+    if _ffmpeg_cache is not None:
+        return _ffmpeg_cache
+    
     import shutil
     import logging
     
@@ -557,13 +566,15 @@ def get_ffmpeg_path():
     env_ffmpeg = os.environ.get('FFMPEG_BINARY')
     if env_ffmpeg and os.path.exists(env_ffmpeg):
         logging.info(f"Found ffmpeg via environment: {env_ffmpeg}")
-        return env_ffmpeg
+        _ffmpeg_cache = env_ffmpeg
+        return _ffmpeg_cache
     
     # Try system PATH (Railway's nixpacks installs ffmpeg here)
     ffmpeg_path = shutil.which("ffmpeg")
     if ffmpeg_path:
         logging.info(f"Found ffmpeg in PATH: {ffmpeg_path}")
-        return ffmpeg_path
+        _ffmpeg_cache = ffmpeg_path
+        return _ffmpeg_cache
     
     # Try common locations
     common_paths = [
@@ -576,13 +587,20 @@ def get_ffmpeg_path():
     for path in common_paths:
         if os.path.exists(path):
             logging.info(f"Found ffmpeg at: {path}")
-            return path
+            _ffmpeg_cache = path
+            return _ffmpeg_cache
     
     logging.error("Could not find ffmpeg anywhere!")
     raise FileNotFoundError("ffmpeg not found. Please ensure ffmpeg is installed via nixpacks.")
 
 def get_ffprobe_path():
     """Get the ffprobe binary path - use system-installed ffprobe from nixpacks."""
+    global _ffprobe_cache
+    
+    # Return cached result if available
+    if _ffprobe_cache is not None:
+        return _ffprobe_cache
+    
     import shutil
     import logging
     
@@ -590,13 +608,15 @@ def get_ffprobe_path():
     env_ffprobe = os.environ.get('FFPROBE_BINARY')
     if env_ffprobe and os.path.exists(env_ffprobe):
         logging.info(f"Found ffprobe via environment: {env_ffprobe}")
-        return env_ffprobe
+        _ffprobe_cache = env_ffprobe
+        return _ffprobe_cache
     
     # Try system PATH (Railway's nixpacks installs ffprobe here)
     ffprobe_path = shutil.which("ffprobe")
     if ffprobe_path:
         logging.info(f"Found ffprobe in PATH: {ffprobe_path}")
-        return ffprobe_path
+        _ffprobe_cache = ffprobe_path
+        return _ffprobe_cache
     
     # Try common locations
     common_paths = [
@@ -609,13 +629,15 @@ def get_ffprobe_path():
     for path in common_paths:
         if os.path.exists(path):
             logging.info(f"Found ffprobe at: {path}")
-            return path
+            _ffprobe_cache = path
+            return _ffprobe_cache
     
     # If ffprobe is not available, we can use ffmpeg for probing
     logging.warning("ffprobe not found, using ffmpeg as fallback")
     try:
         ffmpeg_path = get_ffmpeg_path()
-        return ffmpeg_path
+        _ffprobe_cache = ffmpeg_path
+        return _ffprobe_cache
     except FileNotFoundError:
         logging.error("Could not find ffprobe or ffmpeg anywhere!")
         raise FileNotFoundError("ffprobe not found. Please ensure ffmpeg is installed via nixpacks.")
