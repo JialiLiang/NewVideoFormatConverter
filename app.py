@@ -13,6 +13,7 @@ import concurrent.futures
 import threading
 import time
 import argparse
+from tools_config import get_active_tools
 
 # Import the video processing functions from the original file
 from video_converter import (
@@ -58,7 +59,8 @@ def generate_job_id():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    tools = get_active_tools()
+    return render_template('index.html', tools=tools)
 
 @app.route('/health')
 def health_check():

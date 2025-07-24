@@ -150,10 +150,61 @@
             color: white;
             font-weight: 500;
         }
+        
+        /* Navigation Bar Styling */
+        .navbar {
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .nav-link {
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin: 0 2px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-1px);
+        }
+        
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Navigation Bar -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary rounded mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-photo-video"></i> Photoroom Tools
+                </a>
+                
+                <div class="navbar-nav ms-auto">
+                    {% for tool in tools %}
+                        {% if tool.name == "Video Converter" %}
+                            <a class="nav-link active" href="{{ tool.url }}" aria-current="page">
+                                <i class="{{ tool.icon }}"></i> {{ tool.name }}
+                            </a>
+                        {% else %}
+                            <a class="nav-link" href="{{ tool.url }}" {% if tool.url.startswith('http') %}target="_blank"{% endif %}>
+                                <i class="{{ tool.icon }}"></i> {{ tool.name }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </nav>
+
         <div class="made-with-love">
             <p>Made with ❤️ by Jiali</p>
         </div>
