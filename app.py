@@ -59,8 +59,9 @@ def generate_job_id():
 
 @app.route('/')
 def index():
+    from tools_config import TOOLS_CONFIG
     tools = get_active_tools()
-    return render_template('index.html', tools=tools)
+    return render_template('index.html', tools=tools, tools_config=TOOLS_CONFIG)
 
 @app.route('/health')
 def health_check():

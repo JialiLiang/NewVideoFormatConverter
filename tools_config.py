@@ -3,7 +3,7 @@
 
 TOOLS_CONFIG = {
     "brand": {
-        "name": "Photoroom Tools",
+        "name": "Photoroom UA Video Tools",
         "icon": "fas fa-photo-video",
         "url": "#"
     },
@@ -18,7 +18,7 @@ TOOLS_CONFIG = {
         {
             "name": "AdLocalizer",
             "icon": "fas fa-language",
-            "url": "https://photoroom-adlocalizer.onrender.com/",
+            "url": "https://photoroomadlocalizer.onrender.com/",
             "active": True,
             "description": "AI-powered video localization and translation"
         },
