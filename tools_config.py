@@ -5,22 +5,43 @@ TOOLS_CONFIG = {
     "brand": {
         "name": "Photoroom UA Video Tools",
         "icon": "fas fa-photo-video",
-        "url": "#"
+        "url": "/"
     },
     "tools": [
         {
             "name": "Video Converter",
             "icon": "fas fa-tools",
-            "url": "#",
+            "url": "/video-converter",
             "active": True,
             "description": "Convert videos to different formats (square, landscape, vertical)"
         },
         {
             "name": "AdLocalizer",
             "icon": "fas fa-language",
-            "url": "https://photoroomadlocalizer.onrender.com/",
+            "url": "/adlocalizer",
             "active": True,
             "description": "AI-powered video localization and translation"
+        },
+        {
+            "name": "Static Generator (WIP)",
+            "icon": "fas fa-file-code",
+            "url": "/static-generator",
+            "active": True,
+            "description": "Generate static content and assets"
+        },
+        {
+            "name": "Hook Remixer (WIP)",
+            "icon": "fas fa-music",
+            "url": "/hook-remixer",
+            "active": True,
+            "description": "AI-powered music hook generation and remixing"
+        },
+        {
+            "name": "Montage Maker (WIP)",
+            "icon": "fas fa-film",
+            "url": "/montage-maker",
+            "active": True,
+            "description": "Automated video montage creation"
         },
         # Add more tools here as you create them
         # {

@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎥 Photoroom Adlocalizer (Light)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin: 20px auto;
+            max-width: 1200px;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+        .section h3 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #6c757d;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 25px;
+            font-weight: 500;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .language-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .language-card:hover {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+        .language-card.selected {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+        .translation-result {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #667eea;
+        }
+        .audio-player {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            margin: 10px 0;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+        .progress {
+            height: 8px;
+            border-radius: 10px;
+        }
+        .file-upload {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .file-upload:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+        }
+        .file-upload.dragover {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+        .preset-btn {
+            margin: 5px;
+            border-radius: 20px;
+            padding: 8px 15px;
+            font-size: 0.9em;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+        }
+        .card {
+            transition: all 0.3s ease;
+        }
+        
+        /* Navigation Bar Styling */
+        .navbar {
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .nav-link {
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin: 0 2px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-1px);
+        }
+        
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Navigation Bar -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary rounded mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-photo-video"></i> {{ tools_config.brand.name }}
+                </a>
+                
+                <div class="navbar-nav ms-auto">
+                    {% for tool in tools %}
+                        {% if tool.name == "AdLocalizer" %}
+                            <a class="nav-link active" href="{{ tool.url }}" aria-current="page">
+                                <i class="{{ tool.icon }}"></i> {{ tool.name }}
+                            </a>
+                        {% else %}
+                            <a class="nav-link" href="{{ tool.url }}" {% if tool.url.startswith('http') %}target="_blank"{% endif %}>
+                                <i class="{{ tool.icon }}"></i> {{ tool.name }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </nav>
+
+        <div class="header">
+            <h1><i class="fas fa-video"></i> Photoroom Adlocalizer (Light)</h1>
+            <p class="text-muted">Made with ❤️ by Jiali</p>
+        </div>
+
+        <!-- Media Transcription Section -->
+        <div class="section">
+            <h3><i class="fas fa-microphone"></i> 1. Media Transcription (Optional)</h3>
+            <p class="text-muted">Upload a video or audio file to automatically transcribe its content using AI.</p>
+            
+            <div class="file-upload" id="transcriptionUpload">
+                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                <p class="mb-2">Drop video or audio file here or click to browse</p>
+                <p class="text-muted small">Video: MP4, MOV, AVI, MKV, WEBM | Audio: MP3, WAV, M4A, AAC, OGG, FLAC</p>
+                <input type="file" id="transcriptionFile" accept="video/*,audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.wma" style="display: none;">
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <button class="btn btn-primary w-100" onclick="transcribeMedia()">
+                        <i class="fas fa-microphone"></i> Transcribe Media
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-secondary w-100" onclick="clearTranscription()">
+                        <i class="fas fa-trash"></i> Clear Transcription
+                    </button>
+                </div>
+            </div>
+            
+            <div id="transcriptionResult" class="mt-3" style="display: none;">
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-check"></i> Transcribed Text:</h6>
+                    <div id="transcriptionText"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text Input Section -->
+        <div class="section">
+            <h3><i class="fas fa-edit"></i> 2. Enter Text to Translate</h3>
+            <textarea class="form-control" id="textInput" rows="4" 
+                      placeholder="Photoroom is the best app in the world."></textarea>
+        </div>
+
+        <!-- Language Selection Section -->
+        <div class="section">
+            <h3><i class="fas fa-globe"></i> 3. Select Languages</h3>
+            
+            <div class="mb-3">
+                <button class="btn btn-outline-primary preset-btn" onclick="selectPreset('top5')">
+                    🔢 Top 5
+                </button>
+                <button class="btn btn-outline-primary preset-btn" onclick="selectPreset('asian')">
+                    🌏 Asian
+                </button>
+                <button class="btn btn-outline-primary preset-btn" onclick="selectPreset('european')">
+                    🌍 European
+                </button>
+                <button class="btn btn-outline-primary preset-btn" onclick="selectPreset('americas')">
+                    🌎 Americas
+                </button>
+                <button class="btn btn-outline-secondary preset-btn" onclick="selectAll()">
+                    Select All
+                </button>
+                <button class="btn btn-outline-secondary preset-btn" onclick="clearAll()">
+                    Clear All
+                </button>
+            </div>
+            
+            <div id="languageGrid" class="row">
+                {% for code, name in languages.items() %}
+                <div class="col-md-4 col-lg-3">
+                    <div class="language-card" data-lang="{{ code }}" onclick="toggleLanguage('{{ code }}')">
+                        <strong>{{ name }}</strong> ({{ code }})
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div id="selectedCount" class="mt-3 text-muted"></div>
+        </div>
+
+        <!-- Translation Mode Section -->
+        <div class="section">
+            <h3><i class="fas fa-exchange-alt"></i> 4. Translation Mode</h3>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="translationMode" id="faithful" value="faithful" checked>
+                <label class="form-check-label" for="faithful">
+                    <i class="fas fa-balance-scale"></i> Faithful (More literal)
+                </label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="translationMode" id="creative" value="creative">
+                <label class="form-check-label" for="creative">
+                    <i class="fas fa-magic"></i> Creative (More localized)
+                </label>
+            </div>
+            
+            <div class="mt-3">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Translation Modes:</h6>
+                    <ul class="mb-0">
+                        <li><strong>Faithful:</strong> Word-by-word translation - keeps original English context</li>
+                        <li><strong>Creative:</strong> Localized with slang and cultural expressions</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="section text-center">
+            <button class="btn btn-primary btn-lg" onclick="translateText()">
+                <i class="fas fa-language"></i> Translate Text
+            </button>
+        </div>
+
+        <!-- Voice Settings Section -->
+        <div class="section">
+            <h3><i class="fas fa-microphone"></i> 5. Voice Settings</h3>
+            <select class="form-select" id="voiceSelect">
+                {% for id, voice in voices.items() %}
+                <option value="{{ voice.id }}">{{ voice.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Translations Results -->
+        <div id="translationsSection" class="section" style="display: none;">
+            <h3><i class="fas fa-list"></i> Translations</h3>
+            <div id="translationsGrid"></div>
+            
+            <div class="text-center mt-3">
+                <button class="btn btn-success btn-lg" onclick="generateVoiceovers()">
+                    <i class="fas fa-microphone"></i> Generate Voiceovers
+                </button>
+            </div>
+        </div>
+
+        <!-- Audio Results -->
+        <div id="audioSection" class="section" style="display: none;">
+            <h3><i class="fas fa-volume-up"></i> Generated Voiceovers</h3>
+            <div id="audioGrid"></div>
+        </div>
+
+        <!-- Audio Settings -->
+        <div class="section">
+            <h3><i class="fas fa-sliders-h"></i> 6. Audio Settings</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="originalVolume" class="form-label">Original Audio Volume</label>
+                    <input type="range" class="form-range" id="originalVolume" min="0" max="2" step="0.1" value="0.8">
+                    <div class="text-center" id="originalVolumeValue">0.8</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="voiceoverVolume" class="form-label">Voiceover Volume</label>
+                    <input type="range" class="form-range" id="voiceoverVolume" min="0" max="2" step="0.1" value="1.3">
+                    <div class="text-center" id="voiceoverVolumeValue">1.3</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Upload Section -->
+        <div class="section">
+            <h3><i class="fas fa-film"></i> 7. Upload Video</h3>
+            
+            <!-- Option Selection -->
+            <div id="videoOptionSelection">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> <strong>Choose one option:</strong>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100 border-success" style="cursor: pointer;" onclick="selectVideoOption('sfx')">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">
+                                    🎵 Option A: SFX-Only Video
+                                    <span class="badge bg-success ms-2">Recommended</span>
+                                </h5>
+                                <p class="card-text">
+                                    Upload a video with <strong>music + sound effects only</strong> (no vocals)<br>
+                                    <small class="text-success"><i class="fas fa-check-circle"></i> Best quality - No vocal removal needed</small>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100 border-warning" style="cursor: pointer;" onclick="selectVideoOption('vocal')">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">
+                                    🎤 Option B: Video with Vocals
+                                </h5>
+                                <p class="card-text">
+                                    Upload a video with vocals and <strong>use AI to remove them</strong><br>
+                                    <small class="text-warning"><i class="fas fa-magic"></i> AI processing required</small>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Upload Area (Hidden until option selected) -->
+            <div id="videoUploadArea" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div id="selectedOptionInfo" class="alert mb-0 flex-grow-1"></div>
+                    <button class="btn btn-outline-secondary btn-sm ms-3" onclick="goBackToOptions()">
+                        <i class="fas fa-arrow-left"></i> Change Option
+                    </button>
+                </div>
+                
+                <!-- Transcription Video Detection (for Option B) -->
+                <div id="transcriptionVideoDetected" class="alert alert-info" style="display: none;">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Transcription video detected!</strong> 
+                    You can use the video you uploaded for transcription, or upload a new one below.
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-primary" onclick="useTranscriptionVideo()">
+                            <i class="fas fa-recycle"></i> Use Transcription Video
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="file-upload" id="videoUpload">
+                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                    <p class="mb-2">Drop video file here or click to browse</p>
+                    <p class="text-muted small">Supported formats: MP4, MOV</p>
+                    <input type="file" id="videoFile" accept="video/*" style="display: none;">
+                </div>
+                
+                <div id="videoInfo" class="mt-3" style="display: none;">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check"></i> <span id="videoSuccessMessage">Video uploaded successfully!</span>
+                        
+                        <!-- AI Vocal Removal Status (for Option B) -->
+                        <div id="vocalRemovalInfo" class="mt-3 p-3 border-top" style="display: none;">
+                            <div class="alert alert-warning alert-sm mb-3">
+                                <i class="fas fa-magic"></i> <strong>AI vocal removal will be applied</strong> during mixing to remove vocals from this video.
+                            </div>
+                            
+                            <!-- Vocal Removal Model Selection -->
+                            <div class="vocal-model-selection">
+                                <h6><i class="fas fa-brain"></i> AI Model Selection</h6>
+                                <p class="text-muted small">Choose the AI model for vocal removal quality vs speed:</p>
+                                
+                                <div class="form-group">
+                                    <select id="vocalModelSelect" class="form-select">
+                                        <option value="htdemucs_ft">DEMUCS v4 (High Quality)</option>
+                                        <option value="replicate_all_in_one">Replicate All-in-One Audio (Best)</option>
+                                    </select>
+                                </div>
+                                
+                                <div id="modelInfo" class="mt-2">
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <small class="text-muted">Quality:</small><br>
+                                            <span id="modelQuality" class="badge bg-info">-</span>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Speed:</small><br>
+                                            <span id="modelSpeed" class="badge bg-info">-</span>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Recommended:</small><br>
+                                            <span id="modelRecommended" class="badge bg-secondary">-</span>
+                                        </div>
+                                    </div>
+                                    <p id="modelDescription" class="text-muted small mt-2"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mix Audio Button -->
+        <div class="section text-center">
+            <h3><i class="fas fa-music"></i> 8. Final Audio Mixing</h3>
+            <button class="btn btn-primary btn-lg" onclick="mixAudio()">
+                <i class="fas fa-magic"></i> Mix Audio with Video
+            </button>
+        </div>
+
+        <!-- Final Videos -->
+        <div id="videosSection" class="section" style="display: none;">
+            <h3><i class="fas fa-video"></i> Final Videos</h3>
+            
+            <div class="text-center mb-3">
+                <button class="btn btn-success btn-lg" onclick="downloadAll()">
+                    <i class="fas fa-download"></i> Download All Videos (ZIP)
+                </button>
+            </div>
+            
+            <div id="videosGrid"></div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading" class="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3" id="loadingText">Processing...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedLanguages = [];
+        let translations = {};
+        let audioFiles = {};
+        let mixedVideos = {};
+        let selectedVideoOption = null;
+        let hasTranscriptionVideo = false;
+        let availableVocalModels = {};
+        let selectedVocalModel = null;
+
+        // Critical UI functions - defined early for onclick handlers
+        function toggleLanguage(langCode) {
+            const card = document.querySelector(`[data-lang="${langCode}"]`);
+            const index = selectedLanguages.indexOf(langCode);
+            
+            if (index > -1) {
+                selectedLanguages.splice(index, 1);
+                card.classList.remove('selected');
+            } else {
+                selectedLanguages.push(langCode);
+                card.classList.add('selected');
+            }
+            
+            updateSelectedCount();
+        }
+
+        function selectAll() {
+            selectedLanguages = [];
+            document.querySelectorAll('.language-card').forEach(card => {
+                card.classList.add('selected');
+                selectedLanguages.push(card.dataset.lang);
+            });
+            updateSelectedCount();
+        }
+
+        function clearAll() {
+            selectedLanguages = [];
+            document.querySelectorAll('.language-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            updateSelectedCount();
+        }
+
+        function selectPreset(preset) {
+            selectedLanguages = [];
+            document.querySelectorAll('.language-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            const presets = {
+                'asian': ['JP', 'CN', 'KR', 'ID', 'TH', 'VN', 'MY'],
+                'european': ['DE', 'FR', 'IT', 'ES', 'PL', 'TR'],
+                'americas': ['ES', 'BR', 'FR'],
+                'top5': ['BR', 'ES', 'KR', 'JP', 'FR']
+            };
+            
+            selectedLanguages = presets[preset] || [];
+            selectedLanguages.forEach(lang => {
+                const card = document.querySelector(`[data-lang="${lang}"]`);
+                if (card) card.classList.add('selected');
+            });
+            
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const count = selectedLanguages.length;
+            const element = document.getElementById('selectedCount');
+            if (element) {
+                element.textContent = `Selected ${count} language(s): ${selectedLanguages.map(lang => lang).join(', ')}`;
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupFileUploads();
+            setupVolumeSliders();
+            updateSelectedCount();
+            initializeVocalModels();
+        });
+
+        // File upload setup
+        function setupFileUploads() {
+            // Transcription upload
+            const transcriptionUpload = document.getElementById('transcriptionUpload');
+            const transcriptionFile = document.getElementById('transcriptionFile');
+            
+            transcriptionUpload.addEventListener('click', () => transcriptionFile.click());
+            transcriptionUpload.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                transcriptionUpload.classList.add('dragover');
+            });
+            transcriptionUpload.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                transcriptionUpload.classList.add('dragover');
+            });
+            transcriptionUpload.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Only remove dragover if we're leaving the upload area
+                if (!transcriptionUpload.contains(e.relatedTarget)) {
+                    transcriptionUpload.classList.remove('dragover');
+                }
+            });
+            transcriptionUpload.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                transcriptionUpload.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    transcriptionFile.files = files;
+                    // Trigger change event manually
+                    const event = new Event('change', { bubbles: true });
+                    transcriptionFile.dispatchEvent(event);
+                }
+            });
+            transcriptionFile.addEventListener('change', () => {
+                if (transcriptionFile.files.length > 0) {
+                    // Update display without removing the file input
+                    const icon = transcriptionUpload.querySelector('i');
+                    const text = transcriptionUpload.querySelector('p');
+                    const smallText = transcriptionUpload.querySelector('.small');
+                    
+                    // Determine file type and set appropriate icon
+                    const fileName = transcriptionFile.files[0].name.toLowerCase();
+                    const isAudioFile = fileName.match(/\.(mp3|wav|m4a|aac|ogg|flac|wma)$/);
+                    
+                    if (isAudioFile) {
+                        if (icon) icon.className = 'fas fa-file-audio fa-3x text-success mb-3';
+                        if (smallText) smallText.textContent = 'Click "Transcribe Media" to process audio file';
+                    } else {
+                        if (icon) icon.className = 'fas fa-file-video fa-3x text-success mb-3';
+                        if (smallText) smallText.textContent = 'Click "Transcribe Media" to process video file';
+                    }
+                    
+                    if (text) text.textContent = transcriptionFile.files[0].name;
+                }
+            });
+
+            // Video upload
+            const videoUpload = document.getElementById('videoUpload');
+            const videoFile = document.getElementById('videoFile');
+            
+            videoUpload.addEventListener('click', () => videoFile.click());
+            videoUpload.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                videoUpload.classList.add('dragover');
+            });
+            videoUpload.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                videoUpload.classList.add('dragover');
+            });
+            videoUpload.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Only remove dragover if we're leaving the upload area
+                if (!videoUpload.contains(e.relatedTarget)) {
+                    videoUpload.classList.remove('dragover');
+                }
+            });
+            videoUpload.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                videoUpload.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    videoFile.files = files;
+                    // Trigger change event manually
+                    const event = new Event('change', { bubbles: true });
+                    videoFile.dispatchEvent(event);
+                }
+            });
+            videoFile.addEventListener('change', () => {
+                if (videoFile.files.length > 0) {
+                    // Update display without removing the file input
+                    const icon = videoUpload.querySelector('i');
+                    const text = videoUpload.querySelector('p');
+                    const smallText = videoUpload.querySelector('.small');
+                    
+                    if (icon) icon.className = 'fas fa-file-video fa-3x text-success mb-3';
+                    if (text) text.textContent = videoFile.files[0].name;
+                    if (smallText) smallText.textContent = 'Video ready for mixing';
+                    
+                    // Show appropriate success message and options based on selected video option
+                    const successMessage = document.getElementById('videoSuccessMessage');
+                    const vocalRemovalInfo = document.getElementById('vocalRemovalInfo');
+                    
+                    if (selectedVideoOption === 'vocal') {
+                        successMessage.textContent = 'Video uploaded successfully! AI vocal removal will be applied.';
+                        vocalRemovalInfo.style.display = 'block';
+                    } else {
+                        successMessage.textContent = 'SFX-only video uploaded successfully!';
+                        vocalRemovalInfo.style.display = 'none';
+                    }
+                    
+                    document.getElementById('videoInfo').style.display = 'block';
+                }
+            });
+        }
+
+        // Volume sliders
+        function setupVolumeSliders() {
+            const originalVolume = document.getElementById('originalVolume');
+            const voiceoverVolume = document.getElementById('voiceoverVolume');
+            
+            originalVolume.addEventListener('input', (e) => {
+                document.getElementById('originalVolumeValue').textContent = e.target.value;
+            });
+            
+            voiceoverVolume.addEventListener('input', (e) => {
+                document.getElementById('voiceoverVolumeValue').textContent = e.target.value;
+            });
+        }
+
+        // Initialize vocal models with hardcoded data (backup) and API data
+        function initializeVocalModels() {
+            // Set hardcoded fallback models
+            availableVocalModels = {
+                "htdemucs_ft": {
+                    "name": "DEMUCS v4 (High Quality)",
+                    "description": "Latest DEMUCS with transformers - excellent quality",
+                    "quality": "Excellent",
+                    "speed": "Medium",
+                    "recommended": true
+                },
+                "replicate_all_in_one": {
+                    "name": "Replicate All-in-One Audio (Best)",
+                    "description": "AI Music Structure Analyzer + Stem Splitter using Demucs & Mdx-Net",
+                    "quality": "Outstanding",
+                    "speed": "Fast",
+                    "recommended": true
+                }
+            };
+            selectedVocalModel = 'htdemucs_ft';
+            
+            // Set up the selector with hardcoded data first
+            setupModelSelector();
+            updateModelInfo(selectedVocalModel);
+            
+            // Try to load from API to get latest data
+            loadVocalModels();
+        }
+
+        // Vocal model management
+        async function loadVocalModels() {
+            try {
+                const response = await fetch('/api/vocal-models');
+                const data = await response.json();
+                
+                if (data.success && data.models) {
+                    // Update with API data if available
+                    availableVocalModels = data.models;
+                    selectedVocalModel = data.default_model || 'htdemucs_ft';
+                    updateModelInfo(selectedVocalModel);
+                }
+            } catch (error) {
+                console.log('Using fallback vocal models');
+                // Keep the hardcoded fallback data
+            }
+        }
+
+        function populateModelSelector() {
+            // Options are now hardcoded in HTML, so we just need to set the selected value
+            const select = document.getElementById('vocalModelSelect');
+            if (select && selectedVocalModel) {
+                select.value = selectedVocalModel;
+            }
+            updateModelInfo(selectedVocalModel);
+        }
+
+        function setupModelSelector() {
+            const select = document.getElementById('vocalModelSelect');
+            if (!select) return;
+            
+            // Set the default selected value
+            select.value = selectedVocalModel || 'htdemucs_ft';
+            
+            select.addEventListener('change', (e) => {
+                selectedVocalModel = e.target.value;
+                updateModelInfo(selectedVocalModel);
+            });
+            
+            // Update model info for initial selection
+            updateModelInfo(selectedVocalModel || 'htdemucs_ft');
+        }
+
+        function updateModelInfo(modelId) {
+            if (!modelId || !availableVocalModels[modelId]) return;
+            
+            const modelConfig = availableVocalModels[modelId];
+            
+            // Update quality badge
+            const qualityElement = document.getElementById('modelQuality');
+            if (qualityElement) {
+                qualityElement.textContent = modelConfig.quality;
+                qualityElement.className = `badge ${getQualityBadgeClass(modelConfig.quality)}`;
+            }
+            
+            // Update speed badge
+            const speedElement = document.getElementById('modelSpeed');
+            if (speedElement) {
+                speedElement.textContent = modelConfig.speed;
+                speedElement.className = `badge ${getSpeedBadgeClass(modelConfig.speed)}`;
+            }
+            
+            // Update recommended badge
+            const recommendedElement = document.getElementById('modelRecommended');
+            if (recommendedElement) {
+                recommendedElement.textContent = modelConfig.recommended ? 'Yes' : 'No';
+                recommendedElement.className = `badge ${modelConfig.recommended ? 'bg-success' : 'bg-secondary'}`;
+            }
+            
+            // Update description
+            const descriptionElement = document.getElementById('modelDescription');
+            if (descriptionElement) {
+                descriptionElement.textContent = modelConfig.description;
+            }
+        }
+
+        function getQualityBadgeClass(quality) {
+            switch (quality.toLowerCase()) {
+                case 'outstanding': return 'bg-success';
+                case 'excellent': return 'bg-success';
+                case 'very good': return 'bg-primary';
+                case 'good': return 'bg-info';
+                default: return 'bg-secondary';
+            }
+        }
+
+        function getSpeedBadgeClass(speed) {
+            switch (speed.toLowerCase()) {
+                case 'fast': return 'bg-success';
+                case 'medium': return 'bg-warning';
+                case 'slow': return 'bg-danger';
+                default: return 'bg-secondary';
+            }
+        }
+
+
+
+        // Transcription
+        window.transcribeMedia = async function() {
+            const fileInput = document.getElementById('transcriptionFile');
+            
+            if (!fileInput || !fileInput.files || !fileInput.files.length) {
+                alert('Please select a video or audio file first.');
+                return;
+            }
+
+            // Determine file type for user feedback
+            const fileName = fileInput.files[0].name.toLowerCase();
+            const isAudioFile = fileName.match(/\.(mp3|wav|m4a|aac|ogg|flac|wma)$/);
+            const fileType = isAudioFile ? 'audio' : 'video';
+
+            // Show progress indicator
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
+            button.disabled = true;
+            
+            showLoading(`Transcribing ${fileType}... This may take a moment.`);
+            
+            const formData = new FormData();
+            // Use 'video' parameter name for backward compatibility, backend handles both
+            formData.append('video', fileInput.files[0]);
+            
+            try {
+                const response = await fetch('/api/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                hideLoading();
+                
+                if (result.transcription) {
+                    document.getElementById('transcriptionText').textContent = result.transcription;
+                    document.getElementById('transcriptionResult').style.display = 'block';
+                    document.getElementById('textInput').value = result.transcription;
+                    
+                    // Mark that we have a transcription video available (only for video files)
+                    hasTranscriptionVideo = result.video_available_for_vocal_removal || false;
+                } else {
+                    alert(`Failed to transcribe ${fileType}: ` + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                hideLoading();
+                alert(`Error transcribing ${fileType}: ` + error.message);
+            } finally {
+                // Restore button
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        window.clearTranscription = function() {
+            document.getElementById('transcriptionText').textContent = '';
+            document.getElementById('transcriptionResult').style.display = 'none';
+            document.getElementById('textInput').value = '';
+            
+            // Clear the file input and reset transcription video flag
+            const fileInput = document.getElementById('transcriptionFile');
+            if (fileInput) {
+                fileInput.value = '';
+            }
+            hasTranscriptionVideo = false;
+            
+            // Reset upload area display without recreating the file input
+            const uploadArea = document.getElementById('transcriptionUpload');
+            const icon = uploadArea.querySelector('i');
+            const text = uploadArea.querySelector('p');
+            const smallText = uploadArea.querySelector('.small');
+            
+            if (icon) icon.className = 'fas fa-cloud-upload-alt fa-3x text-muted mb-3';
+            if (text) text.textContent = 'Drop video or audio file here or click to browse';
+            if (smallText) smallText.textContent = 'Video: MP4, MOV, AVI, MKV, WEBM | Audio: MP3, WAV, M4A, AAC, OGG, FLAC';
+            
+            // Hide transcription video detection if currently shown
+            document.getElementById('transcriptionVideoDetected').style.display = 'none';
+        }
+
+        // Translation
+        window.translateText = async function() {
+            const text = document.getElementById('textInput').value.trim();
+            const translationMode = document.querySelector('input[name="translationMode"]:checked').value;
+            
+            if (!text) {
+                alert('Please enter text to translate.');
+                return;
+            }
+            
+            if (selectedLanguages.length === 0) {
+                alert('Please select at least one language.');
+                return;
+            }
+            
+            // Show progress indicator
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Translating...';
+            button.disabled = true;
+            
+            showLoading('Translating text...');
+            
+            try {
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        languages: selectedLanguages,
+                        translation_mode: translationMode
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                hideLoading();
+                
+                if (result.translations) {
+                    translations = result.translations;
+                    displayTranslations();
+                } else {
+                    alert('Translation failed: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                hideLoading();
+                alert('Error translating text: ' + error.message);
+            } finally {
+                // Restore button
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        function displayTranslations() {
+            const grid = document.getElementById('translationsGrid');
+            grid.innerHTML = '';
+            
+            Object.entries(translations).forEach(([langCode, translation]) => {
+                const col = document.createElement('div');
+                col.className = 'col-md-6 mb-3';
+                col.innerHTML = `
+                    <div class="translation-result">
+                        <h6><strong>${getLanguageName(langCode)} (${langCode})</strong></h6>
+                        <p class="mb-0">${translation}</p>
+                    </div>
+                `;
+                grid.appendChild(col);
+            });
+            
+            document.getElementById('translationsSection').style.display = 'block';
+        }
+
+        // Voice generation
+        window.generateVoiceovers = async function() {
+            if (Object.keys(translations).length === 0) {
+                alert('Please translate text first.');
+                return;
+            }
+            
+            // Show progress indicator
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            button.disabled = true;
+            
+            showLoading('Generating voiceovers...');
+            
+            try {
+                const voiceId = document.getElementById('voiceSelect').value;
+                const response = await fetch('/api/generate-voice', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        translations: translations,
+                        voice_id: voiceId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                hideLoading();
+                
+                if (result.audio_files) {
+                    audioFiles = result.audio_files;
+                    displayAudioFiles();
+                } else {
+                    alert('Voice generation failed: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                hideLoading();
+                alert('Error generating voiceovers: ' + error.message);
+            } finally {
+                // Restore button
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        function displayAudioFiles() {
+            const grid = document.getElementById('audioGrid');
+            grid.innerHTML = '';
+            
+            Object.entries(audioFiles).forEach(([langCode, audioFile]) => {
+                const audioFileName = audioFile.split('/').pop();
+                const audioUrl = `/audio/${audioFileName}`;
+                
+                console.log(`Audio file: ${audioFile} -> URL: ${audioUrl}`);
+                
+                const col = document.createElement('div');
+                col.className = 'col-md-6 mb-3';
+                col.innerHTML = `
+                    <div class="translation-result">
+                        <h6><strong>${getLanguageName(langCode)} (${langCode})</strong></h6>
+                        <audio controls class="audio-player" onerror="console.error('Audio failed to load:', this.src)">
+                            <source src="${audioUrl}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                        <div class="mt-2">
+                            <small class="text-muted">File: ${audioFileName}</small>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(col);
+            });
+            
+            document.getElementById('audioSection').style.display = 'block';
+        }
+
+        // Video option selection functions
+        window.selectVideoOption = function(option) {
+            selectedVideoOption = option;
+            
+            // Hide option selection
+            document.getElementById('videoOptionSelection').style.display = 'none';
+            
+            // Show upload area
+            document.getElementById('videoUploadArea').style.display = 'block';
+            
+            // Update info based on selected option
+            const infoDiv = document.getElementById('selectedOptionInfo');
+            const transcriptionDetected = document.getElementById('transcriptionVideoDetected');
+            
+            if (option === 'sfx') {
+                infoDiv.className = 'alert alert-success mb-3';
+                infoDiv.innerHTML = '<i class="fas fa-music"></i> <strong>Option A selected:</strong> Upload your SFX-only video (music + sound effects, no vocals) for best quality results.';
+                transcriptionDetected.style.display = 'none';
+            } else if (option === 'vocal') {
+                infoDiv.className = 'alert alert-warning mb-3';
+                infoDiv.innerHTML = '<i class="fas fa-magic"></i> <strong>Option B selected:</strong> Upload a video with vocals - AI will remove them during mixing.';
+                
+                // Check if transcription video is available
+                checkTranscriptionVideo();
+            }
+        }
+        
+        function checkTranscriptionVideo() {
+            const transcriptionFile = document.getElementById('transcriptionFile');
+            const transcriptionDetected = document.getElementById('transcriptionVideoDetected');
+            
+            if (transcriptionFile && transcriptionFile.files && transcriptionFile.files.length > 0) {
+                hasTranscriptionVideo = true;
+                transcriptionDetected.style.display = 'block';
+            } else {
+                hasTranscriptionVideo = false;
+                transcriptionDetected.style.display = 'none';
+            }
+        }
+        
+        window.useTranscriptionVideo = function() {
+            const transcriptionFile = document.getElementById('transcriptionFile');
+            const videoFile = document.getElementById('videoFile');
+            
+            if (transcriptionFile && transcriptionFile.files && transcriptionFile.files.length > 0) {
+                // Copy the transcription file to the video file input
+                videoFile.files = transcriptionFile.files;
+                
+                // Update the upload area display
+                const uploadArea = document.getElementById('videoUpload');
+                const icon = uploadArea.querySelector('i');
+                const text = uploadArea.querySelector('p');
+                const smallText = uploadArea.querySelector('.small');
+                
+                if (icon) icon.className = 'fas fa-recycle fa-3x text-primary mb-3';
+                if (text) text.textContent = `Using: ${transcriptionFile.files[0].name}`;
+                if (smallText) smallText.textContent = 'Transcription video selected for vocal removal';
+                
+                // Show video info with appropriate message
+                document.getElementById('videoSuccessMessage').textContent = 'Using transcription video for vocal removal!';
+                document.getElementById('videoInfo').style.display = 'block';
+                document.getElementById('vocalRemovalInfo').style.display = 'block';
+                
+                // Hide the transcription detected message
+                document.getElementById('transcriptionVideoDetected').style.display = 'none';
+                
+                // Simulate a file change event to trigger normal processing
+                const event = new Event('change', { bubbles: true });
+                videoFile.dispatchEvent(event);
+            }
+        }
+        
+        window.goBackToOptions = function() {
+            // Reset selected option
+            selectedVideoOption = null;
+            
+            // Show option selection
+            document.getElementById('videoOptionSelection').style.display = 'block';
+            
+            // Hide upload area
+            document.getElementById('videoUploadArea').style.display = 'none';
+            
+            // Clear video file input
+            const videoFile = document.getElementById('videoFile');
+            if (videoFile) {
+                videoFile.value = '';
+            }
+            
+            // Reset upload area display
+            const uploadArea = document.getElementById('videoUpload');
+            const icon = uploadArea.querySelector('i');
+            const text = uploadArea.querySelector('p');
+            const smallText = uploadArea.querySelector('.small');
+            
+            if (icon) icon.className = 'fas fa-cloud-upload-alt fa-3x text-muted mb-3';
+            if (text) text.textContent = 'Drop video file here or click to browse';
+            if (smallText) smallText.textContent = 'Supported formats: MP4, MOV';
+            
+            // Hide video info
+            document.getElementById('videoInfo').style.display = 'none';
+            
+            // Hide transcription video detection
+            document.getElementById('transcriptionVideoDetected').style.display = 'none';
+            
+            // Clear any status messages
+            document.getElementById('selectedOptionInfo').innerHTML = '';
+            document.getElementById('vocalRemovalInfo').style.display = 'none';
+        }
+        
+        // Vocal removal functions (updated)
+        function toggleVocalRemoval() {
+            // This function is now deprecated - vocal removal is automatic based on option selection
+            console.log('Vocal removal is now automatic based on option selection');
+        }
+
+        // Video mixing
+        window.mixAudio = async function() {
+            const videoFile = document.getElementById('videoFile');
+            const transcriptionFile = document.getElementById('transcriptionFile');
+            
+            // Check if we have a video from either upload or transcription
+            if ((!videoFile || !videoFile.files || !videoFile.files.length) && 
+                (!transcriptionFile || !transcriptionFile.files || !transcriptionFile.files.length)) {
+                alert('Please upload a video file first (either for transcription or mixing).');
+                return;
+            }
+            
+            if (Object.keys(audioFiles).length === 0) {
+                alert('Please generate voiceovers first.');
+                return;
+            }
+            
+            // Show progress indicator
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mixing...';
+            button.disabled = true;
+            
+            showLoading('Mixing audio with video...');
+            
+            // Upload video first (if not already uploaded)
+            const formData = new FormData();
+            formData.append('video', videoFile.files[0]);
+            
+            try {
+                const uploadResponse = await fetch('/api/upload-video', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error(`HTTP error! status: ${uploadResponse.status}`);
+                }
+                
+                const uploadResult = await uploadResponse.json();
+                if (!uploadResult.success) {
+                    throw new Error(uploadResult.error);
+                }
+                
+                // Check if AI vocal removal is needed based on selected option
+                const useVocalRemoval = (selectedVideoOption === 'vocal');
+                
+                // If vocal removal is requested, process it first
+                if (useVocalRemoval) {
+                    const modelName = availableVocalModels[selectedVocalModel]?.name || selectedVocalModel;
+                    showLoading(`Removing vocals with AI (${modelName})... This may take 1-3 minutes. Please wait...`);
+                    
+                    // Add progress updates
+                    let progressInterval = setInterval(() => {
+                        const loadingText = document.getElementById('loadingText');
+                        if (loadingText) {
+                            const dots = loadingText.textContent.match(/\./g)?.length || 0;
+                            const newDots = '.'.repeat((dots + 1) % 4);
+                            const messages = [
+                                `Removing vocals with AI (${modelName})... This may take 1-3 minutes. Please wait${newDots}`,
+                                `Removing vocals with AI (${modelName})... Processing audio${newDots}`,
+                                `Removing vocals with AI (${modelName})... Separating vocals from instruments${newDots}`,
+                                `Removing vocals with AI (${modelName})... Almost done${newDots}`
+                            ];
+                            const messageIndex = Math.floor((Date.now() / 3000) % messages.length);
+                            loadingText.textContent = messages[messageIndex];
+                        }
+                    }, 1000);
+                    
+                    try {
+                        const removalResponse = await fetch('/api/remove-vocals', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                model_id: selectedVocalModel
+                            })
+                        });
+                        
+                        clearInterval(progressInterval);
+                    
+                        if (!removalResponse.ok) {
+                            throw new Error(`HTTP error! status: ${removalResponse.status}`);
+                        }
+                        
+                        const removalResult = await removalResponse.json();
+                        if (!removalResult.success) {
+                            hideLoading();
+                            alert('Vocal removal failed: ' + (removalResult.error || 'Unknown error'));
+                            return;
+                        }
+                        
+                        // Update status to show vocal removal completed
+                        const vocalRemovalInfo = document.getElementById('vocalRemovalInfo');
+                        if (vocalRemovalInfo) {
+                            const modelName = removalResult.model_used || availableVocalModels[selectedVocalModel]?.name || selectedVocalModel;
+                            vocalRemovalInfo.innerHTML = `
+                                <div class="alert alert-success alert-sm mb-0">
+                                    <i class="fas fa-check"></i> <strong>Vocals removed!</strong> Using instrumental version for mixing.<br>
+                                    <small class="text-muted">Model used: ${modelName}</small>
+                                </div>
+                            `;
+                            vocalRemovalInfo.style.display = 'block';
+                        }
+                    } catch (vocalError) {
+                        clearInterval(progressInterval);
+                        hideLoading();
+                        alert('Vocal removal failed: ' + vocalError.message);
+                        return;
+                    }
+                }
+                
+                // Mix audio
+                showLoading('Mixing audio with video...');
+                const originalVolume = document.getElementById('originalVolume').value;
+                const voiceoverVolume = document.getElementById('voiceoverVolume').value;
+                
+                const mixResponse = await fetch('/api/mix-audio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        original_volume: parseFloat(originalVolume),
+                        voiceover_volume: parseFloat(voiceoverVolume),
+                        use_vocal_removal: useVocalRemoval
+                    })
+                });
+                
+                if (!mixResponse.ok) {
+                    throw new Error(`HTTP error! status: ${mixResponse.status}`);
+                }
+                
+                const mixResult = await mixResponse.json();
+                hideLoading();
+                
+                if (mixResult.mixed_videos) {
+                    mixedVideos = mixResult.mixed_videos;
+                    displayVideos();
+                } else {
+                    alert('Audio mixing failed: ' + (mixResult.error || 'Unknown error'));
+                }
+            } catch (error) {
+                hideLoading();
+                alert('Error mixing audio: ' + error.message);
+            } finally {
+                // Restore button
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        function displayVideos() {
+            const grid = document.getElementById('videosGrid');
+            grid.innerHTML = '';
+            
+            Object.entries(mixedVideos).forEach(([langCode, videoPath]) => {
+                const videoFileName = videoPath.split('/').pop();
+                const videoUrl = `/video/${videoFileName}`;
+                
+                console.log(`Video file: ${videoPath} -> URL: ${videoUrl}`);
+                
+                const col = document.createElement('div');
+                col.className = 'col-md-6 mb-3';
+                col.innerHTML = `
+                    <div class="translation-result">
+                        <h6><strong>${getLanguageName(langCode)} (${langCode})</strong></h6>
+                        <video controls class="w-100" onerror="console.error('Video failed to load:', this.src)">
+                            <source src="${videoUrl}" type="video/mp4">
+                            Your browser does not support the video element.
+                        </video>
+                        <div class="mt-2">
+                            <a href="/download/${videoFileName}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                            <small class="text-muted d-block mt-1">File: ${videoFileName}</small>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(col);
+            });
+            
+            document.getElementById('videosSection').style.display = 'block';
+        }
+
+        // Download functions
+        window.downloadAll = async function() {
+            try {
+                window.location.href = '/api/download-all';
+            } catch (error) {
+                alert('Error downloading files: ' + error.message);
+            }
+        }
+
+        // Utility functions
+        function getLanguageName(code) {
+            const languageMap = {{ languages | tojson }};
+            return languageMap[code] || code;
+        }
+
+        function showLoading(text) {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

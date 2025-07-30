@@ -47,4 +47,16 @@ Thumbs.db
 # New additions
 temp-audio.m4a
 *.m4a
-*.pyc 
+*.pyc
+
+# Environment variables and sensitive files
+.env
+env.example
+
+# Temporary directories and test files
+temp_files/
+temp_transcription/
+test_output/
+
+# Model files (too large for git)
+vocal_models/ 

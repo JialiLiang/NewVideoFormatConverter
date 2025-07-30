@@ -212,10 +212,10 @@
         <div class="row justify-content-center">
             <div class="col-md-10 col-lg-8">
                 <div class="card">
-                    <div class="card-header">
-                        <h1 class="mb-0">🎥 Photoroom Video Format Converter</h1>
-                        <p class="mb-0 mt-2">Convert your videos to different formats with ease! 🎯 Smart dynamic adjustment - works perfectly whether your input is vertical, landscape, or square.</p>
-                    </div>
+                            <div class="card-header">
+            <h1 class="mb-0">🎥 Video Format Converter</h1>
+            <p class="mb-0 mt-2">Convert your videos to different formats with ease! 🎯 Smart dynamic adjustment - works perfectly whether your input is vertical, landscape, or square.</p>
+        </div>
                     <div class="card-body p-4">
                         <!-- Upload Section -->
                         <div class="mb-4">
@@ -295,6 +295,11 @@
                                 <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%">
                                     <span id="progressText">0%</span>
                                 </div>
+                            </div>
+                            <div class="text-center">
+                                <button type="button" class="btn btn-outline-danger" id="cancelBtn" onclick="cancelProcessing()">
+                                    <i class="fas fa-stop"></i> Cancel Processing
+                                </button>
                             </div>
                         </div>
 
@@ -689,6 +694,46 @@
             }
         }
 
+        async function cancelProcessing() {
+            if (!currentJobId) {
+                return;
+            }
+
+            const cancelBtn = document.getElementById('cancelBtn');
+            const originalText = cancelBtn.innerHTML;
+            cancelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelling...';
+            cancelBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/cancel/${currentJobId}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    clearInterval(statusInterval);
+                    hideStatus();
+                    convertBtn.disabled = false;
+                    currentJobId = null;
+                    
+                    const statusText = document.getElementById('statusText');
+                    statusText.textContent = 'Processing cancelled by user';
+                    document.getElementById('statusCard').style.display = 'block';
+                    
+                    setTimeout(() => {
+                        hideStatus();
+                    }, 3000);
+                } else {
+                    throw new Error('Failed to cancel job');
+                }
+            } catch (error) {
+                console.error('Error cancelling job:', error);
+                alert('Failed to cancel processing. Please try again.');
+            } finally {
+                cancelBtn.innerHTML = originalText;
+                cancelBtn.disabled = false;
+            }
+        }
+
         // Initialize format cards
         updateFormatCards();
         
@@ -697,6 +742,32 @@
             updateConvertButton();
             console.log('Initial state - Files:', selectedFiles.length, 'Checked formats:', document.querySelectorAll('.format-card input[type="checkbox"]:checked').length);
         }, 100);
+
+        // Add page exit cleanup
+        window.addEventListener('beforeunload', function(e) {
+            if (currentJobId && (statusInterval || processing_jobs)) {
+                // Cancel the job when user leaves the page
+                fetch(`/cancel/${currentJobId}`, {
+                    method: 'POST',
+                    keepalive: true  // Ensure request completes even if page is closing
+                }).catch(err => console.log('Cleanup request failed:', err));
+                
+                // Show confirmation dialog
+                e.preventDefault();
+                e.returnValue = 'Video processing is in progress. Are you sure you want to leave?';
+                return e.returnValue;
+            }
+        });
+
+        // Clean up when page becomes hidden (mobile/tab switching)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && currentJobId && statusInterval) {
+                console.log('Page hidden during processing, requesting cancellation...');
+                fetch(`/cancel/${currentJobId}`, {
+                    method: 'POST'
+                }).catch(err => console.log('Cleanup request failed:', err));
+            }
+        });
     </script>
 </body>
 </html> 

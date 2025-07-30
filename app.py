@@ -1,5 +1,6 @@
-from flask import Flask, render_template, request, jsonify, send_file, make_response
+from flask import Flask, render_template, request, jsonify, send_file, make_response, session, redirect, url_for
 import os
+import sys
 import tempfile
 import shutil
 import zipfile
@@ -15,20 +16,11 @@ import time
 import argparse
 from tools_config import get_active_tools
 
-# Import the video processing functions from the original file
-from video_converter import (
-    process_video,
-    get_video_metadata,
-    create_square_video,
-    create_square_blur_video,
-    create_landscape_video,
-    create_vertical_blur_video
-)
-
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
 app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 
 # Disable Flask's default request logging for cleaner output
 import logging as flask_logging
@@ -42,311 +34,321 @@ logging.basicConfig(
 )
 
 # Create a custom logger for our app
-app_logger = logging.getLogger('video_converter')
+app_logger = logging.getLogger('main_app')
 app_logger.setLevel(logging.INFO)
-
-# Store processing jobs in memory (in production, use Redis or similar)
-processing_jobs = {}
-job_lock = threading.Lock()
-
-ALLOWED_EXTENSIONS = {'mp4', 'mov'}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def generate_job_id():
-    return str(uuid.uuid4())
 
 @app.route('/')
 def index():
+    """Main landing page - redirect to video converter"""
+    return redirect('/video-converter')
+
+@app.route('/video-converter')
+def video_converter():
+    """Video converter tool"""
     from tools_config import TOOLS_CONFIG
     tools = get_active_tools()
     return render_template('index.html', tools=tools, tools_config=TOOLS_CONFIG)
+
+@app.route('/adlocalizer')
+def adlocalizer():
+    """AdLocalizer tool"""
+    from tools_config import TOOLS_CONFIG
+    tools = get_active_tools()
+    
+    # Import AdLocalizer specific data
+    LANGUAGES = {
+        "JP": "Japanese",
+        "CN": "Traditional Chinese",
+        "DE": "German",
+        "IN": "Hindi",
+        "FR": "French",
+        "KR": "Korean",
+        "BR": "Brazilian Portuguese",
+        "IT": "Italian",
+        "ES": "Spanish",
+        "ID": "Indonesian",
+        "TR": "Turkish",
+        "PH": "Filipino",
+        "PL": "Polish",
+        "SA": "Arabic",
+        "MY": "Malay",
+        "VN": "Vietnamese",
+        "TH": "Thai"
+    }
+    
+    VOICES = {
+        "1": {"name": "Tom Cruise", "id": "g60FwKJuhCJqbDCeuXjm"},
+        "2": {"name": "Doja Cat", "id": "E1c1pVuZVvPrme6B9ryw"},
+        "3": {"name": "Chris", "id": "iP95p4xoKVk53GoZ742B"}
+    }
+    
+    return render_template('adlocalizer.html', languages=LANGUAGES, voices=VOICES, tools=tools, tools_config=TOOLS_CONFIG)
+
+@app.route('/vocal-removal-test')
+def vocal_removal_test():
+    """Direct vocal removal testing page"""
+    return render_template('vocal_removal_test.html')
 
 @app.route('/health')
 def health_check():
     return jsonify({
         'status': 'healthy', 
         'timestamp': datetime.now().isoformat(),
-        'port': request.environ.get('SERVER_PORT', 'unknown')
+        'port': request.environ.get('SERVER_PORT', 'unknown'),
+        'services': ['video-converter', 'adlocalizer']
     })
 
-@app.route('/upload', methods=['POST'])
-def upload_files():
-    if 'files' not in request.files:
-        return jsonify({'error': 'No files uploaded'}), 400
-    
-    files = request.files.getlist('files')
-    formats = request.form.getlist('formats')
-    
-    if not files or not formats:
-        return jsonify({'error': 'No files or formats selected'}), 400
-    
-    # No file count limit - processing is sequential anyway
-    
-    # Validate files
-    valid_files = []
-    for file in files:
-        if file and file.filename and allowed_file(file.filename):
-            valid_files.append(file)
-    
-    if not valid_files:
-        return jsonify({'error': 'No valid video files uploaded'}), 400
-    
-    # Generate job ID
-    job_id = generate_job_id()
-    
-    # Create job directory
-    job_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
-    os.makedirs(job_dir, exist_ok=True)
-    
-    # Save uploaded files
-    input_files = []
-    for i, file in enumerate(valid_files):
-        filename = secure_filename(file.filename)
-        input_path = os.path.join(job_dir, f"input_{i}_{filename}")
-        file.save(input_path)
-        input_files.append({
-            'path': input_path,
-            'original_name': filename
-        })
-    
-    # Initialize job status
-    with job_lock:
-        processing_jobs[job_id] = {
-            'status': 'queued',
-            'progress': 0,
-            'total_tasks': len(input_files) * len(formats),
-            'completed_tasks': 0,
-            'results': [],
-            'errors': [],
-            'created_at': datetime.now().isoformat()
-        }
-    
-    # Start processing in background
-    thread = threading.Thread(
-        target=process_videos_background,
-        args=(job_id, input_files, formats, job_dir)
-    )
-    thread.daemon = True
-    thread.start()
-    
-    return jsonify({'job_id': job_id})
+@app.route('/api/test')
+def api_test():
+    return jsonify({'message': 'API routes are working', 'timestamp': datetime.now().isoformat()})
 
-def process_videos_background(job_id, input_files, formats, job_dir):
-    """Process videos in background thread"""
+# Import video converter routes
+from video_converter_app import (
+    upload_files, get_job_status, download_file, download_zip, 
+    cleanup_job, cancel_job, process_videos_background
+)
+
+# Import and register AdLocalizer routes directly
+@app.route('/api/translate', methods=['POST'])
+def api_translate():
+    print("=== API TRANSLATE ENDPOINT CALLED ===")
+    app.logger.info("API translate endpoint called")
     try:
-        with job_lock:
-            processing_jobs[job_id]['status'] = 'processing'
-        
-        output_dir = os.path.join(job_dir, 'outputs')
-        os.makedirs(output_dir, exist_ok=True)
-        
-        # Prepare conversion tasks
-        conversion_tasks = []
-        for input_file in input_files:
-            base_name = os.path.splitext(input_file['original_name'])[0]
-            
-            for format_type in formats:
-                if format_type == 'square':
-                    output_filename = f"{base_name}_square.mp4"
-                    format_name = "Square (1080x1080)"
-                elif format_type == 'square_blur':
-                    output_filename = f"{base_name}_square_blur.mp4"
-                    format_name = "Square with Blur (1080x1080)"
-                elif format_type == 'landscape':
-                    output_filename = f"{base_name}_landscape_blur.mp4"
-                    format_name = "Landscape with Blur (1920x1080)"
-                elif format_type == 'vertical':
-                    output_filename = f"{base_name}_vertical_blur.mp4"
-                    format_name = "Vertical with Blur (1080x1920)"
-                else:
-                    continue
-                
-                output_path = os.path.join(output_dir, output_filename)
-                conversion_tasks.append((
-                    input_file['path'],
-                    output_path,
-                    format_type,
-                    output_filename,
-                    input_file['original_name'],
-                    format_name
-                ))
-        
-        # Process videos one at a time (all formats for each video in parallel)
-        # This is more robust and prevents resource overload
-        
-        # Group tasks by input video
-        tasks_by_video = {}
-        for task in conversion_tasks:
-            input_path, output_path, format_type, output_filename, original_name, format_name = task
-            if input_path not in tasks_by_video:
-                tasks_by_video[input_path] = []
-            tasks_by_video[input_path].append(task)
-        
-        # Process each video sequentially, but all formats for that video in parallel
-        for video_path, video_tasks in tasks_by_video.items():
-            app_logger.info(f"Processing video: {os.path.basename(video_path)} ({len(video_tasks)} formats)")
-            
-            # Process all formats for this video in parallel (max 4 concurrent)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(video_tasks))) as executor:
-                futures = []
-                for task in video_tasks:
-                    input_path, output_path, format_type, output_filename, original_name, format_name = task
-                    future = executor.submit(process_video, input_path, output_path, format_type)
-                    futures.append((future, output_filename, output_path, original_name, format_name))
-                
-                # Wait for all formats of this video to complete
-                for future, output_filename, output_path, original_name, format_name in futures:
-                    try:
-                        success = future.result()
-                        
-                        with job_lock:
-                            processing_jobs[job_id]['completed_tasks'] += 1
-                            progress = (processing_jobs[job_id]['completed_tasks'] / processing_jobs[job_id]['total_tasks']) * 100
-                            processing_jobs[job_id]['progress'] = progress
-                            
-                            if success and os.path.exists(output_path):
-                                # Get video metadata
-                                try:
-                                    metadata = get_video_metadata(output_path)
-                                except:
-                                    metadata = {}
-                                
-                                processing_jobs[job_id]['results'].append({
-                                    'filename': output_filename,
-                                    'path': output_path,
-                                    'original_name': original_name,
-                                    'format_name': format_name,
-                                    'metadata': metadata
-                                })
-                            else:
-                                processing_jobs[job_id]['errors'].append(f"Failed to process {original_name} to {format_name}")
-                                
-                    except Exception as e:
-                        with job_lock:
-                            processing_jobs[job_id]['completed_tasks'] += 1
-                            processing_jobs[job_id]['errors'].append(f"Error processing {original_name} to {format_name}: {str(e)}")
-                        app_logger.error(f"Error in video processing: {str(e)}")
-            
-            app_logger.info(f"Completed processing video: {os.path.basename(video_path)}")
-        
-        # Mark job as completed
-        with job_lock:
-            processing_jobs[job_id]['status'] = 'completed'
-            processing_jobs[job_id]['progress'] = 100
-            
+        from adlocalizer_app import translate
+        result = translate()
+        print(f"Translation result: {result}")
+        return result
+    except ImportError as e:
+        print(f"Import error in translate: {e}")
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
     except Exception as e:
-        with job_lock:
-            processing_jobs[job_id]['status'] = 'error'
-            processing_jobs[job_id]['errors'].append(f"Processing failed: {str(e)}")
-        app_logger.error(f"Background processing error: {str(e)}")
+        print(f"Unexpected error in translate: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/status/<job_id>')
-def get_job_status(job_id):
-    with job_lock:
-        if job_id not in processing_jobs:
-            return jsonify({'error': 'Job not found'}), 404
-        
-        job_data = processing_jobs[job_id].copy()
-        # Don't send file paths to client for security, but keep them in the original data
-        if 'results' in job_data:
-            job_data['results'] = []
-            for result in processing_jobs[job_id]['results']:
-                safe_result = result.copy()
-                safe_result.pop('path', None)  # Remove path from the copy only
-                job_data['results'].append(safe_result)
-        
-        return jsonify(job_data)
+@app.route('/api/generate-voice', methods=['POST'])
+def api_generate_voice():
+    try:
+        from adlocalizer_app import generate_voice
+        return generate_voice()
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
 
-@app.route('/download/<job_id>/<filename>')
-def download_file(job_id, filename):
-    with job_lock:
-        if job_id not in processing_jobs:
-            return "Job not found", 404
-        
-        job = processing_jobs[job_id]
-        
-        # Find the file in results
-        file_path = None
-        for result in job['results']:
-            if result['filename'] == filename:
-                file_path = result.get('path')
-                break
-        
-        if not file_path or not os.path.exists(file_path):
-            return "File not found", 404
-        
-        return send_file(file_path, as_attachment=True, download_name=filename)
+@app.route('/api/upload-video', methods=['POST'])
+def api_upload_video():
+    try:
+        from adlocalizer_app import upload_video
+        return upload_video()
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
 
-@app.route('/download_zip/<job_id>')
-def download_zip(job_id):
-    with job_lock:
-        if job_id not in processing_jobs:
-            return "Job not found", 404
-        
-        job = processing_jobs[job_id]
-        
-        if job['status'] != 'completed' or not job['results']:
-            return "No files to download", 400
-        
-        # Create ZIP file
-        zip_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{job_id}_videos.zip")
-        
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
-            for result in job['results']:
-                # Use the stored path directly from the job data
-                file_path = result.get('path')
-                if file_path and os.path.exists(file_path):
-                    zipf.write(file_path, arcname=result['filename'])
-        
-        return send_file(zip_path, as_attachment=True, download_name="converted_videos.zip")
+@app.route('/api/remove-vocals', methods=['POST'])
+def api_remove_vocals():
+    print("=== API REMOVE VOCALS ENDPOINT CALLED ===")
+    app.logger.info("API remove vocals endpoint called")
+    try:
+        from adlocalizer_app import remove_vocals
+        result = remove_vocals()
+        print(f"Vocal removal result: {result}")
+        return result
+    except ImportError as e:
+        print(f"Import error: {e}")
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/cleanup/<job_id>', methods=['POST'])
-def cleanup_job(job_id):
-    """Clean up job files and data"""
-    with job_lock:
-        if job_id in processing_jobs:
-            # Remove job directory
-            job_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
-            if os.path.exists(job_dir):
-                shutil.rmtree(job_dir)
+@app.route('/api/vocal-models', methods=['GET'])
+def api_get_vocal_models():
+    """Get available vocal removal models"""
+    try:
+        print("=== VOCAL MODELS API ENDPOINT CALLED ===")
+        
+        # Force clear any cached imports and reload
+        import sys
+        if 'vocal_models_config' in sys.modules:
+            del sys.modules['vocal_models_config']
+        
+        import vocal_models_config
+        from vocal_models_config import get_available_models, get_default_model, check_replicate_available, VOCAL_REMOVAL_MODELS
+        
+        print(f"DEBUG: All defined models: {list(VOCAL_REMOVAL_MODELS.keys())}")
+        print(f"DEBUG: Replicate available: {check_replicate_available()}")
+        
+        models = get_available_models()
+        default_model = get_default_model()
+        
+        print(f"DEBUG: Available models returned: {list(models.keys())}")
+        print(f"DEBUG: Default model: {default_model}")
+        
+        return jsonify({
+            'success': True,
+            'models': models,
+            'default_model': default_model
+        })
+    except ImportError as e:
+        print(f"Import error: {e}")
+        return jsonify({'error': 'Vocal models configuration not available'}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/test-vocal-removal', methods=['POST'])
+def api_test_vocal_removal():
+    """Test endpoint for vocal removal - direct testing without full workflow"""
+    try:
+        from adlocalizer_app import remove_vocals_from_video
+        from vocal_models_config import get_available_models, get_default_model
+        import tempfile
+        import shutil
+        
+        # Get the uploaded video file
+        if 'video' not in request.files:
+            return jsonify({'error': 'No video file uploaded'}), 400
+        
+        video_file = request.files['video']
+        if video_file.filename == '':
+            return jsonify({'error': 'No video file selected'}), 400
+        
+        # Get model selection
+        model_id = request.form.get('model_id', get_default_model())
+        
+        # Validate model
+        available_models = get_available_models()
+        if model_id not in available_models:
+            return jsonify({'error': f'Invalid model: {model_id}'}), 400
+        
+        # Create temporary directory for processing
+        temp_dir = tempfile.mkdtemp()
+        video_path = os.path.join(temp_dir, secure_filename(video_file.filename))
+        video_file.save(video_path)
+        
+        try:
+            # Process vocal removal
+            instrumental_path = remove_vocals_from_video(video_path, temp_dir, model_id)
             
-            # Remove from memory
-            del processing_jobs[job_id]
-            
-            return jsonify({'message': 'Job cleaned up successfully'})
-        else:
-            return jsonify({'error': 'Job not found'}), 404
+            if instrumental_path and os.path.exists(instrumental_path):
+                # Return the processed file
+                return send_file(
+                    instrumental_path,
+                    as_attachment=True,
+                    download_name=f"instrumental_{os.path.basename(video_file.filename)}"
+                )
+            else:
+                return jsonify({'error': 'Vocal removal failed - no output file generated'}), 500
+                
+        finally:
+            # Clean up temporary files
+            try:
+                shutil.rmtree(temp_dir)
+            except:
+                pass
+                
+    except Exception as e:
+        print(f"Test vocal removal error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
-# Cleanup old jobs periodically (in production, use a proper task queue)
-def cleanup_old_jobs():
-    """Remove jobs older than 1 hour"""
-    cutoff_time = datetime.now().timestamp() - 3600  # 1 hour ago
-    
-    with job_lock:
-        jobs_to_remove = []
-        for job_id, job_data in processing_jobs.items():
-            job_time = datetime.fromisoformat(job_data['created_at']).timestamp()
-            if job_time < cutoff_time:
-                jobs_to_remove.append(job_id)
-        
-        for job_id in jobs_to_remove:
-            job_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
-            if os.path.exists(job_dir):
-                shutil.rmtree(job_dir)
-            del processing_jobs[job_id]
-            app_logger.info(f"Cleaned up old job: {job_id}")
+@app.route('/api/mix-audio', methods=['POST'])
+def api_mix_audio():
+    try:
+        from adlocalizer_app import mix_audio
+        return mix_audio()
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
 
-# Schedule cleanup every hour
-def schedule_cleanup():
-    while True:
-        time.sleep(3600)  # 1 hour
-        cleanup_old_jobs()
+@app.route('/api/transcribe', methods=['POST'])
+def api_transcribe():
+    try:
+        from adlocalizer_app import transcribe
+        return transcribe()
+    except ImportError as e:
+        import traceback
+        logging.error(f"Import error: {str(e)}")
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'AdLocalizer functionality not available: {str(e)}'}), 500
+    except Exception as e:
+        import traceback
+        logging.error(f"Other error in api_transcribe: {str(e)}")
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
 
-cleanup_thread = threading.Thread(target=schedule_cleanup)
-cleanup_thread.daemon = True
-cleanup_thread.start()
+@app.route('/audio/<path:filepath>')
+def api_serve_audio(filepath):
+    try:
+        from adlocalizer_app import serve_audio
+        return serve_audio(filepath)
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
+
+@app.route('/video/<path:filepath>')
+def api_serve_video(filepath):
+    try:
+        from adlocalizer_app import serve_video
+        return serve_video(filepath)
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
+
+@app.route('/api/download-all')
+def api_download_all():
+    try:
+        from adlocalizer_app import download_all_adlocalizer
+        return download_all_adlocalizer()
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
+
+# Register video converter routes
+app.add_url_rule('/upload', 'upload_files', upload_files, methods=['POST'])
+app.add_url_rule('/status/<job_id>', 'get_job_status', get_job_status)
+app.add_url_rule('/download/<job_id>/<filename>', 'download_file', download_file)
+app.add_url_rule('/download_zip/<job_id>', 'download_zip', download_zip)
+app.add_url_rule('/cleanup/<job_id>', 'cleanup_job', cleanup_job, methods=['POST'])
+app.add_url_rule('/cancel/<job_id>', 'cancel_job', cancel_job, methods=['POST'])
+
+# Add AdLocalizer download route with different path to avoid conflicts
+@app.route('/adlocalizer/download/<filename>')
+def download_adlocalizer_file_route(filename):
+    try:
+        from adlocalizer_app import download_adlocalizer_file
+        return download_adlocalizer_file(filename)
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
+
+# Import WIP tool routes
+@app.route('/static-generator')
+def static_generator():
+    from tools_config import TOOLS_CONFIG
+    tools = get_active_tools()
+    return render_template('wip_tool.html', 
+                         tool_name="Static Generator", 
+                         tool_description="Generate static content and assets",
+                         tool_icon="fas fa-file-code",
+                         tools=tools, 
+                         tools_config=TOOLS_CONFIG)
+
+@app.route('/hook-remixer')
+def hook_remixer():
+    from tools_config import TOOLS_CONFIG
+    tools = get_active_tools()
+    return render_template('wip_tool.html', 
+                         tool_name="Hook Remixer", 
+                         tool_description="AI-powered music hook generation and remixing",
+                         tool_icon="fas fa-music",
+                         tools=tools, 
+                         tools_config=TOOLS_CONFIG)
+
+@app.route('/montage-maker')
+def montage_maker():
+    from tools_config import TOOLS_CONFIG
+    tools = get_active_tools()
+    return render_template('wip_tool.html', 
+                         tool_name="Montage Maker", 
+                         tool_description="Automated video montage creation",
+                         tool_icon="fas fa-film",
+                         tools=tools, 
+                         tools_config=TOOLS_CONFIG)
 
 if __name__ == '__main__':
     # For Railway deployment, use PORT environment variable
@@ -360,8 +362,9 @@ if __name__ == '__main__':
     # Use Railway's PORT if available, otherwise use command line args
     final_port = int(os.environ.get('PORT', args.port))
     
-    print(f"Starting Flask app on port {final_port}")
+    print(f"Starting Main Flask app on port {final_port}")
     print(f"Environment PORT: {os.environ.get('PORT', 'Not set')}")
+    print(f"Available services: Video Converter, AdLocalizer")
     
     try:
         app.run(host='0.0.0.0', port=final_port, debug=False)

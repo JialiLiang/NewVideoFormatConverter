@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocal Removal Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        .upload-area.dragover {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .model-card {
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .model-card:hover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        .model-card.selected {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        .quality-badge {
+            font-size: 0.8em;
+            padding: 4px 8px;
+        }
+        .progress-container {
+            display: none;
+        }
+        .result-container {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="fas fa-microphone-slash"></i> 
+                    Vocal Removal Test
+                </h1>
+                <p class="text-muted">Test AI vocal removal models directly without the full translation workflow.</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <!-- Model Selection -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-brain"></i> Select AI Model</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="modelSelection">
+                            <div class="text-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading models...</span>
+                                </div>
+                                <p class="mt-2">Loading available models...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Upload -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-upload"></i> Upload Video</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-area" id="uploadArea">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                            <h5>Drop video file here</h5>
+                            <p class="text-muted">or click to browse</p>
+                            <input type="file" id="videoFile" accept="video/*" style="display: none;">
+                        </div>
+                        <div id="fileInfo" class="mt-3" style="display: none;">
+                            <div class="alert alert-info">
+                                <i class="fas fa-file-video"></i>
+                                <strong id="fileName"></strong>
+                                <button class="btn btn-sm btn-outline-danger float-end" onclick="clearFile()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <!-- Processing Status -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cogs"></i> Processing</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="processingStatus" class="text-center">
+                            <p class="text-muted">Upload a video and select a model to start</p>
+                        </div>
+                        
+                        <div id="progressContainer" class="progress-container">
+                            <div class="progress mb-3">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <p id="progressText" class="text-center">Initializing...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-download"></i> Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultContainer" class="result-container">
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i>
+                                <strong>Vocal removal completed!</strong>
+                            </div>
+                            <div class="d-grid">
+                                <button class="btn btn-primary" id="downloadBtn">
+                                    <i class="fas fa-download"></i> Download Instrumental
+                                </button>
+                            </div>
+                        </div>
+                        <div id="errorContainer" class="alert alert-danger" style="display: none;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Error:</strong> <span id="errorMessage"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedModel = null;
+        let selectedFile = null;
+        let availableModels = {};
+
+        // Load models on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadModels();
+            setupFileUpload();
+        });
+
+        async function loadModels() {
+            try {
+                const response = await fetch('/api/vocal-models');
+                const data = await response.json();
+                
+                if (data.success) {
+                    availableModels = data.models;
+                    selectedModel = data.default_model;
+                    populateModelSelection();
+                } else {
+                    showError('Failed to load models: ' + data.error);
+                }
+            } catch (error) {
+                showError('Error loading models: ' + error.message);
+            }
+        }
+
+        function populateModelSelection() {
+            const container = document.getElementById('modelSelection');
+            container.innerHTML = '';
+
+            Object.entries(availableModels).forEach(([modelId, model]) => {
+                const card = document.createElement('div');
+                card.className = `model-card ${modelId === selectedModel ? 'selected' : ''}`;
+                card.onclick = () => selectModel(modelId);
+                
+                card.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">${model.name}</h6>
+                            <p class="text-muted small mb-2">${model.description}</p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-info quality-badge">${model.quality}</span>
+                            <span class="badge bg-warning quality-badge">${model.speed}</span>
+                            ${model.recommended ? '<span class="badge bg-success quality-badge">Recommended</span>' : ''}
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        function selectModel(modelId) {
+            selectedModel = modelId;
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+        }
+
+        function setupFileUpload() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('videoFile');
+
+            uploadArea.onclick = () => fileInput.click();
+            
+            uploadArea.ondragover = (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            };
+            
+            uploadArea.ondragleave = () => {
+                uploadArea.classList.remove('dragover');
+            };
+            
+            uploadArea.ondrop = (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileSelect(files[0]);
+                }
+            };
+
+            fileInput.onchange = (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            };
+        }
+
+        function handleFileSelect(file) {
+            if (!file.type.startsWith('video/')) {
+                showError('Please select a video file');
+                return;
+            }
+
+            selectedFile = file;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileInfo').style.display = 'block';
+            
+            // Enable processing if model is selected
+            if (selectedModel) {
+                enableProcessing();
+            }
+        }
+
+        function clearFile() {
+            selectedFile = null;
+            document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('videoFile').value = '';
+            disableProcessing();
+        }
+
+        function enableProcessing() {
+            if (selectedFile && selectedModel) {
+                document.getElementById('processingStatus').innerHTML = `
+                    <div class="d-grid">
+                        <button class="btn btn-primary" onclick="startProcessing()">
+                            <i class="fas fa-play"></i> Start Vocal Removal
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function disableProcessing() {
+            document.getElementById('processingStatus').innerHTML = `
+                <p class="text-muted">Upload a video and select a model to start</p>
+            `;
+        }
+
+        async function startProcessing() {
+            if (!selectedFile || !selectedModel) {
+                showError('Please select both a video file and a model');
+                return;
+            }
+
+            // Show progress
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('processingStatus').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'none';
+            document.getElementById('errorContainer').style.display = 'none';
+
+            const progressBar = document.querySelector('.progress-bar');
+            const progressText = document.getElementById('progressText');
+            
+            // Simulate progress updates
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress > 90) progress = 90;
+                progressBar.style.width = progress + '%';
+                progressText.textContent = `Processing with ${availableModels[selectedModel].name}... ${Math.round(progress)}%`;
+            }, 500);
+
+            try {
+                const formData = new FormData();
+                formData.append('video', selectedFile);
+                formData.append('model_id', selectedModel);
+
+                const response = await fetch('/api/test-vocal-removal', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+                progressText.textContent = 'Processing complete!';
+
+                if (response.ok) {
+                    // Download the file
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `instrumental_${selectedFile.name}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+
+                    // Show success
+                    setTimeout(() => {
+                        document.getElementById('progressContainer').style.display = 'none';
+                        document.getElementById('resultContainer').style.display = 'block';
+                        document.getElementById('processingStatus').style.display = 'block';
+                        enableProcessing();
+                    }, 1000);
+
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Processing failed');
+                }
+
+            } catch (error) {
+                clearInterval(progressInterval);
+                document.getElementById('progressContainer').style.display = 'none';
+                document.getElementById('processingStatus').style.display = 'block';
+                showError(error.message);
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorContainer').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('errorContainer').style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html> 
