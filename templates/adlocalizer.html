@@ -379,12 +379,11 @@
                         <div class="card h-100 border-success" style="cursor: pointer;" onclick="selectVideoOption('sfx')">
                             <div class="card-body text-center">
                                 <h5 class="card-title">
-                                    🎵 Option A: SFX-Only Video
+                                    🎵 Option A
                                     <span class="badge bg-success ms-2">⭐⭐⭐ Recommended</span>
                                 </h5>
                                 <p class="card-text">
-                                    Upload a video with <strong>music + sound effects only</strong> (no vocals)<br>
-                                    <small class="text-success"><i class="fas fa-check-circle"></i> Best quality - No vocal removal needed</small>
+                                    Upload SFX-only version of your video
                                 </p>
                             </div>
                         </div>
@@ -394,12 +393,11 @@
                         <div class="card h-100 border-success" style="cursor: pointer;" onclick="selectVideoOption('custom')">
                             <div class="card-body text-center">
                                 <h5 class="card-title">
-                                    🎼 Option B: Custom Music Remix
+                                    🎼 Option B
                                     <span class="badge bg-success ms-2">⭐⭐ Recommended</span>
                                 </h5>
                                 <p class="card-text">
-                                    Upload a video and <strong>replace the music</strong> with your own track<br>
-                                    <small class="text-success"><i class="fas fa-music"></i> Full music replacement + voice mixing</small>
+                                    Upload video + replace with new music
                                 </p>
                             </div>
                         </div>
@@ -409,12 +407,11 @@
                         <div class="card h-100 border-warning" style="cursor: pointer;" onclick="selectVideoOption('vocal')">
                             <div class="card-body text-center">
                                 <h5 class="card-title">
-                                    🎤 Option C: Video with Vocals
+                                    🎤 Option C
                                     <span class="badge bg-warning ms-2">Not recommended, since it's WIP</span>
                                 </h5>
                                 <p class="card-text">
-                                    Upload a video with vocals and <strong>use AI to remove them</strong><br>
-                                    <small class="text-warning"><i class="fas fa-magic"></i> AI processing required</small>
+                                    AI removes vocals from your video
                                 </p>
                             </div>
                         </div>
@@ -1167,17 +1164,17 @@
             
             if (option === 'sfx') {
                 infoDiv.className = 'alert alert-success mb-3';
-                infoDiv.innerHTML = '<i class="fas fa-music"></i> <strong>Option A selected:</strong> Upload your SFX-only video (music + sound effects, no vocals) for best quality results.';
+                infoDiv.innerHTML = '<i class="fas fa-music"></i> <strong>Option A:</strong> Upload SFX-only version of your video';
                 transcriptionDetected.style.display = 'none';
                 if (customMusicArea) customMusicArea.style.display = 'none';
             } else if (option === 'custom') {
                 infoDiv.className = 'alert alert-success mb-3';
-                infoDiv.innerHTML = '<i class="fas fa-music"></i> <strong>Option B selected:</strong> Upload a video and your custom music track - the original audio will be replaced with your music + voice-over.';
+                infoDiv.innerHTML = '<i class="fas fa-music"></i> <strong>Option B:</strong> Upload video + replace with new music';
                 transcriptionDetected.style.display = 'none';
                 if (customMusicArea) customMusicArea.style.display = 'block';
             } else if (option === 'vocal') {
                 infoDiv.className = 'alert alert-warning mb-3';
-                infoDiv.innerHTML = '<i class="fas fa-magic"></i> <strong>Option C selected:</strong> Upload a video with vocals - AI will remove them during mixing.';
+                infoDiv.innerHTML = '<i class="fas fa-magic"></i> <strong>Option C:</strong> AI removes vocals from your video';
                 
                 // Check if transcription video is available
                 checkTranscriptionVideo();
