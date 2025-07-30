@@ -240,20 +240,74 @@ def transcribe_video(video_file_path):
         logging.error(f"Error in transcribe_video function: {str(e)}")
         return None
 
-def mix_audio_with_video(audio_file, video_file, output_file, original_volume=0.8, voiceover_volume=1.3, use_instrumental=False):
+def get_video_duration(video_file):
+    """Get video duration in seconds"""
+    try:
+        probe = ffmpeg.probe(str(video_file))
+        duration = float(probe['streams'][0]['duration'])
+        return duration
+    except Exception as e:
+        logging.error(f"Error getting video duration: {str(e)}")
+        return None
+
+def mix_audio_with_video(audio_file, video_file, output_file, original_volume=0.8, voiceover_volume=1.3, use_instrumental=False, custom_music_file=None):
     """Mix audio with video using ffmpeg-python"""
     try:
         video = ffmpeg.input(str(video_file))
-        audio = ffmpeg.input(str(audio_file))
+        audio = ffmpeg.input(str(audio_file)) if audio_file else None
         
-        # If using instrumental version, we don't need to lower the original volume as much
-        if use_instrumental:
-            original_volume = min(original_volume * 1.5, 1.0)  # Boost instrumental audio a bit
-        
-        mixed_audio = ffmpeg.filter([
-            ffmpeg.filter(video.audio, 'volume', original_volume),
-            ffmpeg.filter(audio, 'volume', voiceover_volume)
-        ], 'amix', inputs=2, duration='first')
+        if custom_music_file:
+            # Custom music mode: replace original audio entirely with custom music + voiceover
+            # Get video duration to match music duration
+            video_duration = get_video_duration(video_file)
+            if video_duration is None:
+                logging.error("Could not determine video duration, using original music duration")
+                custom_music = ffmpeg.input(str(custom_music_file))
+            else:
+                # Process custom music to match video duration
+                custom_music = ffmpeg.input(str(custom_music_file))
+                
+                # Get music duration
+                try:
+                    music_probe = ffmpeg.probe(str(custom_music_file))
+                    music_duration = float(music_probe['streams'][0]['duration'])
+                    
+                    if music_duration < video_duration:
+                        # Music is shorter than video - loop it
+                        loops_needed = int(video_duration / music_duration) + 1
+                        custom_music = ffmpeg.filter(custom_music, 'aloop', loop=loops_needed-1, size=2**31-1)
+                        # Trim to exact video duration
+                        custom_music = ffmpeg.filter(custom_music, 'atrim', duration=video_duration)
+                    elif music_duration > video_duration:
+                        # Music is longer than video - trim it
+                        custom_music = ffmpeg.filter(custom_music, 'atrim', duration=video_duration)
+                    # If durations match, use as-is
+                    
+                except Exception as e:
+                    logging.warning(f"Could not process music duration, using original: {str(e)}")
+                    custom_music = ffmpeg.input(str(custom_music_file))
+            
+            # Mix custom music with voiceover, ensuring final duration matches video
+            if audio_file and Path(audio_file).exists() and audio:
+                # Mix custom music with voiceover - music should play for full video duration
+                mixed_audio = ffmpeg.filter([
+                    ffmpeg.filter(custom_music, 'volume', original_volume),
+                    ffmpeg.filter(audio, 'volume', voiceover_volume)
+                ], 'amix', inputs=2, duration='first')  # Use 'first' to preserve music duration
+            else:
+                # No voiceover - just use custom music at specified volume
+                mixed_audio = ffmpeg.filter(custom_music, 'volume', original_volume)
+            
+        else:
+            # Original mode: mix voiceover with original/instrumental video audio
+            # If using instrumental version, we don't need to lower the original volume as much
+            if use_instrumental:
+                original_volume = min(original_volume * 1.5, 1.0)  # Boost instrumental audio a bit
+            
+            mixed_audio = ffmpeg.filter([
+                ffmpeg.filter(video.audio, 'volume', original_volume),
+                ffmpeg.filter(audio, 'volume', voiceover_volume)
+            ], 'amix', inputs=2, duration='first')
         
         ffmpeg.output(
             video.video,
@@ -395,6 +449,59 @@ def upload_video():
         return jsonify({'success': True, 'filename': video_file.filename})
     except Exception as e:
         logging.error(f"Video upload error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+def upload_custom_music():
+    try:
+        use_default = request.form.get('use_default', 'false').lower() == 'true'
+        
+        # Create session-specific directories
+        session_id = session.get('session_id', str(uuid.uuid4()))
+        session['session_id'] = session_id
+        
+        base_dir = Path(f"temp_files/{session_id}")
+        music_dir = base_dir / "custom_music"
+        music_dir.mkdir(parents=True, exist_ok=True)
+        
+        if use_default:
+            # Use the default music file
+            default_music_path = Path("/Users/jiali/Documents/NewVideoFormatConverter/rapbeatL.mp3")
+            if not default_music_path.exists():
+                return jsonify({'error': 'Default music file not found'}), 404
+            
+            # Copy default music to session directory
+            import shutil
+            custom_music_path = music_dir / "rapbeatL.mp3"
+            shutil.copy2(str(default_music_path), str(custom_music_path))
+            
+            session['custom_music_path'] = str(custom_music_path)
+            return jsonify({'success': True, 'filename': 'rapbeatL.mp3 (default)', 'is_default': True})
+        
+        else:
+            # Handle uploaded music file
+            if 'music' not in request.files:
+                return jsonify({'error': 'No music file provided'}), 400
+            
+            music_file = request.files['music']
+            if music_file.filename == '':
+                return jsonify({'error': 'No music file selected'}), 400
+            
+            # Validate file type
+            file_extension = music_file.filename.lower().split('.')[-1]
+            audio_extensions = {'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac', 'wma'}
+            
+            if file_extension not in audio_extensions:
+                return jsonify({'error': f'Unsupported audio format: .{file_extension}. Please upload: {", ".join(audio_extensions)}'}), 400
+            
+            # Save music file
+            custom_music_path = music_dir / music_file.filename
+            music_file.save(str(custom_music_path))
+            
+            session['custom_music_path'] = str(custom_music_path)
+            return jsonify({'success': True, 'filename': music_file.filename, 'is_default': False})
+    
+    except Exception as e:
+        logging.error(f"Custom music upload error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def separate_vocals_demucs(audio_file, output_dir):
@@ -819,15 +926,28 @@ def mix_audio():
         original_volume = data.get('original_volume', 0.8)
         voiceover_volume = data.get('voiceover_volume', 1.3)
         use_vocal_removal = data.get('use_vocal_removal', False)
+        use_custom_music = data.get('use_custom_music', False)
         
         audio_files = session.get('audio_files', {})
         video_path = session.get('video_path')
         
-        if not audio_files or not video_path:
-            return jsonify({'error': 'Audio files and video path are required'}), 400
+        # For custom music, we don't need audio files - we can just replace the video's audio
+        if use_custom_music:
+            if not video_path:
+                return jsonify({'error': 'Video path is required'}), 400
+        else:
+            if not audio_files or not video_path:
+                return jsonify({'error': 'Audio files and video path are required'}), 400
         
-        # Use instrumental video if vocal removal was requested and is available
-        if use_vocal_removal:
+        # Handle custom music option
+        custom_music_path = None
+        if use_custom_music:
+            custom_music_path = session.get('custom_music_path')
+            if not custom_music_path or not os.path.exists(custom_music_path):
+                return jsonify({'error': 'Custom music not available. Please upload a music file first.'}), 400
+        
+        # Use instrumental video if vocal removal was requested and is available (not used with custom music)
+        elif use_vocal_removal:
             instrumental_video_path = session.get('instrumental_video_path')
             if instrumental_video_path and os.path.exists(instrumental_video_path):
                 video_path = instrumental_video_path
@@ -843,14 +963,31 @@ def mix_audio():
         mixed_videos = {}
         video_filename = Path(video_path).name
         
-        for lang_code, audio_file in audio_files.items():
-            suffix = "_instrumental" if use_vocal_removal else ""
-            output_file = export_dir / f"{video_filename.split('.')[0]}_{lang_code}{suffix}.mp4"
-            if mix_audio_with_video(audio_file, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal):
-                mixed_videos[lang_code] = str(output_file)
+        # Handle custom music without voiceovers
+        if use_custom_music and not audio_files:
+            # Create a single output with just custom music (no voiceover)
+            suffix = "_custom_music"
+            output_file = export_dir / f"{video_filename.split('.')[0]}{suffix}.mp4"
+            # Use None as audio_file to indicate no voiceover
+            if mix_audio_with_video(None, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal, custom_music_path):
+                mixed_videos['custom_music'] = str(output_file)
+        else:
+            # Normal case: loop through audio files (voiceovers)
+            for lang_code, audio_file in audio_files.items():
+                if use_custom_music:
+                    suffix = "_custom_music"
+                elif use_vocal_removal:
+                    suffix = "_instrumental"  
+                else:
+                    suffix = ""
+                    
+                output_file = export_dir / f"{video_filename.split('.')[0]}_{lang_code}{suffix}.mp4"
+                if mix_audio_with_video(audio_file, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal, custom_music_path):
+                    mixed_videos[lang_code] = str(output_file)
         
         session['mixed_videos'] = mixed_videos
         session['used_vocal_removal'] = use_vocal_removal
+        session['used_custom_music'] = use_custom_music
         return jsonify({'mixed_videos': mixed_videos})
     except Exception as e:
         logging.error(f"Audio mixing error: {str(e)}")

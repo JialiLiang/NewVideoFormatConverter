@@ -259,6 +259,14 @@ def api_mix_audio():
     except ImportError:
         return jsonify({'error': 'AdLocalizer functionality not available'}), 500
 
+@app.route('/api/upload-custom-music', methods=['POST'])
+def api_upload_custom_music():
+    try:
+        from adlocalizer_app import upload_custom_music
+        return upload_custom_music()
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
+
 @app.route('/api/transcribe', methods=['POST'])
 def api_transcribe():
     try:
