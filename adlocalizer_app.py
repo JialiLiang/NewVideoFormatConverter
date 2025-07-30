@@ -22,34 +22,111 @@ from vocal_models_config import (
     validate_model_id
 )
 
-# Load environment variables
+# Load environment variables (for local development)
 load_dotenv()
+
+# Configure logging for console output
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler(),  # This ensures output goes to console
+    ]
+)
+
+# Debug environment variables on startup
+logging.info("🔧 Environment Variable Debug Info:")
+logging.info(f"   - NODE_ENV: {os.getenv('NODE_ENV', 'Not set')}")
+logging.info(f"   - RENDER: {os.getenv('RENDER', 'Not set')}")
+logging.info(f"   - PYTHON_VERSION: {os.getenv('PYTHON_VERSION', 'Not set')}")
+logging.info(f"   - Environment type: {'Production' if os.getenv('RENDER') else 'Local'}")
+
+# List all environment variables that start with common prefixes (for debugging)
+env_vars = dict(os.environ)
+relevant_vars = []
+for key in env_vars.keys():
+    if any(prefix in key.upper() for prefix in ['OPENAI', 'ELEVEN', 'API', 'KEY', 'SECRET', 'TOKEN']):
+        # Don't show the actual values for security
+        relevant_vars.append(key)
+
+if relevant_vars:
+    logging.info(f"🔍 Found {len(relevant_vars)} potentially relevant environment variables:")
+    for var in sorted(relevant_vars):
+        logging.info(f"   - {var}: {'✅ Set' if os.getenv(var) else '❌ Empty'}")
+else:
+    logging.warning("⚠️  No API-related environment variables found")
+    logging.info(f"📊 Total environment variables available: {len(env_vars)}")
 
 # Get API keys for AdLocalizer
 def get_secret(key):
-    """Get secret from environment variable"""
+    """Get secret from environment variable with enhanced debugging"""
     value = os.getenv(key)
+    
+    # Enhanced debugging for Render.com
     if not value:
-        logging.warning(f"Missing API Key: {key} - AdLocalizer features will not work")
+        logging.warning(f"❌ Missing API Key: {key}")
+        
+        # Check if we're on Render.com
+        if os.getenv('RENDER'):
+            logging.warning(f"   🚨 Running on Render.com but {key} not found!")
+            logging.warning(f"   💡 Please check your Render.com environment variables:")
+            logging.warning(f"      1. Go to your Render.com dashboard")
+            logging.warning(f"      2. Select your service")
+            logging.warning(f"      3. Go to Environment tab")
+            logging.warning(f"      4. Verify {key} is set correctly")
+        else:
+            logging.warning(f"   💡 Running locally - check your .env file or set {key} directly")
+        
+        logging.warning(f"   - AdLocalizer features will not work without {key}")
         return None
-    return value
+    else:
+        # Mask the key for security (show first 8 characters)
+        masked_key = value[:8] + "*" * (len(value) - 8) if len(value) > 8 else "*" * len(value)
+        logging.info(f"✅ Found API Key: {key} = {masked_key}")
+        return value
 
 # Initialize API clients (only if keys are available)
 openai_client = None
 eleven_labs_client = None
+
+logging.info("🚀 Initializing API clients...")
 
 try:
     openai_api_key = get_secret("OPENAI_API_KEY")
     elevenlabs_api_key = get_secret("ELEVENLABS_API_KEY")
     
     if openai_api_key:
+        logging.info("🤖 Initializing OpenAI client...")
         openai_client = OpenAI(api_key=openai_api_key)
+        logging.info("✅ OpenAI client initialized successfully")
+    else:
+        logging.warning("⚠️  OpenAI client not initialized - missing API key")
+        
     if elevenlabs_api_key:
+        logging.info("🎙️  Initializing ElevenLabs client...")
         from elevenlabs.client import ElevenLabs
         eleven_labs_client = ElevenLabs(api_key=elevenlabs_api_key)
+        logging.info("✅ ElevenLabs client initialized successfully")
+    else:
+        logging.warning("⚠️  ElevenLabs client not initialized - missing API key")
         
 except Exception as e:
-    logging.warning(f"Error initializing API clients: {e}")
+    logging.error(f"❌ Error initializing API clients: {e}")
+    import traceback
+    logging.error(f"🔍 Traceback: {traceback.format_exc()}")
+
+# Summary of initialization
+logging.info("📊 API Client Initialization Summary:")
+logging.info(f"   - OpenAI client: {'✅ Ready' if openai_client else '❌ Not available'}")
+logging.info(f"   - ElevenLabs client: {'✅ Ready' if eleven_labs_client else '❌ Not available'}")
+
+if not openai_client and not eleven_labs_client:
+    logging.warning("⚠️  NO API CLIENTS INITIALIZED - AdLocalizer features will be disabled")
+elif openai_client and eleven_labs_client:
+    logging.info("🎉 ALL API CLIENTS READY - Full AdLocalizer functionality available")
+else:
+    logging.info("⚡ PARTIAL API CLIENTS READY - Some AdLocalizer features available")
 
 # Voice options for AdLocalizer
 VOICES = {
@@ -178,6 +255,9 @@ def generate_elevenlabs_voice(text, language_code, output_directory, english_ide
 def extract_audio_from_video(video_path, output_audio_path):
     """Extract audio from video using ffmpeg"""
     try:
+        logging.info(f"🎵 Starting audio extraction from video: {Path(video_path).name}")
+        logging.info(f"📂 Output audio path: {output_audio_path}")
+        
         (
             ffmpeg
             .input(str(video_path))
@@ -185,59 +265,119 @@ def extract_audio_from_video(video_path, output_audio_path):
             .overwrite_output()
             .run(capture_stdout=True, capture_stderr=True)
         )
+        
+        # Check if output file was created
+        if Path(output_audio_path).exists():
+            file_size = Path(output_audio_path).stat().st_size / (1024 * 1024)  # MB
+            logging.info(f"✅ Audio extraction successful! Audio file size: {file_size:.2f} MB")
+        else:
+            logging.error("❌ Audio extraction failed - output file not created")
+            return False
+            
         return True
     except ffmpeg.Error as e:
-        logging.error(f"Error extracting audio: {e.stderr.decode() if e.stderr else str(e)}")
+        logging.error(f"❌ FFmpeg error during audio extraction: {e.stderr.decode() if e.stderr else str(e)}")
         return False
     except Exception as e:
-        logging.error(f"Error extracting audio: {str(e)}")
+        logging.error(f"❌ Error extracting audio: {str(e)}")
         return False
 
 def transcribe_audio(audio_file_path):
     """Transcribe audio using OpenAI Whisper"""
     if not openai_client:
+        logging.error("❌ OpenAI client not available for transcription")
         return None
         
     try:
+        # Get file info
+        file_size = Path(audio_file_path).stat().st_size / (1024 * 1024)  # MB
+        logging.info(f"🎤 Starting audio transcription with OpenAI Whisper")
+        logging.info(f"📁 Audio file: {Path(audio_file_path).name} ({file_size:.2f} MB)")
+        logging.info(f"🤖 Using model: whisper-1")
+        
+        import time
+        start_time = time.time()
+        
         with open(audio_file_path, "rb") as audio_file:
+            logging.info("📤 Sending audio to OpenAI Whisper API...")
             transcription = openai_client.audio.transcriptions.create(
                 file=audio_file,
                 model="whisper-1",
                 response_format="text",
                 prompt="This is a marketing video or advertisement. Please transcribe accurately."
             )
+        
+        processing_time = time.time() - start_time
+        transcription_length = len(transcription) if transcription else 0
+        
+        logging.info(f"✅ Transcription completed successfully!")
+        logging.info(f"⏱️  Processing time: {processing_time:.2f} seconds")
+        logging.info(f"📝 Transcription length: {transcription_length} characters")
+        if transcription:
+            preview = transcription[:100] + "..." if len(transcription) > 100 else transcription
+            logging.info(f"📖 Preview: {preview}")
+        
         return transcription
     except Exception as e:
-        logging.error(f"Error transcribing audio: {str(e)}")
+        logging.error(f"❌ Error transcribing audio: {str(e)}")
         return None
 
 def transcribe_video(video_file_path):
     """Complete transcription workflow for video file"""
     try:
+        logging.info(f"🎬 Starting video transcription workflow")
+        logging.info(f"📹 Input video: {Path(video_file_path).name}")
+        
+        # Get video file info
+        video_size = Path(video_file_path).stat().st_size / (1024 * 1024)  # MB
+        logging.info(f"📊 Video file size: {video_size:.2f} MB")
+        
+        import time
+        workflow_start_time = time.time()
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         temp_dir = Path("temp_transcription")
         temp_dir.mkdir(exist_ok=True)
+        logging.info(f"📁 Created temp directory: {temp_dir}")
         
         temp_audio_path = temp_dir / f"temp_audio_{timestamp}.wav"
         
+        # Step 1: Extract audio
+        logging.info("🔄 Step 1/2: Extracting audio from video...")
         if not extract_audio_from_video(video_file_path, temp_audio_path):
+            logging.error("❌ Audio extraction failed - aborting transcription")
             return None
         
+        # Step 2: Transcribe audio
+        logging.info("🔄 Step 2/2: Transcribing extracted audio...")
         transcription = transcribe_audio(temp_audio_path)
         
         # Clean up temporary files
+        logging.info("🧹 Cleaning up temporary files...")
         try:
-            os.remove(temp_audio_path)
+            if temp_audio_path.exists():
+                os.remove(temp_audio_path)
+                logging.info(f"🗑️  Removed temp audio file: {temp_audio_path.name}")
+            
             if temp_dir.exists() and not any(temp_dir.iterdir()):
                 temp_dir.rmdir()
+                logging.info(f"🗑️  Removed empty temp directory")
         except Exception as e:
-            logging.warning(f"Error cleaning up temp files: {str(e)}")
+            logging.warning(f"⚠️  Error cleaning up temp files: {str(e)}")
+        
+        total_time = time.time() - workflow_start_time
+        
+        if transcription:
+            logging.info(f"🎉 Video transcription completed successfully!")
+            logging.info(f"⏱️  Total workflow time: {total_time:.2f} seconds")
+        else:
+            logging.error(f"❌ Video transcription failed after {total_time:.2f} seconds")
         
         return transcription
         
     except Exception as e:
-        logging.error(f"Error in transcribe_video function: {str(e)}")
+        logging.error(f"❌ Error in transcribe_video function: {str(e)}")
         return None
 
 def get_video_duration(video_file):
@@ -995,20 +1135,35 @@ def mix_audio():
 
 def transcribe():
     try:
+        logging.info("=" * 60)
+        logging.info("🚀 TRANSCRIPTION REQUEST RECEIVED")
+        logging.info("=" * 60)
+        
         # Accept both 'video' and 'audio' file parameters for backward compatibility and new functionality
         media_file = None
+        file_param_used = None
+        
         if 'video' in request.files:
             media_file = request.files['video']
+            file_param_used = 'video'
         elif 'audio' in request.files:
             media_file = request.files['audio']
+            file_param_used = 'audio'
         elif 'file' in request.files:
             media_file = request.files['file']
+            file_param_used = 'file'
+        
+        logging.info(f"📋 File parameter used: {file_param_used}")
         
         if not media_file:
+            logging.error("❌ No media file provided in request")
             return jsonify({'error': 'No media file provided. Please upload a video or audio file.'}), 400
         
         if media_file.filename == '':
+            logging.error("❌ Empty filename provided")
             return jsonify({'error': 'No media file selected'}), 400
+        
+        logging.info(f"📄 Original filename: {media_file.filename}")
         
         # Determine file type based on extension
         file_extension = media_file.filename.lower().split('.')[-1]
@@ -1018,59 +1173,110 @@ def transcribe():
         is_video = file_extension in video_extensions
         is_audio = file_extension in audio_extensions
         
+        logging.info(f"🏷️  File extension: .{file_extension}")
+        logging.info(f"📹 Is video: {is_video}")
+        logging.info(f"🎵 Is audio: {is_audio}")
+        
         if not (is_video or is_audio):
+            logging.error(f"❌ Unsupported file format: .{file_extension}")
             return jsonify({'error': f'Unsupported file format: .{file_extension}. Please upload a video file (mp4, mov, avi, mkv, webm, flv, m4v) or audio file (mp3, wav, m4a, aac, ogg, flac, wma).'}), 400
         
         # Create session-specific directories
         session_id = session.get('session_id', str(uuid.uuid4()))
         session['session_id'] = session_id
+        logging.info(f"🔑 Session ID: {session_id}")
         
         base_dir = Path(f"temp_files/{session_id}")
         transcription_dir = base_dir / "transcription"
         transcription_dir.mkdir(parents=True, exist_ok=True)
+        logging.info(f"📁 Created transcription directory: {transcription_dir}")
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        logging.info(f"⏰ Timestamp: {timestamp}")
         
         # Check if OpenAI client is available
         if not openai_client:
+            logging.error("❌ OpenAI client not initialized - API key missing")
             return jsonify({'error': 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.'}), 500
         
+        logging.info("✅ OpenAI client is available")
+        
         # Check file size (limit to 100MB for practical upload limits)
+        logging.info("📏 Checking file size...")
         file_size_mb = len(media_file.read()) / (1024 * 1024)
         media_file.seek(0)  # Reset file pointer
+        logging.info(f"📊 File size: {file_size_mb:.2f} MB")
         
         if file_size_mb > 100:
+            logging.error(f"❌ File size ({file_size_mb:.1f}MB) exceeds 100MB limit")
             return jsonify({
                 'error': f'File size ({file_size_mb:.1f}MB) exceeds 100MB limit. Please use a smaller file.'
             }), 400
         
+        logging.info("✅ File size check passed")
+        
         transcription = None
         video_available_for_vocal_removal = False
         
+        import time
+        processing_start_time = time.time()
+        
         if is_video:
+            logging.info("🎬 Processing VIDEO file...")
             # Handle video files (existing workflow)
             temp_video_path = transcription_dir / f"transcription_video_{timestamp}_{media_file.filename}"
+            logging.info(f"💾 Saving video to: {temp_video_path}")
             media_file.save(str(temp_video_path))
+            
+            # Verify file was saved
+            if temp_video_path.exists():
+                saved_size = temp_video_path.stat().st_size / (1024 * 1024)  # MB
+                logging.info(f"✅ Video saved successfully ({saved_size:.2f} MB)")
+            else:
+                logging.error("❌ Failed to save video file")
+                return jsonify({'error': 'Failed to save uploaded video file'}), 500
             
             # Store the transcription video path for later use
             session['transcription_video_path'] = str(temp_video_path)
             video_available_for_vocal_removal = True
             
             # Transcribe video (extracts audio first)
+            logging.info("🎵 Starting video transcription workflow...")
             transcription = transcribe_video(temp_video_path)
             
         elif is_audio:
+            logging.info("🎵 Processing AUDIO file...")
             # Handle audio files directly
             temp_audio_path = transcription_dir / f"transcription_audio_{timestamp}_{media_file.filename}"
+            logging.info(f"💾 Saving audio to: {temp_audio_path}")
             media_file.save(str(temp_audio_path))
+            
+            # Verify file was saved
+            if temp_audio_path.exists():
+                saved_size = temp_audio_path.stat().st_size / (1024 * 1024)  # MB
+                logging.info(f"✅ Audio saved successfully ({saved_size:.2f} MB)")
+            else:
+                logging.error("❌ Failed to save audio file")
+                return jsonify({'error': 'Failed to save uploaded audio file'}), 500
             
             # Store the transcription audio path for reference
             session['transcription_audio_path'] = str(temp_audio_path)
             
             # Transcribe audio directly
+            logging.info("🎤 Starting audio transcription...")
             transcription = transcribe_audio(temp_audio_path)
         
+        total_processing_time = time.time() - processing_start_time
+        
         if transcription:
+            logging.info("=" * 60)
+            logging.info("🎉 TRANSCRIPTION COMPLETED SUCCESSFULLY!")
+            logging.info(f"⏱️  Total processing time: {total_processing_time:.2f} seconds")
+            logging.info(f"📝 Transcription length: {len(transcription)} characters")
+            logging.info(f"🔧 Vocal removal available: {video_available_for_vocal_removal}")
+            logging.info(f"📄 File type processed: {'video' if is_video else 'audio'}")
+            logging.info("=" * 60)
+            
             return jsonify({
                 'transcription': transcription,
                 'video_available_for_vocal_removal': video_available_for_vocal_removal,
@@ -1078,11 +1284,22 @@ def transcribe():
             })
         else:
             file_type = 'video' if is_video else 'audio'
+            logging.error("=" * 60)
+            logging.error("❌ TRANSCRIPTION FAILED!")
+            logging.error(f"⏱️  Total processing time: {total_processing_time:.2f} seconds")
+            logging.error(f"📄 File type: {file_type}")
+            logging.error(f"💾 File size: {file_size_mb:.2f} MB")
+            logging.error("=" * 60)
+            
             return jsonify({'error': f'Failed to transcribe {file_type}. Please check your OpenAI API key and try again.'}), 500
     except Exception as e:
-        logging.error(f"Transcription error: {str(e)}")
+        logging.error("=" * 60)
+        logging.error("💥 TRANSCRIPTION ERROR - EXCEPTION OCCURRED!")
+        logging.error(f"❌ Error: {str(e)}")
+        logging.error("🔍 Full traceback:")
         import traceback
-        logging.error(f"Traceback: {traceback.format_exc()}")
+        logging.error(traceback.format_exc())
+        logging.error("=" * 60)
         return jsonify({'error': str(e)}), 500
 
 def download_adlocalizer_file(filename):

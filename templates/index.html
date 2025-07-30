@@ -127,6 +127,7 @@
             text-align: center;
             transition: all 0.3s ease;
             background: #f8f9fa;
+            cursor: pointer;
         }
         .upload-area:hover {
             border-color: #667eea;
@@ -223,6 +224,7 @@
                             <div class="upload-area" id="uploadArea">
                                 <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-muted"></i>
                                 <p class="mb-3">Drag and drop your videos here</p>
+                                <p class="mb-0 text-muted"><small>or click to browse files</small></p>
                                 <input type="file" id="fileInput" multiple accept=".mp4,.mov" class="d-none">
                             </div>
                             <div id="fileList" class="mt-3"></div>
@@ -339,6 +341,7 @@
         let currentJobId = null;
         let statusInterval = null;
         let knownResults = new Set(); // Track which results we've already shown
+        let allowNavigation = false; // Flag to allow navigation during downloads
 
         // File input handling
         const fileInput = document.getElementById('fileInput');
@@ -347,6 +350,7 @@
         const convertBtn = document.getElementById('convertBtn');
 
         fileInput.addEventListener('change', handleFiles);
+        uploadArea.addEventListener('click', () => fileInput.click());
         uploadArea.addEventListener('dragover', handleDragOver);
         uploadArea.addEventListener('drop', handleDrop);
         uploadArea.addEventListener('dragleave', handleDragLeave);
@@ -619,7 +623,7 @@
                                     </small>
                                 </div>
                                 <div class="col-md-4 text-end">
-                                    <a href="/download/${currentJobId}/${result.filename}" class="btn btn-success btn-sm">
+                                    <a href="/download/${currentJobId}/${result.filename}" class="btn btn-success btn-sm" onclick="allowNavigation = true; setTimeout(() => { allowNavigation = false; }, 1000);">
                                         <i class="fas fa-download"></i> Download Now
                                     </a>
                                 </div>
@@ -649,7 +653,10 @@
             
             // Setup download all button
             document.getElementById('downloadAllBtn').onclick = () => {
+                allowNavigation = true;
                 window.location.href = `/download_zip/${currentJobId}`;
+                // Reset flag after a short delay (in case download fails)
+                setTimeout(() => { allowNavigation = false; }, 1000);
             };
 
             if (status.errors && status.errors.length > 0) {
@@ -675,7 +682,7 @@
                                 </small>
                             </div>
                             <div class="col-md-4 text-end">
-                                <a href="/download/${currentJobId}/${result.filename}" class="btn btn-outline-primary btn-sm">
+                                <a href="/download/${currentJobId}/${result.filename}" class="btn btn-outline-primary btn-sm" onclick="allowNavigation = true; setTimeout(() => { allowNavigation = false; }, 1000);">
                                     <i class="fas fa-download"></i> Download
                                 </a>
                             </div>
@@ -685,7 +692,10 @@
 
                 // Setup download all button
                 document.getElementById('downloadAllBtn').onclick = () => {
+                    allowNavigation = true;
                     window.location.href = `/download_zip/${currentJobId}`;
+                    // Reset flag after a short delay (in case download fails)
+                    setTimeout(() => { allowNavigation = false; }, 1000);
                 };
             }
 
@@ -745,7 +755,13 @@
 
         // Add page exit cleanup
         window.addEventListener('beforeunload', function(e) {
-            if (currentJobId && (statusInterval || processing_jobs)) {
+            // Don't show popup if navigation is explicitly allowed (e.g., during downloads)
+            if (allowNavigation) {
+                return;
+            }
+            
+            // Only show popup if processing is actually active (statusInterval is running)
+            if (currentJobId && statusInterval) {
                 // Cancel the job when user leaves the page
                 fetch(`/cancel/${currentJobId}`, {
                     method: 'POST',
