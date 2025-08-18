@@ -62,6 +62,7 @@ def adlocalizer():
     
     # Import AdLocalizer specific data
     LANGUAGES = {
+        "EN": "English",
         "JP": "Japanese",
         "CN": "Traditional Chinese",
         "DE": "German",

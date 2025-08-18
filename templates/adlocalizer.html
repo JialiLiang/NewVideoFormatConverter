@@ -467,10 +467,17 @@
                     <div class="mt-3">
                         <div class="alert alert-info">
                             <i class="fas fa-lightbulb"></i> 
-                            <strong>Or use default music:</strong> 
-                            <button class="btn btn-sm btn-info ms-2" onclick="useDefaultMusic()">
-                                <i class="fas fa-play"></i> Use Default Beat (rapbeatL.mp3)
-                            </button>
+                            <strong>Or choose from default music:</strong>
+                            <div class="mt-2">
+                                <select class="form-select" id="defaultMusicSelect" onchange="selectDefaultMusic()">
+                                    <option value="">Select a default track...</option>
+                                    <option value="asitwasH.mp3">As It Was (Harry Styles)</option>
+                                    <option value="dilemma.mp3">Dilemma</option>
+                                    <option value="lastChristams.mp3">Last Christmas</option>
+                                    <option value="rapbeatL.mp3">Rap Beat L</option>
+                                    <option value="Violet.mp3">Violet</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1332,6 +1339,7 @@
                         showLoading('Setting up default music...');
                         const musicFormData = new FormData();
                         musicFormData.append('use_default', 'true');
+                        musicFormData.append('default_music_file', selectedDefaultMusic || 'rapbeatL.mp3');
                         
                         const musicResponse = await fetch('/api/upload-custom-music', {
                             method: 'POST',
@@ -1583,7 +1591,9 @@
         window.clearMusic = function() {
             customMusicFile = null;
             usingDefaultMusic = false;
+            selectedDefaultMusic = null;
             document.getElementById('musicFile').value = '';
+            document.getElementById('defaultMusicSelect').value = '';
             document.getElementById('musicInfo').style.display = 'none';
             
             const icon = document.querySelector('#musicUpload i');
@@ -1592,18 +1602,39 @@
             text.textContent = 'Drop music file here or click to browse';
         }
         
-        window.useDefaultMusic = function() {
+        let selectedDefaultMusic = null;
+
+        window.selectDefaultMusic = function() {
+            const select = document.getElementById('defaultMusicSelect');
+            const selectedFile = select.value;
+            
+            if (!selectedFile) {
+                clearMusic();
+                return;
+            }
+            
             customMusicFile = null;
             usingDefaultMusic = true;
+            selectedDefaultMusic = selectedFile;
             document.getElementById('musicFile').value = '';
             
-            document.getElementById('musicFileName').textContent = 'rapbeatL.mp3 (default)';
+            // Get the display name from the option text
+            const selectedOption = select.options[select.selectedIndex];
+            const displayName = selectedOption.text;
+            
+            document.getElementById('musicFileName').textContent = `${displayName} (default)`;
             document.getElementById('musicInfo').style.display = 'block';
             
             const icon = document.querySelector('#musicUpload i');
             const text = document.querySelector('#musicUpload p');
             icon.className = 'fas fa-check-circle fa-2x text-success mb-2';
-            text.textContent = 'Using default music: rapbeatL.mp3';
+            text.textContent = `Using default music: ${displayName}`;
+        }
+
+        window.useDefaultMusic = function() {
+            // Legacy function for backwards compatibility
+            document.getElementById('defaultMusicSelect').value = 'rapbeatL.mp3';
+            selectDefaultMusic();
         }
         
         // Initialize music upload when page loads

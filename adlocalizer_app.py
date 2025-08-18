@@ -604,18 +604,20 @@ def upload_custom_music():
         music_dir.mkdir(parents=True, exist_ok=True)
         
         if use_default:
-            # Use the default music file
-            default_music_path = Path("/Users/jiali/Documents/NewVideoFormatConverter/rapbeatL.mp3")
+            # Get the selected default music file
+            selected_music = request.form.get('default_music_file', 'rapbeatL.mp3')
+            default_music_path = Path(f"/Users/jiali/Documents/NewVideoFormatConverter/static/music/{selected_music}")
+            
             if not default_music_path.exists():
-                return jsonify({'error': 'Default music file not found'}), 404
+                return jsonify({'error': f'Default music file not found: {selected_music}'}), 404
             
             # Copy default music to session directory
             import shutil
-            custom_music_path = music_dir / "rapbeatL.mp3"
+            custom_music_path = music_dir / selected_music
             shutil.copy2(str(default_music_path), str(custom_music_path))
             
             session['custom_music_path'] = str(custom_music_path)
-            return jsonify({'success': True, 'filename': 'rapbeatL.mp3 (default)', 'is_default': True})
+            return jsonify({'success': True, 'filename': f'{selected_music} (default)', 'is_default': True})
         
         else:
             # Handle uploaded music file
