@@ -90,21 +90,8 @@ def log_memory_usage(context=""):
     memory_mb = get_memory_usage()
     app_logger.info(f"Memory usage {context}: {memory_mb:.1f}MB")
 
-@app.route('/')
-def index():
-    from tools_config import TOOLS_CONFIG
-    tools = get_active_tools()
-    return render_template('index.html', tools=tools, tools_config=TOOLS_CONFIG)
+# Routes are registered in app.py - these functions are imported there
 
-@app.route('/health')
-def health_check():
-    return jsonify({
-        'status': 'healthy', 
-        'timestamp': datetime.now().isoformat(),
-        'port': request.environ.get('SERVER_PORT', 'unknown')
-    })
-
-@app.route('/upload', methods=['POST'])
 def upload_files():
     if 'files' not in request.files:
         return jsonify({'error': 'No files uploaded'}), 400
@@ -325,7 +312,6 @@ def process_videos_background(job_id, input_files, formats, job_dir):
             if job_id in active_processing_threads:
                 del active_processing_threads[job_id]
 
-@app.route('/status/<job_id>')
 def get_job_status(job_id):
     with job_lock:
         if job_id not in processing_jobs:
@@ -342,7 +328,6 @@ def get_job_status(job_id):
         
         return jsonify(job_data)
 
-@app.route('/download/<job_id>/<filename>')
 def download_file(job_id, filename):
     try:
         with job_lock:
@@ -374,7 +359,6 @@ def download_file(job_id, filename):
         app_logger.error(f"Download error for {filename}: {str(e)}")
         return jsonify({'error': 'Download failed'}), 500
 
-@app.route('/download_zip/<job_id>')
 def download_zip(job_id):
     try:
         with job_lock:
@@ -417,7 +401,6 @@ def download_zip(job_id):
         app_logger.error(f"ZIP download error for job {job_id}: {str(e)}")
         return jsonify({'error': 'ZIP creation failed'}), 500
 
-@app.route('/cleanup/<job_id>', methods=['POST'])
 def cleanup_job(job_id):
     """Clean up job files and data"""
     with job_lock:
@@ -439,7 +422,6 @@ def cleanup_job(job_id):
         else:
             return jsonify({'error': 'Job not found'}), 404
 
-@app.route('/cancel/<job_id>', methods=['POST'])
 def cancel_job(job_id):
     """Cancel an active processing job"""
     with job_lock:
