@@ -606,7 +606,7 @@ def upload_custom_music():
         if use_default:
             # Get the selected default music file
             selected_music = request.form.get('default_music_file', 'rapbeatL.mp3')
-            default_music_path = Path(f"/Users/jiali/Documents/NewVideoFormatConverter/static/music/{selected_music}")
+            default_music_path = Path("static/music") / selected_music
             
             if not default_music_path.exists():
                 return jsonify({'error': f'Default music file not found: {selected_music}'}), 404
