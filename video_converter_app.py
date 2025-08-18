@@ -20,7 +20,6 @@ try:
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
-    print("Warning: psutil not available - memory monitoring disabled")
 from tools_config import get_active_tools
 
 # Import the video processing functions
@@ -167,7 +166,6 @@ def upload_files():
 
 def process_videos_background(job_id, input_files, formats, job_dir):
     """Process videos in background thread"""
-    log_memory_usage("before processing")
     
     def should_cancel():
         """Check if processing should be cancelled"""
@@ -262,9 +260,6 @@ def process_videos_background(job_id, input_files, formats, job_dir):
                         
                     try:
                         success = future.result()
-                        
-                        # Check memory usage and cleanup if needed
-                        check_memory_and_cleanup()
                         
                         with job_lock:
                             processing_jobs[job_id]['completed_tasks'] += 1

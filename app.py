@@ -96,30 +96,13 @@ def vocal_removal_test():
 
 @app.route('/health')
 def health_check():
-    """Optimized health check for faster Render.com startup detection"""
-    import os
-    try:
-        import psutil
-        memory_mb = round(psutil.Process().memory_info().rss / 1024 / 1024, 1)
-    except ImportError:
-        memory_mb = 0
-    
-    # Quick health indicators
-    health_data = {
+    """Simple health check endpoint"""
+    return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
         'port': request.environ.get('SERVER_PORT', os.environ.get('PORT', 'unknown')),
-        'services': ['video-converter'],
-        'build_mode': 'fast' if os.environ.get('ENABLE_AI', 'true').lower() == 'false' else 'full',
-        'memory_mb': memory_mb,
-        'ready': True
-    }
-    
-    # Add AI services if enabled
-    if os.environ.get('ENABLE_AI', 'true').lower() == 'true':
-        health_data['services'].append('adlocalizer')
-    
-    return jsonify(health_data)
+        'services': ['video-converter', 'adlocalizer']
+    })
 
 @app.route('/api/test')
 def api_test():

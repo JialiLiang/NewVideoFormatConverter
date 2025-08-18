@@ -2,8 +2,8 @@ services:
   - type: web
     name: video-format-converter
     env: python
-    buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 300 app:app
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
     plan: starter
     healthCheckPath: /health
     envVars:
@@ -13,16 +13,4 @@ services:
         value: production
       - key: PYTHONWARNINGS
         value: ignore
-      - key: PYTHONUNBUFFERED
-        value: 1
-      - key: AUTO_DETECT
-        value: true
-      - key: ENABLE_AI
-        value: false
-      - key: PIP_NO_CACHE_DIR
-        value: 1
-      - key: PIP_DISABLE_PIP_VERSION_CHECK
-        value: 1
-    disk: 
-      sizeGB: 2
     autoDeploy: true
