@@ -112,7 +112,7 @@ def api_test():
 # Import video converter routes
 from video_converter_app import (
     upload_files, get_job_status, download_file, download_zip, 
-    cleanup_job, cancel_job, process_videos_background
+    cleanup_job, cancel_job, process_videos_background, debug_job
 )
 
 # Import and register AdLocalizer routes directly
@@ -321,6 +321,7 @@ app.add_url_rule('/download/<job_id>/<filename>', 'download_file', download_file
 app.add_url_rule('/download_zip/<job_id>', 'download_zip', download_zip)
 app.add_url_rule('/cleanup/<job_id>', 'cleanup_job', cleanup_job, methods=['POST'])
 app.add_url_rule('/cancel/<job_id>', 'cancel_job', cancel_job, methods=['POST'])
+app.add_url_rule('/debug/<job_id>', 'debug_job', debug_job)
 
 # Add AdLocalizer download route with different path to avoid conflicts
 @app.route('/adlocalizer/download/<filename>')

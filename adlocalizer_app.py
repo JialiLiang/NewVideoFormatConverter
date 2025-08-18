@@ -8,6 +8,7 @@ import re
 import uuid
 import io
 import zipfile
+import time
 from openai import OpenAI
 from dotenv import load_dotenv
 import requests
@@ -1317,24 +1318,195 @@ def download_all_adlocalizer():
         if not mixed_videos:
             return jsonify({'error': 'No videos to download'}), 404
         
-        # Create zip file
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for lang_code, video_path in mixed_videos.items():
-                if os.path.exists(video_path):
-                    zip_file.write(video_path, os.path.basename(video_path))
+        # Get valid files for ZIP
+        valid_files = []
+        for lang_code, video_path in mixed_videos.items():
+            if os.path.exists(video_path):
+                valid_files.append((video_path, os.path.basename(video_path)))
         
-        zip_buffer.seek(0)
+        if not valid_files:
+            return jsonify({'error': 'No valid videos found'}), 404
         
-        return send_file(
-            zip_buffer,
-            mimetype='application/zip',
-            as_attachment=True,
-            download_name='localized_videos.zip'
-        )
+        logging.info(f"Creating streaming ZIP with {len(valid_files)} localized videos")
+        
+        # Try fast ZIP creation first
+        try:
+            return create_fast_adlocalizer_zip(valid_files, 'localized_videos.zip')
+        except Exception as e:
+            logging.warning(f"Fast ZIP creation failed, falling back to streaming: {str(e)}")
+            return create_adlocalizer_streaming_zip_response(valid_files, 'localized_videos.zip')
+        
     except Exception as e:
         logging.error(f"Download all error: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+def create_adlocalizer_streaming_zip_response(files, zip_name):
+    """Create a truly streaming ZIP response for AdLocalizer using temporary file to avoid memory issues"""
+    import gc
+    import tempfile
+    from flask import Response
+    
+    def generate_zip():
+        # Create a temporary file for the ZIP
+        temp_zip_path = None
+        files_added = 0
+        
+        try:
+            # Create temporary file for ZIP
+            temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+            temp_zip_path = temp_zip.name
+            temp_zip.close()
+            
+            logging.info(f"Creating AdLocalizer ZIP file at: {temp_zip_path}")
+            zip_start_time = time.time()
+            
+            # Create ZIP file on disk (not in memory) - NO COMPRESSION for speed
+            with zipfile.ZipFile(temp_zip_path, 'w', zipfile.ZIP_STORED, compresslevel=0) as zipf:
+                for file_path, archive_name in files:
+                    try:
+                        if not os.path.exists(file_path):
+                            logging.warning(f"File does not exist: {file_path}")
+                            continue
+                            
+                        file_start_time = time.time()
+                        file_size = os.path.getsize(file_path)
+                        logging.info(f"Adding file to AdLocalizer ZIP: {archive_name} ({file_size} bytes) from {file_path}")
+                        
+                        # Use zipfile's built-in method for better compatibility
+                        zipf.write(file_path, arcname=archive_name)
+                        files_added += 1
+                        
+                        file_time = time.time() - file_start_time
+                        logging.info(f"Successfully added {archive_name} to AdLocalizer ZIP in {file_time:.2f} seconds")
+                        
+                    except Exception as e:
+                        logging.error(f"Error adding {archive_name} to AdLocalizer ZIP: {str(e)}")
+                        continue
+            
+            zip_creation_time = time.time() - zip_start_time
+            logging.info(f"AdLocalizer ZIP creation completed. Files added: {files_added} in {zip_creation_time:.2f} seconds")
+            
+            if files_added == 0:
+                logging.error("No files were added to AdLocalizer ZIP")
+                yield b''  # Return empty data
+                return
+                
+            # Check if ZIP file was created and has content
+            if not os.path.exists(temp_zip_path):
+                logging.error("AdLocalizer ZIP file was not created")
+                yield b''
+                return
+                
+            zip_size = os.path.getsize(temp_zip_path)
+            logging.info(f"AdLocalizer ZIP file size: {zip_size} bytes")
+            
+            if zip_size == 0:
+                logging.error("AdLocalizer ZIP file is empty")
+                yield b''
+                return
+            
+            # Stream the ZIP file back to client in chunks
+            with open(temp_zip_path, 'rb') as zip_file:
+                chunk_size = 256 * 1024  # 256KB chunks for faster streaming
+                bytes_sent = 0
+                while True:
+                    chunk = zip_file.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+                    bytes_sent += len(chunk)
+                
+                logging.info(f"AdLocalizer ZIP streaming completed. Bytes sent: {bytes_sent}")
+                
+        except Exception as e:
+            logging.error(f"Error creating AdLocalizer streaming ZIP: {str(e)}")
+            yield b''  # Return empty data on error
+        finally:
+            # Cleanup temporary file
+            try:
+                if temp_zip_path and os.path.exists(temp_zip_path):
+                    os.unlink(temp_zip_path)
+                    logging.info("Cleaned up AdLocalizer temporary ZIP file")
+            except Exception as e:
+                logging.warning(f"Could not clean up AdLocalizer temp ZIP file: {str(e)}")
+            
+            # Force garbage collection
+            gc.collect()
+    
+    # Create response with proper headers
+    response = Response(
+        generate_zip(),
+        mimetype='application/zip',
+        headers={
+            'Content-Disposition': f'attachment; filename={zip_name}',
+            'Content-Type': 'application/zip'
+        }
+    )
+    
+    return response
+
+def create_fast_adlocalizer_zip(files, zip_name):
+    """Ultra-fast ZIP creation - creates ZIP in memory and sends directly"""
+    import io
+    from flask import Response
+    
+    logging.info(f"Creating FAST AdLocalizer ZIP with {len(files)} files")
+    zip_start_time = time.time()
+    
+    # Create ZIP in memory buffer
+    zip_buffer = io.BytesIO()
+    
+    try:
+        files_added = 0
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_STORED, compresslevel=0) as zipf:
+            for file_path, archive_name in files:
+                try:
+                    if not os.path.exists(file_path):
+                        logging.warning(f"File does not exist: {file_path}")
+                        continue
+                        
+                    file_size = os.path.getsize(file_path)
+                    logging.info(f"Adding to FAST ZIP: {archive_name} ({file_size} bytes)")
+                    
+                    zipf.write(file_path, arcname=archive_name)
+                    files_added += 1
+                    
+                except Exception as e:
+                    logging.error(f"Error adding {archive_name} to FAST ZIP: {str(e)}")
+                    continue
+        
+        zip_creation_time = time.time() - zip_start_time
+        logging.info(f"FAST ZIP creation completed. Files added: {files_added} in {zip_creation_time:.2f} seconds")
+        
+        if files_added == 0:
+            logging.error("No files were added to FAST ZIP")
+            return jsonify({'error': 'No valid videos found'}), 404
+        
+        # Get ZIP data
+        zip_buffer.seek(0)
+        zip_data = zip_buffer.getvalue()
+        zip_size = len(zip_data)
+        
+        logging.info(f"FAST ZIP size: {zip_size} bytes")
+        
+        # Create response
+        response = Response(
+            zip_data,
+            mimetype='application/zip',
+            headers={
+                'Content-Disposition': f'attachment; filename={zip_name}',
+                'Content-Type': 'application/zip',
+                'Content-Length': str(zip_size)
+            }
+        )
+        
+        return response
+        
+    except Exception as e:
+        logging.error(f"FAST ZIP creation failed: {str(e)}")
+        raise
+    finally:
+        zip_buffer.close()
 
 # Create necessary directories for AdLocalizer
 Path("temp_files").mkdir(exist_ok=True)

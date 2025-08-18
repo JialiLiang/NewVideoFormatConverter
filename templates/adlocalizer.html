@@ -540,9 +540,15 @@
             <h3><i class="fas fa-video"></i> Final Videos</h3>
             
             <div class="text-center mb-3">
-                <button class="btn btn-success btn-lg" onclick="downloadAll()">
+                <button class="btn btn-success btn-lg" id="downloadAllBtn" onclick="downloadAll()">
                     <i class="fas fa-download"></i> Download All Videos (ZIP)
                 </button>
+                <div id="zipLoading" style="display: none;" class="mt-3">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Creating ZIP...</span>
+                    </div>
+                    <p class="mt-2 text-success">Creating ZIP file, please wait...</p>
+                </div>
             </div>
             
             <div id="videosGrid"></div>
@@ -1512,8 +1518,26 @@
         // Download functions
         window.downloadAll = async function() {
             try {
+                // Show loading indicator
+                const downloadBtn = document.getElementById('downloadAllBtn');
+                const zipLoading = document.getElementById('zipLoading');
+                
+                downloadBtn.style.display = 'none';
+                zipLoading.style.display = 'block';
+                
+                // Start download
                 window.location.href = '/api/download-all';
+                
+                // Hide loading after a delay (since we can't detect when download completes)
+                setTimeout(() => {
+                    downloadBtn.style.display = 'inline-block';
+                    zipLoading.style.display = 'none';
+                }, 5000); // Hide after 5 seconds
+                
             } catch (error) {
+                // Hide loading on error
+                document.getElementById('downloadAllBtn').style.display = 'inline-block';
+                document.getElementById('zipLoading').style.display = 'none';
                 alert('Error downloading files: ' + error.message);
             }
         }

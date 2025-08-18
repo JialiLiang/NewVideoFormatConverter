@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file, make_response
+from flask import Flask, render_template, request, jsonify, send_file, make_response, Response
 import os
 import sys
 import tempfile
@@ -15,6 +15,8 @@ import threading
 import time
 import argparse
 import gc
+import io
+import glob
 try:
     import psutil
     PSUTIL_AVAILABLE = True
@@ -243,8 +245,12 @@ def process_videos_background(job_id, input_files, formats, job_dir):
             video_name = os.path.basename(video_path)
             app_logger.info(f"Processing video: {video_name} ({len(video_tasks)} formats)")
             
-            # Process all formats for this video in parallel (max 2 concurrent to save memory)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(2, len(video_tasks))) as executor:
+            # Check memory usage before processing each video
+            log_memory_usage(f"before processing {video_name}")
+            check_memory_and_cleanup()
+            
+            # Process all formats for this video in parallel (max 1 concurrent to save memory on Render)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 futures = []
                 for task in video_tasks:
                     input_path, output_path, format_type, output_filename, original_name, format_name = task
@@ -293,6 +299,10 @@ def process_videos_background(job_id, input_files, formats, job_dir):
                         app_logger.error(f"Error in video processing: {str(e)}")
             
             app_logger.info(f"Completed processing video: {video_name}")
+            
+            # Force memory cleanup after each video
+            gc.collect()
+            log_memory_usage(f"after processing {video_name}")
         
         # Mark job as completed
         with job_lock:
@@ -374,33 +384,194 @@ def download_zip(job_id):
                 app_logger.warning(f"ZIP download attempted for incomplete job {job_id}: status={job['status']}, results_count={len(job.get('results', []))}")
                 return jsonify({'error': 'No files ready for download'}), 400
             
-            # Create ZIP file
-            zip_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{job_id}_videos.zip")
+            # Debug: Log all job results
+            app_logger.info(f"Job {job_id} results: {job['results']}")
             
-            files_added = 0
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for result in job['results']:
-                    # Use the stored path directly from the job data
-                    file_path = result.get('path')
-                    if file_path and os.path.exists(file_path):
-                        try:
-                            zipf.write(file_path, arcname=result['filename'])
-                            files_added += 1
-                            app_logger.info(f"Added {result['filename']} to ZIP")
-                        except Exception as e:
-                            app_logger.error(f"Failed to add {result['filename']} to ZIP: {str(e)}")
-                    else:
-                        app_logger.warning(f"File not found for ZIP: {file_path}")
+            # Get valid files for ZIP
+            valid_files = []
+            for result in job['results']:
+                file_path = result.get('path')
+                filename = result.get('filename')
+                app_logger.info(f"Checking file: {filename} at path: {file_path}")
+                
+                if file_path and os.path.exists(file_path):
+                    file_size = os.path.getsize(file_path)
+                    app_logger.info(f"Valid file found: {filename} ({file_size} bytes)")
+                    valid_files.append((file_path, filename))
+                else:
+                    app_logger.warning(f"File not found for ZIP: {file_path}")
             
-            if files_added == 0:
-                app_logger.error(f"No files could be added to ZIP for job {job_id}")
+            if not valid_files:
+                app_logger.error(f"No valid files found for job {job_id}")
                 return jsonify({'error': 'No valid files found'}), 404
             
-            app_logger.info(f"Created ZIP with {files_added} files: {zip_path}")
-            return send_file(zip_path, as_attachment=True, download_name="converted_videos.zip")
+            app_logger.info(f"Creating streaming ZIP with {len(valid_files)} files for job {job_id}")
+            
+            # Try streaming ZIP response first, with fallback to simple ZIP creation
+            try:
+                return create_streaming_zip_response(valid_files, "converted_videos.zip")
+            except Exception as e:
+                app_logger.warning(f"Streaming ZIP failed, falling back to simple ZIP: {str(e)}")
+                return create_simple_zip_response(job_id, valid_files, "converted_videos.zip")
             
     except Exception as e:
         app_logger.error(f"ZIP download error for job {job_id}: {str(e)}")
+        import traceback
+        app_logger.error(f"ZIP download traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'ZIP creation failed'}), 500
+
+def create_streaming_zip_response(files, zip_name):
+    """Create a truly streaming ZIP response using temporary file to avoid memory issues"""
+    from flask import Response
+    import tempfile
+    
+    def generate_zip():
+        # Create a temporary file for the ZIP
+        temp_zip_path = None
+        files_added = 0
+        
+        try:
+            # Create temporary file for ZIP
+            temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+            temp_zip_path = temp_zip.name
+            temp_zip.close()
+            
+            app_logger.info(f"Creating ZIP file at: {temp_zip_path}")
+            
+            # Create ZIP file on disk (not in memory) - NO COMPRESSION for speed
+            with zipfile.ZipFile(temp_zip_path, 'w', zipfile.ZIP_STORED, compresslevel=0) as zipf:
+                for file_path, archive_name in files:
+                    try:
+                        if not os.path.exists(file_path):
+                            app_logger.warning(f"File does not exist: {file_path}")
+                            continue
+                            
+                        app_logger.info(f"Adding file to ZIP: {archive_name} from {file_path}")
+                        
+                        # Use zipfile's built-in method for better compatibility
+                        zipf.write(file_path, arcname=archive_name)
+                        files_added += 1
+                        
+                        app_logger.info(f"Successfully added {archive_name} to ZIP")
+                        
+                        # Force garbage collection periodically
+                        if check_memory_and_cleanup():
+                            app_logger.warning("Memory cleanup triggered during ZIP creation")
+                        
+                    except Exception as e:
+                        app_logger.error(f"Error adding {archive_name} to ZIP: {str(e)}")
+                        continue
+            
+            app_logger.info(f"ZIP creation completed. Files added: {files_added}")
+            
+            if files_added == 0:
+                app_logger.error("No files were added to ZIP")
+                yield b''  # Return empty data
+                return
+                
+            # Check if ZIP file was created and has content
+            if not os.path.exists(temp_zip_path):
+                app_logger.error("ZIP file was not created")
+                yield b''
+                return
+                
+            zip_size = os.path.getsize(temp_zip_path)
+            app_logger.info(f"ZIP file size: {zip_size} bytes")
+            
+            if zip_size == 0:
+                app_logger.error("ZIP file is empty")
+                yield b''
+                return
+            
+            # Stream the ZIP file back to client in chunks
+            with open(temp_zip_path, 'rb') as zip_file:
+                chunk_size = 256 * 1024  # 256KB chunks for faster streaming
+                bytes_sent = 0
+                while True:
+                    chunk = zip_file.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+                    bytes_sent += len(chunk)
+                    
+                    # Periodic memory cleanup during streaming
+                    if check_memory_and_cleanup():
+                        app_logger.warning("Memory cleanup triggered during ZIP streaming")
+                
+                app_logger.info(f"ZIP streaming completed. Bytes sent: {bytes_sent}")
+                
+        except Exception as e:
+            app_logger.error(f"Error creating streaming ZIP: {str(e)}")
+            import traceback
+            app_logger.error(f"ZIP creation traceback: {traceback.format_exc()}")
+            yield b''  # Return empty data on error
+        finally:
+            # Cleanup temporary file
+            try:
+                if temp_zip_path and os.path.exists(temp_zip_path):
+                    os.unlink(temp_zip_path)
+                    app_logger.info("Cleaned up temporary ZIP file")
+            except Exception as e:
+                app_logger.warning(f"Could not clean up temp ZIP file: {str(e)}")
+            
+            # Force garbage collection
+            gc.collect()
+    
+    # Create response with proper headers
+    response = Response(
+        generate_zip(),
+        mimetype='application/zip',
+        headers={
+            'Content-Disposition': f'attachment; filename={zip_name}',
+            'Content-Type': 'application/zip'
+        }
+    )
+    
+    return response
+
+def create_simple_zip_response(job_id, files, zip_name):
+    """Fallback ZIP creation method - creates ZIP in upload folder"""
+    try:
+        # Create ZIP in upload folder (not temp)
+        zip_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{job_id}_videos.zip")
+        
+        app_logger.info(f"Creating fallback ZIP at: {zip_path}")
+        
+        files_added = 0
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_STORED, compresslevel=0) as zipf:
+            for file_path, archive_name in files:
+                try:
+                    if not os.path.exists(file_path):
+                        app_logger.warning(f"File does not exist: {file_path}")
+                        continue
+                        
+                    app_logger.info(f"Adding file to fallback ZIP: {archive_name}")
+                    zipf.write(file_path, arcname=archive_name)
+                    files_added += 1
+                    
+                    # Force garbage collection periodically
+                    if check_memory_and_cleanup():
+                        app_logger.warning("Memory cleanup triggered during fallback ZIP creation")
+                        
+                except Exception as e:
+                    app_logger.error(f"Error adding {archive_name} to fallback ZIP: {str(e)}")
+                    continue
+        
+        if files_added == 0:
+            app_logger.error("No files were added to fallback ZIP")
+            return jsonify({'error': 'No files could be added to ZIP'}), 500
+        
+        if not os.path.exists(zip_path):
+            app_logger.error("Fallback ZIP file was not created")
+            return jsonify({'error': 'ZIP file creation failed'}), 500
+            
+        zip_size = os.path.getsize(zip_path)
+        app_logger.info(f"Fallback ZIP created successfully. Size: {zip_size} bytes, Files: {files_added}")
+        
+        return send_file(zip_path, as_attachment=True, download_name=zip_name)
+        
+    except Exception as e:
+        app_logger.error(f"Fallback ZIP creation failed: {str(e)}")
         return jsonify({'error': 'ZIP creation failed'}), 500
 
 def cleanup_job(job_id):
@@ -412,17 +583,50 @@ def cleanup_job(job_id):
                 processing_jobs[job_id]['cancel_requested'] = True
                 print(f"🛑 Cancellation requested for job: {job_id}")
             
-            # Remove job directory
-            job_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
-            if os.path.exists(job_dir):
-                shutil.rmtree(job_dir)
+            # Clean up job directory and any ZIP files
+            cleanup_job_files(job_id)
             
             # Remove from memory
             del processing_jobs[job_id]
             
+            # Force garbage collection after cleanup
+            gc.collect()
+            
             return jsonify({'message': 'Job cleaned up successfully'})
         else:
             return jsonify({'error': 'Job not found'}), 404
+
+def cleanup_job_files(job_id):
+    """Clean up all files associated with a job"""
+    try:
+        # Remove job directory
+        job_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
+        if os.path.exists(job_dir):
+            shutil.rmtree(job_dir)
+            app_logger.info(f"Removed job directory: {job_dir}")
+        
+        # Remove any ZIP files created for this job
+        zip_file = os.path.join(app.config['UPLOAD_FOLDER'], f"{job_id}_videos.zip")
+        if os.path.exists(zip_file):
+            os.remove(zip_file)
+            app_logger.info(f"Removed ZIP file: {zip_file}")
+        
+        # Clean up any temporary files that might be left over
+        temp_pattern = f"*{job_id}*"
+        import glob
+        temp_files = glob.glob(os.path.join(tempfile.gettempdir(), temp_pattern))
+        for temp_file in temp_files:
+            try:
+                if os.path.isfile(temp_file):
+                    os.remove(temp_file)
+                elif os.path.isdir(temp_file):
+                    shutil.rmtree(temp_file)
+                app_logger.info(f"Cleaned up temp file: {temp_file}")
+            except Exception as e:
+                app_logger.warning(f"Could not clean up temp file {temp_file}: {str(e)}")
+        
+    except Exception as e:
+        app_logger.error(f"Error during job cleanup for {job_id}: {str(e)}")
 
 def cancel_job(job_id):
     """Cancel an active processing job"""
@@ -438,10 +642,42 @@ def cancel_job(job_id):
         else:
             return jsonify({'error': 'Job not found'}), 404
 
+def debug_job(job_id):
+    """Debug endpoint to check job files and status"""
+    with job_lock:
+        if job_id not in processing_jobs:
+            return jsonify({'error': 'Job not found'}), 404
+        
+        job = processing_jobs[job_id]
+        debug_info = {
+            'job_id': job_id,
+            'status': job['status'],
+            'total_tasks': job.get('total_tasks', 0),
+            'completed_tasks': job.get('completed_tasks', 0),
+            'results_count': len(job.get('results', [])),
+            'errors_count': len(job.get('errors', [])),
+            'results': []
+        }
+        
+        # Check each result file
+        for result in job.get('results', []):
+            file_path = result.get('path')
+            file_info = {
+                'filename': result.get('filename'),
+                'path': file_path,
+                'exists': os.path.exists(file_path) if file_path else False,
+                'size': os.path.getsize(file_path) if file_path and os.path.exists(file_path) else 0,
+                'format_name': result.get('format_name'),
+                'original_name': result.get('original_name')
+            }
+            debug_info['results'].append(file_info)
+        
+        return jsonify(debug_info)
+
 # Cleanup old jobs periodically (in production, use a proper task queue)
 def cleanup_old_jobs():
-    """Remove jobs older than 1 hour"""
-    cutoff_time = datetime.now().timestamp() - 3600  # 1 hour ago
+    """Remove jobs older than 30 minutes (reduced for memory management)"""
+    cutoff_time = datetime.now().timestamp() - 1800  # 30 minutes ago (reduced from 1 hour)
     
     with job_lock:
         jobs_to_remove = []
@@ -451,17 +687,60 @@ def cleanup_old_jobs():
                 jobs_to_remove.append(job_id)
         
         for job_id in jobs_to_remove:
-            job_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
-            if os.path.exists(job_dir):
-                shutil.rmtree(job_dir)
+            cleanup_job_files(job_id)
             del processing_jobs[job_id]
             app_logger.info(f"Cleaned up old job: {job_id}")
+        
+        if jobs_to_remove:
+            # Force garbage collection after cleanup
+            gc.collect()
+            app_logger.info(f"Cleaned up {len(jobs_to_remove)} old jobs")
 
-# Schedule cleanup every hour
+def cleanup_orphaned_files():
+    """Clean up any orphaned files in upload directory"""
+    try:
+        upload_dir = app.config['UPLOAD_FOLDER']
+        if not os.path.exists(upload_dir):
+            return
+        
+        # Get all subdirectories (job directories)
+        for item in os.listdir(upload_dir):
+            item_path = os.path.join(upload_dir, item)
+            
+            # Skip if it's not a directory and not a zip file
+            if not os.path.isdir(item_path) and not item.endswith('.zip'):
+                continue
+            
+            # Check if it's an old file/directory
+            try:
+                stat = os.stat(item_path)
+                file_age = time.time() - stat.st_mtime
+                
+                # Remove files/directories older than 1 hour
+                if file_age > 3600:  # 1 hour
+                    if os.path.isdir(item_path):
+                        shutil.rmtree(item_path)
+                    else:
+                        os.remove(item_path)
+                    app_logger.info(f"Cleaned up orphaned file/directory: {item}")
+            except Exception as e:
+                app_logger.warning(f"Could not clean up {item}: {str(e)}")
+                
+    except Exception as e:
+        app_logger.error(f"Error during orphaned file cleanup: {str(e)}")
+
+# Schedule cleanup every 30 minutes (more frequent for memory management)
 def schedule_cleanup():
     while True:
-        time.sleep(3600)  # 1 hour
-        cleanup_old_jobs()
+        time.sleep(1800)  # 30 minutes (reduced from 1 hour)
+        try:
+            cleanup_old_jobs()
+            cleanup_orphaned_files()
+            # Force memory cleanup after scheduled cleanup
+            gc.collect()
+            log_memory_usage("after scheduled cleanup")
+        except Exception as e:
+            app_logger.error(f"Error during scheduled cleanup: {str(e)}")
 
 cleanup_thread = threading.Thread(target=schedule_cleanup)
 cleanup_thread.daemon = True

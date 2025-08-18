@@ -311,9 +311,15 @@
             <div class="mb-3" id="completionSummary" style="display: none;">
                 <div class="alert alert-success">
                     <i class="fas fa-check-circle"></i> All conversions completed!
-                    <button type="button" class="btn btn-success btn-sm ms-3" id="downloadAllBtn">
+                    <button type="button" class="btn btn-success btn-sm ms-3" id="downloadAllBtn1">
                         <i class="fas fa-download"></i> 📦 Download All as ZIP
                     </button>
+                    <div id="zipLoading1" style="display: none;" class="d-inline-block ms-2">
+                        <div class="spinner-border spinner-border-sm text-success" role="status">
+                            <span class="visually-hidden">Creating ZIP...</span>
+                        </div>
+                        <small class="text-success ms-1">Creating ZIP...</small>
+                    </div>
                 </div>
             </div>
             <div id="progressiveResultsList"></div>
@@ -323,9 +329,15 @@
         <div id="resultsSection" style="display: none;">
             <h5 class="mb-3">🎬 Your Converted Videos</h5>
             <div class="mb-3">
-                <button type="button" class="btn btn-success" id="downloadAllBtn">
+                <button type="button" class="btn btn-success" id="downloadAllBtn2">
                     <i class="fas fa-download"></i> 📦 Download All as ZIP
                 </button>
+                <div id="zipLoading2" style="display: none;" class="mt-2">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Creating ZIP...</span>
+                    </div>
+                    <p class="mt-2 text-success">Creating ZIP file, please wait...</p>
+                </div>
             </div>
             <div id="resultsList"></div>
         </div>
@@ -651,12 +663,23 @@
             // Update any remaining results
             updateProgressiveResults(status);
             
-            // Setup download all button
-            document.getElementById('downloadAllBtn').onclick = () => {
+            // Setup download all button (progressive results)
+            document.getElementById('downloadAllBtn1').onclick = () => {
+                const downloadBtn = document.getElementById('downloadAllBtn1');
+                const zipLoading = document.getElementById('zipLoading1');
+                
+                downloadBtn.style.display = 'none';
+                zipLoading.style.display = 'inline-block';
+                
                 allowNavigation = true;
                 window.location.href = `/download_zip/${currentJobId}`;
-                // Reset flag after a short delay (in case download fails)
-                setTimeout(() => { allowNavigation = false; }, 1000);
+                
+                // Reset flag and hide loading after delay
+                setTimeout(() => { 
+                    allowNavigation = false;
+                    downloadBtn.style.display = 'inline-block';
+                    zipLoading.style.display = 'none';
+                }, 5000);
             };
 
             if (status.errors && status.errors.length > 0) {
@@ -690,12 +713,23 @@
                     </div>
                 `).join('');
 
-                // Setup download all button
-                document.getElementById('downloadAllBtn').onclick = () => {
+                // Setup download all button (final results)
+                document.getElementById('downloadAllBtn2').onclick = () => {
+                    const downloadBtn = document.getElementById('downloadAllBtn2');
+                    const zipLoading = document.getElementById('zipLoading2');
+                    
+                    downloadBtn.style.display = 'none';
+                    zipLoading.style.display = 'block';
+                    
                     allowNavigation = true;
                     window.location.href = `/download_zip/${currentJobId}`;
-                    // Reset flag after a short delay (in case download fails)
-                    setTimeout(() => { allowNavigation = false; }, 1000);
+                    
+                    // Reset flag and hide loading after delay
+                    setTimeout(() => { 
+                        allowNavigation = false;
+                        downloadBtn.style.display = 'inline-block';
+                        zipLoading.style.display = 'none';
+                    }, 5000);
                 };
             }
 
