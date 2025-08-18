@@ -421,13 +421,13 @@
                 </div>
                 
                 <!-- Transcription Video Detection (for Option B) -->
-                <div id="transcriptionVideoDetected" class="alert alert-info" style="display: none;">
-                    <i class="fas fa-info-circle"></i> 
-                    <strong>Transcription video detected!</strong> 
-                    You can use the video you uploaded for transcription, or upload a new one below.
+                <div id="transcriptionVideoDetected" class="alert alert-success" style="display: none;">
+                    <i class="fas fa-check-circle"></i> 
+                    <strong>Using transcription video as default!</strong> 
+                    The video you uploaded for transcription will be used automatically. You can change this by uploading a different video below.
                     <div class="mt-2">
-                        <button class="btn btn-sm btn-primary" onclick="useTranscriptionVideo()">
-                            <i class="fas fa-recycle"></i> Use Transcription Video
+                        <button class="btn btn-sm btn-outline-primary" onclick="clearTranscriptionVideoDefault()">
+                            <i class="fas fa-times"></i> Upload Different Video Instead
                         </button>
                     </div>
                 </div>
@@ -1176,8 +1176,10 @@
             } else if (option === 'custom') {
                 infoDiv.className = 'alert alert-success mb-3';
                 infoDiv.innerHTML = '<i class="fas fa-music"></i> <strong>Option B:</strong> Upload video + replace with new music';
-                transcriptionDetected.style.display = 'none';
                 if (customMusicArea) customMusicArea.style.display = 'block';
+                
+                // Check if we have a transcription video and automatically use it as default
+                checkAndUseTranscriptionVideoForOptionB();
             } else if (option === 'vocal') {
                 // Option C is disabled - show error message
                 infoDiv.className = 'alert alert-danger mb-3';
@@ -1200,6 +1202,58 @@
             } else {
                 hasTranscriptionVideo = false;
                 transcriptionDetected.style.display = 'none';
+            }
+        }
+        
+        function checkAndUseTranscriptionVideoForOptionB() {
+            const transcriptionFile = document.getElementById('transcriptionFile');
+            const transcriptionDetected = document.getElementById('transcriptionVideoDetected');
+            
+            // Check if we have a transcription video available
+            if (transcriptionFile && transcriptionFile.files && transcriptionFile.files.length > 0) {
+                // Determine if it's a video file (not just audio)
+                const fileName = transcriptionFile.files[0].name.toLowerCase();
+                const isVideoFile = fileName.match(/\.(mp4|mov|avi|mkv|webm|flv|m4v)$/);
+                
+                if (isVideoFile) {
+                    // Show the transcription video detected message
+                    transcriptionDetected.style.display = 'block';
+                    
+                    // Automatically use the transcription video as default
+                    useTranscriptionVideoAsDefault();
+                } else {
+                    // Hide the message if it's only an audio file
+                    transcriptionDetected.style.display = 'none';
+                }
+            } else {
+                transcriptionDetected.style.display = 'none';
+            }
+        }
+        
+        function useTranscriptionVideoAsDefault() {
+            const transcriptionFile = document.getElementById('transcriptionFile');
+            const videoFile = document.getElementById('videoFile');
+            
+            if (transcriptionFile && transcriptionFile.files && transcriptionFile.files.length > 0) {
+                // Copy the transcription file to the video file input
+                videoFile.files = transcriptionFile.files;
+                
+                // Update the upload area display to show it's using the transcription video
+                const uploadArea = document.getElementById('videoUpload');
+                const icon = uploadArea.querySelector('i');
+                const text = uploadArea.querySelector('p');
+                const smallText = uploadArea.querySelector('.small');
+                
+                if (icon) icon.className = 'fas fa-check-circle fa-3x text-success mb-3';
+                if (text) text.textContent = `Using transcription video: ${transcriptionFile.files[0].name}`;
+                if (smallText) smallText.textContent = 'Transcription video automatically selected as default';
+                
+                // Show video info with appropriate message
+                document.getElementById('videoSuccessMessage').textContent = 'Using transcription video for Option B!';
+                document.getElementById('videoInfo').style.display = 'block';
+                
+                // Mark that we're using the transcription video
+                hasTranscriptionVideo = true;
             }
         }
         
@@ -1233,6 +1287,33 @@
                 const event = new Event('change', { bubbles: true });
                 videoFile.dispatchEvent(event);
             }
+        }
+        
+        window.clearTranscriptionVideoDefault = function() {
+            // Clear the video file input
+            const videoFile = document.getElementById('videoFile');
+            if (videoFile) {
+                videoFile.value = '';
+            }
+            
+            // Reset upload area display
+            const uploadArea = document.getElementById('videoUpload');
+            const icon = uploadArea.querySelector('i');
+            const text = uploadArea.querySelector('p');
+            const smallText = uploadArea.querySelector('.small');
+            
+            if (icon) icon.className = 'fas fa-cloud-upload-alt fa-3x text-muted mb-3';
+            if (text) text.textContent = 'Drop video file here or click to browse';
+            if (smallText) smallText.textContent = 'Supported formats: MP4, MOV';
+            
+            // Hide video info
+            document.getElementById('videoInfo').style.display = 'none';
+            
+            // Hide the transcription detected message
+            document.getElementById('transcriptionVideoDetected').style.display = 'none';
+            
+            // Reset transcription video flag
+            hasTranscriptionVideo = false;
         }
         
         window.goBackToOptions = function() {
