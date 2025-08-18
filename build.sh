@@ -1,52 +1,37 @@
 #!/bin/bash
 set -e
 
-echo "🤖 Starting intelligent auto-optimized build..."
+echo "🤖 Smart Render.com Build System"
+echo "================================"
 
-# Auto-detect if AI features are needed based on changed files
+# Check environment variables
+ENABLE_AI=${ENABLE_AI:-false}  # Default to FAST mode
 AUTO_DETECT=${AUTO_DETECT:-true}
-ENABLE_AI=${ENABLE_AI:-true}
 
+echo "🔧 Configuration:"
+echo "   AUTO_DETECT: $AUTO_DETECT"
+echo "   ENABLE_AI: $ENABLE_AI"
+
+# Auto-detection logic (simplified and more reliable)
 if [ "$AUTO_DETECT" = "true" ]; then
-    echo "🔍 Auto-detecting required features..."
+    echo "🔍 Auto-detecting deployment mode..."
     
-    # Get list of files that exist (since we can't reliably get git diff in Render)
-    AI_NEEDED=false
-    
-    # Check if AI-related files exist and seem to be recently modified
-    if [ -f "adlocalizer_app.py" ] && [ -s "adlocalizer_app.py" ]; then
-        echo "   📄 AdLocalizer app found"
-        AI_NEEDED=true
+    # Simple detection: if AI files exist, we might need them
+    if [ "$ENABLE_AI" = "false" ] && [ -f "adlocalizer_app.py" ] && [ -s "adlocalizer_app.py" ]; then
+        echo "   📄 AdLocalizer found, but ENABLE_AI=false - using FAST MODE anyway"
+        echo "   💡 Set ENABLE_AI=true in Render dashboard for full features"
     fi
-    
-    if [ -f "vocal_models_config.py" ] && [ -s "vocal_models_config.py" ]; then
-        echo "   🎵 Vocal models config found"
-        AI_NEEDED=true
-    fi
-    
-    if [ -f "setup_models.py" ] && [ -s "setup_models.py" ]; then
-        echo "   🔧 Model setup script found"
-        AI_NEEDED=true
-    fi
-    
-    # Check if AI templates exist
-    if [ -f "templates/adlocalizer.html" ]; then
-        echo "   🎨 AI templates found"
-        AI_NEEDED=true
-    fi
-    
-    # Override ENABLE_AI based on detection
-    if [ "$AI_NEEDED" = "true" ]; then
-        ENABLE_AI=true
-        echo "   🧠 AI features detected - FULL MODE"
-        echo "   ⏱️  Build time: ~3-5 minutes"
-    else
-        ENABLE_AI=false
-        echo "   ⚡ Core features only - FAST MODE"
-        echo "   🚀 Build time: ~1-2 minutes"
-    fi
+fi
+
+# Show selected mode
+if [ "$ENABLE_AI" = "true" ]; then
+    echo "🧠 FULL MODE SELECTED"
+    echo "   ⏱️  Expected build time: 3-5 minutes"
+    echo "   🎯 Includes: Video processing + AI features"
 else
-    echo "🔧 Using manual ENABLE_AI setting: $ENABLE_AI"
+    echo "⚡ FAST MODE SELECTED"
+    echo "   🚀 Expected build time: 1-2 minutes"
+    echo "   🎯 Includes: Video processing only"
 fi
 
 echo ""

@@ -2,31 +2,10 @@ services:
   - type: web
     name: video-format-converter
     env: python
-    # Optimized build command - 5x faster for core features
-    buildCommand: ./build.sh
+    buildCommand: chmod +x build.sh && ./build.sh
     startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 300 app:app
     plan: starter
     healthCheckPath: /health
-    # Build optimization settings
-    buildFilter:
-      paths:
-      - app.py
-      - video_converter_app.py
-      - video_converter.py
-      - adlocalizer_app.py
-      - tools_config.py
-      - requirements*.txt
-      - build.sh
-      - templates/**
-      ignoredPaths:
-      - README.md
-      - MEMORY_OPTIMIZATION.md
-      - deploy.md
-      - DEPLOYMENT.md
-      - test_output/**
-      - temp_files/**
-      - uploads/**
-      - .git/**
     envVars:
       - key: PORT
         value: 10000
@@ -36,18 +15,14 @@ services:
         value: ignore
       - key: PYTHONUNBUFFERED
         value: 1
-      - key: MALLOC_TRIM_THRESHOLD_
-        value: 100000
-      # Build optimization flags - AUTO-DETECTION ENABLED
       - key: AUTO_DETECT
-        value: true   # Automatically choose fast/full mode
+        value: true
       - key: ENABLE_AI
-        value: true   # Fallback if auto-detect fails
+        value: false
       - key: PIP_NO_CACHE_DIR
         value: 1
       - key: PIP_DISABLE_PIP_VERSION_CHECK
         value: 1
-    # Memory optimization settings
     disk: 
       sizeGB: 2
-    autoDeploy: true 
+    autoDeploy: true
