@@ -2,7 +2,7 @@ services:
   - type: web
     name: video-format-converter
     env: python
-    buildCommand: pip install --no-cache-dir -r requirements.txt
+    buildCommand: ./build.sh
     startCommand: python app.py
     plan: starter
     healthCheckPath: /health
