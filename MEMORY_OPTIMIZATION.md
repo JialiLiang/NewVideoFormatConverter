@@ -105,7 +105,7 @@ disk:
 ### Option 2: Further Optimizations
 - Reduce file size limit to 100MB
 - Process only 1 video at a time (`max_workers=1`)
-- Implement video compression before processing
+- Optimize video processing pipeline
 
 ### Option 3: External Processing
 - Move video processing to separate service
