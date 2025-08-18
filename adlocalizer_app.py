@@ -137,6 +137,7 @@ VOICES = {
 
 # Language codes and names for AdLocalizer
 LANGUAGES = {
+    "EN": "English",
     "JP": "Japanese",
     "CN": "Traditional Chinese",
     "DE": "German",
