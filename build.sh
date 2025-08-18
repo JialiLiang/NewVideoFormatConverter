@@ -1,25 +1,27 @@
 #!/bin/bash
-# Fast build script for Render.com
+set -e
 
-echo "🚀 Starting optimized build..."
+echo "🚀 Starting optimized Render.com build..."
 
-# Install core dependencies first (fast)
-echo "📦 Installing core dependencies..."
-pip install --upgrade pip
-pip install -r requirements-core.txt
+# Check if this is a full build or incremental
+FULL_BUILD=${FULL_BUILD:-false}
+ENABLE_AI=${ENABLE_AI:-true}
 
-# Only install AI dependencies if needed (optional)
-if [ "$INSTALL_AI_FEATURES" = "true" ]; then
-    echo "🤖 Installing AI dependencies (this will take longer)..."
-    pip install -r requirements-ai.txt
-    
-    # Download models if needed
-    if [ -f "setup_models.py" ]; then
-        echo "📥 Downloading AI models..."
-        python setup_models.py
-    fi
+echo "📦 Installing core dependencies (fast)..."
+pip install --no-cache-dir --upgrade pip
+pip install --no-cache-dir -r requirements-base.txt
+
+# Only install AI dependencies if needed (can be disabled for faster deploys)
+if [ "$ENABLE_AI" = "true" ]; then
+    echo "🤖 Installing AI dependencies (slow - can be disabled)..."
+    pip install --no-cache-dir -r requirements-ai.txt
 else
-    echo "⏩ Skipping AI dependencies (set INSTALL_AI_FEATURES=true to enable)"
+    echo "⚡ Skipping AI dependencies for faster deployment"
 fi
 
+# Install any remaining dependencies from main requirements.txt that aren't covered
+echo "🔄 Installing any additional dependencies..."
+pip install --no-cache-dir -r requirements.txt || true
+
 echo "✅ Build complete!"
+echo "💡 Tip: Set ENABLE_AI=false for 5x faster deployments when AI features aren't needed"

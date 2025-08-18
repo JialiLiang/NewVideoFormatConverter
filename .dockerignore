@@ -1,0 +1,49 @@
+# Ignore files that don't need to be in the Docker build context
+# This speeds up builds by reducing the context size
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+MEMORY_OPTIMIZATION.md
+FAST_DEPLOY.md
+deploy.md
+DEPLOYMENT.md
+*.md
+
+# Temporary and output files
+temp_files/
+temp_transcription/
+test_output/
+uploads/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files
+.env
+venv/
+ENV/
+env/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large model files that should be downloaded during build
+vocal_models/
+
+# Example files
+exemple.png
+rapbeatL.mp3
