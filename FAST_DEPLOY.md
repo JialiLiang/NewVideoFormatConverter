@@ -1,35 +1,29 @@
-# ⚡ Fast Render.com Deployment Guide
+# 🤖 Intelligent Auto-Deploy System
 
-## 🚀 Speed Optimizations Implemented
+## 🎉 **Zero Manual Configuration Required!**
 
-Your app now has **multiple deployment modes** for different speed requirements:
+Your app now **automatically detects** what deployment mode to use. No more manual switching!
 
-### **🏃‍♂️ Super Fast Mode (1-2 minutes)**
-**Use when**: Making quick fixes, UI changes, or core video processing updates
+### **🧠 How Auto-Detection Works**
 
-**Setup**:
-1. In Render.com dashboard, set environment variable:
-   ```
-   ENABLE_AI = false
-   ```
-2. Push your changes to git
-3. ⚡ **Deploy time: ~1-2 minutes** (vs 8-10 minutes)
+The system automatically analyzes your code and chooses:
 
-**What's included**: Video conversion, file uploads/downloads, core features
-**What's excluded**: AdLocalizer, AI translation, vocal removal
+### **⚡ Fast Mode (1-2 minutes)** - Auto-selected when:
+- Only video processing files changed
+- UI/template updates (non-AI)
+- Bug fixes in core functionality
+- Documentation updates
 
-### **🔄 Full Mode (3-5 minutes)**
-**Use when**: Need all features including AI capabilities
+**Includes**: Video conversion, uploads, downloads, core features
+**Excludes**: AI translation, vocal removal (for speed)
 
-**Setup**:
-1. In Render.com dashboard, set environment variable:
-   ```
-   ENABLE_AI = true
-   ```
-2. Push your changes to git  
-3. ⏱️ **Deploy time: ~3-5 minutes** (vs 8-10 minutes)
+### **🔄 Full Mode (3-5 minutes)** - Auto-selected when:
+- AdLocalizer files modified
+- Vocal removal features updated  
+- AI model configurations changed
+- Translation templates updated
 
-**What's included**: Everything - video conversion + AI features
+**Includes**: Everything - video processing + AI features
 
 ## 📊 Deployment Speed Comparison
 
@@ -61,45 +55,57 @@ Your app now has **multiple deployment modes** for different speed requirements:
 - Memory monitoring included
 - Build mode indicators
 
-## 🎯 Deployment Strategies
+## 🚀 **Super Simple Deployment**
 
-### **For Development/Testing**
+### **Option 1: Use the Smart Deploy Script**
 ```bash
-# Set fast mode in Render.com dashboard
-ENABLE_AI=false
+# One command does everything!
+./deploy.sh "Your commit message"
 
-# Push changes
-git add .
-git commit -m "Quick fix"
-git push origin main
-
-# ⚡ Deploys in 1-2 minutes
+# Or just:
+./deploy.sh
+# (will prompt for commit message or auto-generate one)
 ```
 
-### **For Production/Full Features**
+### **Option 2: Traditional Git (Auto-Detection Still Works)**
 ```bash
-# Set full mode in Render.com dashboard  
-ENABLE_AI=true
-
-# Push changes
 git add .
-git commit -m "Full feature update"
+git commit -m "Your changes"
 git push origin main
 
-# ⏱️ Deploys in 3-5 minutes
+# 🤖 System automatically detects and chooses optimal mode!
 ```
 
-### **For Emergency Hotfixes**
+### **Option 3: Manual Override (If Needed)**
 ```bash
-# Use render-fast.yaml configuration
-# Copy render-fast.yaml to render.yaml temporarily
-cp render-fast.yaml render.yaml
+# Force fast mode (rare cases)
+# In Render.com dashboard, set:
+AUTO_DETECT = false
+ENABLE_AI = false
 
-git add render.yaml
-git commit -m "Emergency hotfix"
-git push origin main
+# Force full mode (rare cases)  
+# In Render.com dashboard, set:
+AUTO_DETECT = false
+ENABLE_AI = true
+```
 
-# 🚨 Deploys in under 2 minutes
+## 🎯 **What You See in Build Logs**
+
+The build will show you what it detected:
+```
+🤖 Starting intelligent auto-optimized build...
+🔍 Auto-detecting required features...
+   📄 AdLocalizer app found
+   🧠 AI features detected - FULL MODE
+   ⏱️  Build time: ~3-5 minutes
+```
+
+Or for fast mode:
+```
+🤖 Starting intelligent auto-optimized build...
+🔍 Auto-detecting required features...  
+   ⚡ Core features only - FAST MODE
+   🚀 Build time: ~1-2 minutes
 ```
 
 ## 🔧 Advanced Optimizations

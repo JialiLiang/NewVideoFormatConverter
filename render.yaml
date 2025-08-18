@@ -38,9 +38,11 @@ services:
         value: 1
       - key: MALLOC_TRIM_THRESHOLD_
         value: 100000
-      # Build optimization flags
+      # Build optimization flags - AUTO-DETECTION ENABLED
+      - key: AUTO_DETECT
+        value: true   # Automatically choose fast/full mode
       - key: ENABLE_AI
-        value: true  # Set to 'false' for 5x faster deployments
+        value: true   # Fallback if auto-detect fails
       - key: PIP_NO_CACHE_DIR
         value: 1
       - key: PIP_DISABLE_PIP_VERSION_CHECK
