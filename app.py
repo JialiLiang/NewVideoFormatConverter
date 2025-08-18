@@ -90,10 +90,7 @@ def adlocalizer():
     
     return render_template('adlocalizer.html', languages=LANGUAGES, voices=VOICES, tools=tools, tools_config=TOOLS_CONFIG)
 
-@app.route('/vocal-removal-test')
-def vocal_removal_test():
-    """Direct vocal removal testing page"""
-    return render_template('vocal_removal_test.html')
+
 
 @app.route('/health')
 def health_check():
@@ -201,61 +198,6 @@ def api_get_vocal_models():
         print(f"Unexpected error: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/test-vocal-removal', methods=['POST'])
-def api_test_vocal_removal():
-    """Test endpoint for vocal removal - direct testing without full workflow"""
-    try:
-        from adlocalizer_app import remove_vocals_from_video
-        from vocal_models_config import get_available_models, get_default_model
-        import tempfile
-        import shutil
-        
-        # Get the uploaded video file
-        if 'video' not in request.files:
-            return jsonify({'error': 'No video file uploaded'}), 400
-        
-        video_file = request.files['video']
-        if video_file.filename == '':
-            return jsonify({'error': 'No video file selected'}), 400
-        
-        # Get model selection
-        model_id = request.form.get('model_id', get_default_model())
-        
-        # Validate model
-        available_models = get_available_models()
-        if model_id not in available_models:
-            return jsonify({'error': f'Invalid model: {model_id}'}), 400
-        
-        # Create temporary directory for processing
-        temp_dir = tempfile.mkdtemp()
-        video_path = os.path.join(temp_dir, secure_filename(video_file.filename))
-        video_file.save(video_path)
-        
-        try:
-            # Process vocal removal
-            instrumental_path = remove_vocals_from_video(video_path, temp_dir, model_id)
-            
-            if instrumental_path and os.path.exists(instrumental_path):
-                # Return the processed file
-                return send_file(
-                    instrumental_path,
-                    as_attachment=True,
-                    download_name=f"instrumental_{os.path.basename(video_file.filename)}"
-                )
-            else:
-                return jsonify({'error': 'Vocal removal failed - no output file generated'}), 500
-                
-        finally:
-            # Clean up temporary files
-            try:
-                shutil.rmtree(temp_dir)
-            except:
-                pass
-                
-    except Exception as e:
-        print(f"Test vocal removal error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/mix-audio', methods=['POST'])
