@@ -83,7 +83,12 @@ def get_ffmpeg_params_for_processing():
 def process_video(input_path, output_path, format_type, progress_callback=None):
     """Process a single video with the given format"""
     try:
+        # Force garbage collection before processing to free memory
+        import gc
+        gc.collect()
+        
         logging.info(f"Starting conversion to {format_type} format: {os.path.basename(input_path)}")
+        
         if format_type == "square":
             create_square_video(input_path, output_path)
         elif format_type == "square_blur":
@@ -96,10 +101,16 @@ def process_video(input_path, output_path, format_type, progress_callback=None):
         if progress_callback:
             progress_callback()
         
+        # Force garbage collection after processing to free memory
+        gc.collect()
+        
         logging.info(f"Successfully converted to {format_type}: {os.path.basename(output_path)}")
         return True
     except Exception as e:
         logging.error(f"Error processing video {os.path.basename(input_path)}: {str(e)}")
+        # Force cleanup on error
+        import gc
+        gc.collect()
         return False
 
 # Patch moviepy's resize function to use the correct Pillow constant

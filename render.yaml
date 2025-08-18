@@ -12,4 +12,12 @@ services:
       - key: FLASK_ENV
         value: production
       - key: PYTHONWARNINGS
-        value: ignore 
+        value: ignore
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: MALLOC_TRIM_THRESHOLD_
+        value: 100000
+    # Memory optimization settings
+    disk: 
+      sizeGB: 2
+    autoDeploy: true 

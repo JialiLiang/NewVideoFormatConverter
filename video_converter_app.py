@@ -14,6 +14,8 @@ import concurrent.futures
 import threading
 import time
 import argparse
+import gc
+import psutil
 from tools_config import get_active_tools
 
 # Import the video processing functions
@@ -27,7 +29,7 @@ from video_converter import (
 )
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB max file size (reduced for memory)
 
 # Use a persistent directory for uploads instead of temp directory
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -65,6 +67,28 @@ def allowed_file(filename):
 
 def generate_job_id():
     return str(uuid.uuid4())
+
+def get_memory_usage():
+    """Get current memory usage in MB"""
+    try:
+        process = psutil.Process()
+        return process.memory_info().rss / 1024 / 1024  # MB
+    except:
+        return 0
+
+def check_memory_and_cleanup():
+    """Check memory usage and force cleanup if needed"""
+    memory_mb = get_memory_usage()
+    if memory_mb > 1500:  # If over 1.5GB, force cleanup
+        app_logger.warning(f"High memory usage detected: {memory_mb:.1f}MB - forcing cleanup")
+        gc.collect()
+        return True
+    return False
+
+def log_memory_usage(context=""):
+    """Log current memory usage"""
+    memory_mb = get_memory_usage()
+    app_logger.info(f"Memory usage {context}: {memory_mb:.1f}MB")
 
 @app.route('/')
 def index():
@@ -149,6 +173,8 @@ def upload_files():
 
 def process_videos_background(job_id, input_files, formats, job_dir):
     """Process videos in background thread"""
+    log_memory_usage("before processing")
+    
     def should_cancel():
         """Check if processing should be cancelled"""
         with job_lock:
@@ -225,8 +251,8 @@ def process_videos_background(job_id, input_files, formats, job_dir):
             video_name = os.path.basename(video_path)
             app_logger.info(f"Processing video: {video_name} ({len(video_tasks)} formats)")
             
-            # Process all formats for this video in parallel (max 4 concurrent)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(video_tasks))) as executor:
+            # Process all formats for this video in parallel (max 2 concurrent to save memory)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(2, len(video_tasks))) as executor:
                 futures = []
                 for task in video_tasks:
                     input_path, output_path, format_type, output_filename, original_name, format_name = task
@@ -242,6 +268,9 @@ def process_videos_background(job_id, input_files, formats, job_dir):
                         
                     try:
                         success = future.result()
+                        
+                        # Check memory usage and cleanup if needed
+                        check_memory_and_cleanup()
                         
                         with job_lock:
                             processing_jobs[job_id]['completed_tasks'] += 1

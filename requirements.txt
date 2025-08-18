@@ -13,6 +13,7 @@ requests>=2.31.0
 elevenlabs>=1.0.0
 python-dotenv>=1.0.0
 gunicorn>=21.0.0
+psutil>=5.9.0
 demucs>=4.0.0
 torch>=2.0.0
 torchaudio>=2.0.0
