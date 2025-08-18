@@ -28,7 +28,12 @@ from video_converter import (
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
-app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
+
+# Use a persistent directory for uploads instead of temp directory
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 
 # Disable Flask's default request logging for cleaner output
@@ -310,46 +315,78 @@ def get_job_status(job_id):
 
 @app.route('/download/<job_id>/<filename>')
 def download_file(job_id, filename):
-    with job_lock:
-        if job_id not in processing_jobs:
-            return "Job not found", 404
-        
-        job = processing_jobs[job_id]
-        
-        # Find the file in results
-        file_path = None
-        for result in job['results']:
-            if result['filename'] == filename:
-                file_path = result.get('path')
-                break
-        
-        if not file_path or not os.path.exists(file_path):
-            return "File not found", 404
-        
-        return send_file(file_path, as_attachment=True, download_name=filename)
+    try:
+        with job_lock:
+            if job_id not in processing_jobs:
+                app_logger.warning(f"Download attempted for non-existent job: {job_id}")
+                return jsonify({'error': 'Job not found'}), 404
+            
+            job = processing_jobs[job_id]
+            
+            # Find the file in results
+            file_path = None
+            for result in job['results']:
+                if result['filename'] == filename:
+                    file_path = result.get('path')
+                    break
+            
+            if not file_path:
+                app_logger.warning(f"File {filename} not found in job {job_id} results")
+                return jsonify({'error': 'File not found in job results'}), 404
+                
+            if not os.path.exists(file_path):
+                app_logger.error(f"File path does not exist: {file_path}")
+                return jsonify({'error': 'File no longer exists on server'}), 404
+            
+            app_logger.info(f"Downloading file: {filename} from {file_path}")
+            return send_file(file_path, as_attachment=True, download_name=filename)
+            
+    except Exception as e:
+        app_logger.error(f"Download error for {filename}: {str(e)}")
+        return jsonify({'error': 'Download failed'}), 500
 
 @app.route('/download_zip/<job_id>')
 def download_zip(job_id):
-    with job_lock:
-        if job_id not in processing_jobs:
-            return "Job not found", 404
-        
-        job = processing_jobs[job_id]
-        
-        if job['status'] != 'completed' or not job['results']:
-            return "No files to download", 400
-        
-        # Create ZIP file
-        zip_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{job_id}_videos.zip")
-        
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
-            for result in job['results']:
-                # Use the stored path directly from the job data
-                file_path = result.get('path')
-                if file_path and os.path.exists(file_path):
-                    zipf.write(file_path, arcname=result['filename'])
-        
-        return send_file(zip_path, as_attachment=True, download_name="converted_videos.zip")
+    try:
+        with job_lock:
+            if job_id not in processing_jobs:
+                app_logger.warning(f"ZIP download attempted for non-existent job: {job_id}")
+                return jsonify({'error': 'Job not found'}), 404
+            
+            job = processing_jobs[job_id]
+            
+            if job['status'] != 'completed' or not job['results']:
+                app_logger.warning(f"ZIP download attempted for incomplete job {job_id}: status={job['status']}, results_count={len(job.get('results', []))}")
+                return jsonify({'error': 'No files ready for download'}), 400
+            
+            # Create ZIP file
+            zip_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{job_id}_videos.zip")
+            
+            files_added = 0
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for result in job['results']:
+                    # Use the stored path directly from the job data
+                    file_path = result.get('path')
+                    if file_path and os.path.exists(file_path):
+                        try:
+                            zipf.write(file_path, arcname=result['filename'])
+                            files_added += 1
+                            app_logger.info(f"Added {result['filename']} to ZIP")
+                        except Exception as e:
+                            app_logger.error(f"Failed to add {result['filename']} to ZIP: {str(e)}")
+                    else:
+                        app_logger.warning(f"File not found for ZIP: {file_path}")
+            
+            if files_added == 0:
+                app_logger.error(f"No files could be added to ZIP for job {job_id}")
+                return jsonify({'error': 'No valid files found'}), 404
+            
+            app_logger.info(f"Created ZIP with {files_added} files: {zip_path}")
+            return send_file(zip_path, as_attachment=True, download_name="converted_videos.zip")
+            
+    except Exception as e:
+        app_logger.error(f"ZIP download error for job {job_id}: {str(e)}")
+        return jsonify({'error': 'ZIP creation failed'}), 500
 
 @app.route('/cleanup/<job_id>', methods=['POST'])
 def cleanup_job(job_id):
