@@ -15,7 +15,12 @@ import threading
 import time
 import argparse
 import gc
-import psutil
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    print("Warning: psutil not available - memory monitoring disabled")
 from tools_config import get_active_tools
 
 # Import the video processing functions
@@ -70,6 +75,8 @@ def generate_job_id():
 
 def get_memory_usage():
     """Get current memory usage in MB"""
+    if not PSUTIL_AVAILABLE:
+        return 0
     try:
         process = psutil.Process()
         return process.memory_info().rss / 1024 / 1024  # MB
