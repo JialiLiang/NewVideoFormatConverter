@@ -392,6 +392,98 @@ def get_video_duration(video_file):
         logging.error(f"Error getting video duration: {str(e)}")
         return None
 
+def compress_video_if_needed(video_path, max_size_mb=20, target_size_mb=10):
+    """
+    Compress video if it's larger than max_size_mb to approximately target_size_mb
+    Returns the path to the compressed video (or original if no compression needed)
+    """
+    try:
+        original_path = Path(video_path)
+        original_size_mb = original_path.stat().st_size / (1024 * 1024)
+        
+        logging.info(f"🎬 Video compression check: {original_path.name}")
+        logging.info(f"📊 Original size: {original_size_mb:.2f} MB")
+        
+        if original_size_mb <= max_size_mb:
+            logging.info(f"✅ Video size OK ({original_size_mb:.2f} MB <= {max_size_mb} MB), no compression needed")
+            return str(video_path)
+        
+        logging.info(f"🗜️  Video too large ({original_size_mb:.2f} MB > {max_size_mb} MB), compressing to ~{target_size_mb} MB")
+        
+        # Create compressed filename
+        compressed_path = original_path.parent / f"compressed_{original_path.name}"
+        
+        # Calculate compression parameters
+        duration = get_video_duration(video_path)
+        if not duration:
+            logging.warning("Could not determine video duration, using default compression settings")
+            duration = 60  # Fallback duration
+        
+        # Target bitrate calculation: (target_size_mb * 8 * 1024) / duration_seconds
+        # Subtract ~10% for audio bitrate overhead
+        target_bitrate_kbps = int((target_size_mb * 8 * 1024 * 0.9) / duration)
+        
+        # Ensure minimum quality
+        target_bitrate_kbps = max(target_bitrate_kbps, 500)  # Minimum 500 kbps
+        
+        logging.info(f"⚙️  Compression settings:")
+        logging.info(f"   - Duration: {duration:.1f} seconds")
+        logging.info(f"   - Target bitrate: {target_bitrate_kbps} kbps")
+        logging.info(f"   - Expected size: ~{target_size_mb} MB")
+        
+        start_time = time.time()
+        
+        # Use ffmpeg for compression with optimized settings
+        (
+            ffmpeg
+            .input(str(video_path))
+            .output(
+                str(compressed_path),
+                vcodec='libx264',           # H.264 codec for good compression
+                acodec='aac',               # AAC audio codec
+                video_bitrate=f'{target_bitrate_kbps}k',  # Target video bitrate
+                audio_bitrate='128k',       # Standard audio bitrate
+                preset='fast',              # Fast encoding preset
+                crf=23,                     # Constant rate factor for quality
+                movflags='faststart',       # Enable progressive download
+                pix_fmt='yuv420p'           # Ensure compatibility
+            )
+            .overwrite_output()
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+        
+        compression_time = time.time() - start_time
+        
+        # Check if compression was successful
+        if compressed_path.exists():
+            compressed_size_mb = compressed_path.stat().st_size / (1024 * 1024)
+            compression_ratio = (original_size_mb - compressed_size_mb) / original_size_mb * 100
+            
+            logging.info(f"✅ Video compression successful!")
+            logging.info(f"   - Original: {original_size_mb:.2f} MB")
+            logging.info(f"   - Compressed: {compressed_size_mb:.2f} MB")
+            logging.info(f"   - Reduction: {compression_ratio:.1f}%")
+            logging.info(f"   - Time: {compression_time:.2f} seconds")
+            
+            # Remove original file to save space
+            try:
+                os.remove(video_path)
+                logging.info(f"🗑️  Removed original large video file")
+            except Exception as e:
+                logging.warning(f"Could not remove original file: {str(e)}")
+            
+            return str(compressed_path)
+        else:
+            logging.error("❌ Video compression failed - compressed file not created")
+            return str(video_path)  # Return original if compression failed
+            
+    except ffmpeg.Error as e:
+        logging.error(f"❌ FFmpeg error during video compression: {e.stderr.decode() if e.stderr else str(e)}")
+        return str(video_path)  # Return original if compression failed
+    except Exception as e:
+        logging.error(f"❌ Error compressing video: {str(e)}")
+        return str(video_path)  # Return original if compression failed
+
 def mix_audio_with_video(audio_file, video_file, output_file, original_volume=0.8, voiceover_volume=1.3, use_instrumental=False, custom_music_file=None):
     """Mix audio with video using ffmpeg-python"""
     try:
@@ -587,8 +679,37 @@ def upload_video():
         video_path = video_dir / video_file.filename
         video_file.save(str(video_path))
         
-        session['video_path'] = str(video_path)
-        return jsonify({'success': True, 'filename': video_file.filename})
+        # Check file size and compress if needed
+        original_size_mb = video_path.stat().st_size / (1024 * 1024)
+        logging.info(f"📹 Video uploaded: {video_file.filename} ({original_size_mb:.2f} MB)")
+        
+        # Compress video if it's larger than 20MB
+        compressed_video_path = compress_video_if_needed(str(video_path), max_size_mb=20, target_size_mb=10)
+        
+        # Check if compression occurred
+        compression_info = {}
+        if compressed_video_path != str(video_path):
+            compressed_size_mb = Path(compressed_video_path).stat().st_size / (1024 * 1024)
+            compression_ratio = (original_size_mb - compressed_size_mb) / original_size_mb * 100
+            compression_info = {
+                'compressed': True,
+                'original_size_mb': round(original_size_mb, 2),
+                'compressed_size_mb': round(compressed_size_mb, 2),
+                'compression_ratio': round(compression_ratio, 1)
+            }
+            logging.info(f"✅ Video compressed: {original_size_mb:.2f} MB → {compressed_size_mb:.2f} MB ({compression_ratio:.1f}% reduction)")
+        else:
+            compression_info = {
+                'compressed': False,
+                'original_size_mb': round(original_size_mb, 2)
+            }
+        
+        session['video_path'] = compressed_video_path
+        return jsonify({
+            'success': True, 
+            'filename': video_file.filename,
+            'compression': compression_info
+        })
     except Exception as e:
         logging.error(f"Video upload error: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -1189,13 +1310,17 @@ def transcribe():
                 logging.error("❌ Failed to save video file")
                 return jsonify({'error': 'Failed to save uploaded video file'}), 500
             
-            # Store the transcription video path for later use
-            session['transcription_video_path'] = str(temp_video_path)
+            # Compress video if needed before transcription
+            logging.info("🔄 Checking if video compression is needed...")
+            compressed_video_path = compress_video_if_needed(str(temp_video_path), max_size_mb=20, target_size_mb=10)
+            
+            # Store the (possibly compressed) transcription video path for later use
+            session['transcription_video_path'] = compressed_video_path
             video_available_for_vocal_removal = True
             
-            # Transcribe video (extracts audio first)
+            # Transcribe video (extracts audio first) - use compressed version
             logging.info("🎵 Starting video transcription workflow...")
-            transcription = transcribe_video(temp_video_path)
+            transcription = transcribe_video(compressed_video_path)
             
         elif is_audio:
             logging.info("🎵 Processing AUDIO file...")

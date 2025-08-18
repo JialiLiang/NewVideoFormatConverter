@@ -412,7 +412,7 @@
 
         function handleFiles(e) {
             const files = Array.from(e.target.files);
-            console.log('Files selected:', files.length);
+            console.log('handleFiles - Files selected:', files.length, files.map(f => f.name));
             addFiles(files);
             // Clear the input so the same file can be selected again if needed
             e.target.value = '';
@@ -483,6 +483,7 @@
         }
 
         function clearFiles() {
+            console.log('clearFiles() called - clearing', selectedFiles.length, 'files');
             selectedFiles = [];
             updateFileList();
             updateConvertButton();
@@ -491,7 +492,8 @@
         function updateConvertButton() {
             const hasFiles = selectedFiles.length > 0;
             const hasFormats = document.querySelectorAll('.format-card input[type="checkbox"]:checked').length > 0;
-            console.log('Files:', selectedFiles.length, 'Formats:', document.querySelectorAll('.format-card input[type="checkbox"]:checked').length);
+            console.log('updateConvertButton - Files:', selectedFiles.length, 'Formats:', document.querySelectorAll('.format-card input[type="checkbox"]:checked').length);
+            console.log('Selected files array:', selectedFiles.map(f => f.name));
             convertBtn.disabled = !hasFiles || !hasFormats;
             
             if (hasFiles && hasFormats) {
@@ -516,10 +518,13 @@
             }
 
             const formData = new FormData();
-            selectedFiles.forEach(file => {
+            console.log('Converting videos - selected files:', selectedFiles.length);
+            selectedFiles.forEach((file, index) => {
+                console.log(`Adding file ${index}:`, file.name, file.size, 'bytes');
                 formData.append('files', file);
             });
             selectedFormats.forEach(format => {
+                console.log('Adding format:', format);
                 formData.append('formats', format);
             });
 
@@ -786,6 +791,17 @@
             updateConvertButton();
             console.log('Initial state - Files:', selectedFiles.length, 'Checked formats:', document.querySelectorAll('.format-card input[type="checkbox"]:checked').length);
         }, 100);
+        
+        // Debug function to check file state
+        window.debugFileState = function() {
+            console.log('=== FILE STATE DEBUG ===');
+            console.log('selectedFiles.length:', selectedFiles.length);
+            console.log('selectedFiles:', selectedFiles.map(f => ({name: f.name, size: f.size, type: f.type})));
+            console.log('fileInput.files.length:', fileInput.files.length);
+            console.log('Checked formats:', Array.from(document.querySelectorAll('.format-card input[type="checkbox"]:checked')).map(cb => cb.value));
+            console.log('Convert button disabled:', convertBtn.disabled);
+            console.log('========================');
+        };
 
         // Add page exit cleanup
         window.addEventListener('beforeunload', function(e) {
@@ -800,6 +816,8 @@
                 fetch(`/cancel/${currentJobId}`, {
                     method: 'POST',
                     keepalive: true  // Ensure request completes even if page is closing
+                }).then(response => {
+                    console.log('Cleanup request sent successfully');
                 }).catch(err => console.log('Cleanup request failed:', err));
                 
                 // Show confirmation dialog
@@ -810,12 +828,30 @@
         });
 
         // Clean up when page becomes hidden (mobile/tab switching)
+        // Only cancel if the page is hidden for more than 30 seconds
+        let pageHiddenTimeout = null;
         document.addEventListener('visibilitychange', function() {
             if (document.hidden && currentJobId && statusInterval) {
-                console.log('Page hidden during processing, requesting cancellation...');
-                fetch(`/cancel/${currentJobId}`, {
-                    method: 'POST'
-                }).catch(err => console.log('Cleanup request failed:', err));
+                console.log('Page hidden during processing, setting cancellation timer...');
+                pageHiddenTimeout = setTimeout(() => {
+                    if (document.hidden && currentJobId && statusInterval) {
+                        console.log('Page hidden for 30 seconds, requesting cancellation...');
+                        fetch(`/cancel/${currentJobId}`, {
+                            method: 'POST'
+                        }).then(response => {
+                            if (response.ok) {
+                                console.log('Cancellation request successful');
+                            } else {
+                                console.log('Cancellation request returned:', response.status);
+                            }
+                        }).catch(err => console.log('Cleanup request failed:', err));
+                    }
+                }, 30000); // 30 seconds delay
+            } else if (!document.hidden && pageHiddenTimeout) {
+                // Page became visible again, cancel the timeout
+                console.log('Page visible again, cancelling timeout');
+                clearTimeout(pageHiddenTimeout);
+                pageHiddenTimeout = null;
             }
         });
     </script>

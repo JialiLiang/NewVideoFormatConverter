@@ -632,13 +632,20 @@ def cancel_job(job_id):
     """Cancel an active processing job"""
     with job_lock:
         if job_id in processing_jobs:
-            if processing_jobs[job_id]['status'] == 'processing':
+            current_status = processing_jobs[job_id]['status']
+            if current_status == 'processing':
                 processing_jobs[job_id]['cancel_requested'] = True
                 processing_jobs[job_id]['status'] = 'cancelled'
                 print(f"🛑 Job {job_id} cancelled by user request")
                 return jsonify({'message': 'Job cancellation requested'})
+            elif current_status in ['completed', 'error', 'cancelled']:
+                # Job is already finished, return success instead of error
+                return jsonify({'message': f'Job already {current_status}'})
             else:
-                return jsonify({'message': 'Job is not currently processing'}), 400
+                # Job is queued, mark as cancelled
+                processing_jobs[job_id]['cancel_requested'] = True
+                processing_jobs[job_id]['status'] = 'cancelled'
+                return jsonify({'message': 'Job cancelled before processing started'})
         else:
             return jsonify({'error': 'Job not found'}), 404
 

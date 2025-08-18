@@ -737,7 +737,7 @@
                     videoFile.dispatchEvent(event);
                 }
             });
-            videoFile.addEventListener('change', () => {
+            videoFile.addEventListener('change', async () => {
                 if (videoFile.files.length > 0) {
                     // Update display without removing the file input
                     const icon = videoUpload.querySelector('i');
@@ -748,16 +748,25 @@
                     if (text) text.textContent = videoFile.files[0].name;
                     if (smallText) smallText.textContent = 'Video ready for mixing';
                     
-                    // Show appropriate success message and options based on selected video option
+                    // Check file size and show compression info if needed
+                    const fileSizeMB = videoFile.files[0].size / (1024 * 1024);
                     const successMessage = document.getElementById('videoSuccessMessage');
                     const vocalRemovalInfo = document.getElementById('vocalRemovalInfo');
                     
+                    let baseMessage = '';
                     if (selectedVideoOption === 'vocal') {
-                        successMessage.textContent = 'Video uploaded successfully! AI vocal removal will be applied.';
+                        baseMessage = 'Video uploaded successfully! AI vocal removal will be applied.';
                         vocalRemovalInfo.style.display = 'block';
                     } else {
-                        successMessage.textContent = 'SFX-only video uploaded successfully!';
+                        baseMessage = 'SFX-only video uploaded successfully!';
                         vocalRemovalInfo.style.display = 'none';
+                    }
+                    
+                    // Add compression info if file is large
+                    if (fileSizeMB > 20) {
+                        successMessage.innerHTML = `${baseMessage}<br><small class="text-info"><i class="fas fa-compress"></i> Large video detected (${fileSizeMB.toFixed(1)} MB). Will be compressed to ~10 MB during processing for better performance.</small>`;
+                    } else {
+                        successMessage.textContent = baseMessage;
                     }
                     
                     document.getElementById('videoInfo').style.display = 'block';
@@ -1312,6 +1321,12 @@
             formData.append('video', videoFile.files[0]);
             
             try {
+                // Show compression progress if file is large
+                const fileSizeMB = videoFile.files[0].size / (1024 * 1024);
+                if (fileSizeMB > 20) {
+                    showLoading(`Uploading and compressing video (${fileSizeMB.toFixed(1)} MB → ~10 MB)... Please wait.`);
+                }
+                
                 const uploadResponse = await fetch('/api/upload-video', {
                     method: 'POST',
                     body: formData
@@ -1324,6 +1339,15 @@
                 const uploadResult = await uploadResponse.json();
                 if (!uploadResult.success) {
                     throw new Error(uploadResult.error);
+                }
+                
+                // Show compression result if it occurred
+                if (uploadResult.compression && uploadResult.compression.compressed) {
+                    const comp = uploadResult.compression;
+                    showLoading(`Video compressed successfully! ${comp.original_size_mb} MB → ${comp.compressed_size_mb} MB (${comp.compression_ratio}% reduction). Proceeding with mixing...`);
+                    
+                    // Brief pause to show compression result
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                 }
                 
                 // Check if AI vocal removal is needed based on selected option
