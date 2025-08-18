@@ -1405,9 +1405,9 @@ def create_adlocalizer_streaming_zip_response(files, zip_name):
                 yield b''
                 return
             
-            # Stream the ZIP file back to client in chunks
+            # Stream the ZIP file back to client in larger chunks for better performance
             with open(temp_zip_path, 'rb') as zip_file:
-                chunk_size = 256 * 1024  # 256KB chunks for faster streaming
+                chunk_size = 1024 * 1024  # 1MB chunks for faster streaming on Render.com
                 bytes_sent = 0
                 while True:
                     chunk = zip_file.read(chunk_size)
@@ -1433,13 +1433,16 @@ def create_adlocalizer_streaming_zip_response(files, zip_name):
             # Force garbage collection
             gc.collect()
     
-    # Create response with proper headers
+    # Create response with optimized headers for better download performance
     response = Response(
         generate_zip(),
         mimetype='application/zip',
         headers={
             'Content-Disposition': f'attachment; filename={zip_name}',
-            'Content-Type': 'application/zip'
+            'Content-Type': 'application/zip',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Transfer-Encoding': 'chunked'
         }
     )
     
@@ -1489,14 +1492,17 @@ def create_fast_adlocalizer_zip(files, zip_name):
         
         logging.info(f"FAST ZIP size: {zip_size} bytes")
         
-        # Create response
+        # Create response with optimized headers for maximum download speed
         response = Response(
             zip_data,
             mimetype='application/zip',
             headers={
                 'Content-Disposition': f'attachment; filename={zip_name}',
                 'Content-Type': 'application/zip',
-                'Content-Length': str(zip_size)
+                'Content-Length': str(zip_size),
+                'Cache-Control': 'no-cache, must-revalidate',
+                'Connection': 'keep-alive',
+                'Accept-Ranges': 'bytes'
             }
         )
         

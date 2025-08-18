@@ -530,7 +530,7 @@
         <!-- Mix Audio Button -->
         <div class="section text-center">
             <h3><i class="fas fa-music"></i> 8. Final Audio Mixing</h3>
-            <button class="btn btn-primary btn-lg" onclick="mixAudio()">
+            <button class="btn btn-primary btn-lg" id="mixAudioBtn" onclick="mixAudio()">
                 <i class="fas fa-magic"></i> Mix Audio with Video
             </button>
         </div>
@@ -1300,7 +1300,7 @@
             }
             
             // Show progress indicator
-            const button = event.target;
+            const button = document.getElementById('mixAudioBtn');
             const originalText = button.innerHTML;
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mixing...';
             button.disabled = true;
