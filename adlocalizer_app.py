@@ -1275,10 +1275,75 @@ def download_adlocalizer_file(filename):
         if not file_path.exists():
             return jsonify({'error': 'File not found'}), 404
         
-        return send_file(str(file_path), as_attachment=True)
+        # Get file size for optimization
+        file_size = file_path.stat().st_size
+        logging.info(f"Downloading file: {filename} ({file_size} bytes)")
+        
+        # For large files (>10MB), use streaming response
+        if file_size > 10 * 1024 * 1024:  # 10MB
+            return create_streaming_download_response(str(file_path), filename)
+        else:
+            # For smaller files, use optimized send_file with better headers
+            return send_file(
+                str(file_path), 
+                as_attachment=True,
+                download_name=filename,
+                mimetype='video/mp4',
+                conditional=True,  # Enable conditional requests (range support)
+                etag=True,         # Enable ETag for caching
+                last_modified=True, # Enable last-modified headers
+                max_age=3600       # Cache for 1 hour
+            )
     except Exception as e:
         logging.error(f"Download error: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+def create_streaming_download_response(file_path, filename):
+    """Create optimized streaming response for large file downloads"""
+    import os
+    from flask import Response
+    
+    def generate_file_chunks():
+        chunk_size = 1024 * 1024  # 1MB chunks for optimal download speed
+        bytes_sent = 0
+        file_size = os.path.getsize(file_path)
+        
+        try:
+            with open(file_path, 'rb') as f:
+                while True:
+                    chunk = f.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+                    bytes_sent += len(chunk)
+                    
+                    # Log progress every 10MB
+                    if bytes_sent % (10 * 1024 * 1024) == 0:
+                        progress = (bytes_sent / file_size) * 100
+                        logging.info(f"Download progress for {filename}: {progress:.1f}% ({bytes_sent}/{file_size} bytes)")
+                        
+        except Exception as e:
+            logging.error(f"Error streaming file {filename}: {str(e)}")
+            yield b''  # End the stream on error
+    
+    file_size = os.path.getsize(file_path)
+    
+    # Create response with optimized headers for maximum download speed
+    response = Response(
+        generate_file_chunks(),
+        mimetype='video/mp4',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Content-Type': 'video/mp4',
+            'Content-Length': str(file_size),
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'public, max-age=3600',  # Cache for 1 hour
+            'Connection': 'keep-alive',
+            'Transfer-Encoding': 'chunked'
+        }
+    )
+    
+    return response
 
 def serve_audio(filepath):
     """Serve audio files for preview"""
@@ -1300,7 +1365,7 @@ def serve_audio(filepath):
         return jsonify({'error': str(e)}), 500
 
 def serve_video(filepath):
-    """Serve video files for preview"""
+    """Serve video files for preview with optimized streaming"""
     try:
         session_id = session.get('session_id')
         if not session_id:
@@ -1313,7 +1378,18 @@ def serve_video(filepath):
         if not file_path.exists():
             return jsonify({'error': 'Video file not found'}), 404
         
-        return send_file(str(file_path), mimetype='video/mp4')
+        # Get file size
+        file_size = file_path.stat().st_size
+        
+        # Use optimized serving with range support for video streaming
+        return send_file(
+            str(file_path), 
+            mimetype='video/mp4',
+            conditional=True,    # Enable range requests for video seeking
+            etag=True,          # Enable ETag for browser caching
+            last_modified=True, # Enable last-modified headers
+            max_age=1800        # Cache for 30 minutes
+        )
     except Exception as e:
         logging.error(f"Video serve error: {str(e)}")
         return jsonify({'error': str(e)}), 500

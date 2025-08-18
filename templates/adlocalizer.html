@@ -1577,7 +1577,7 @@
             const grid = document.getElementById('videosGrid');
             grid.innerHTML = '';
             
-            Object.entries(mixedVideos).forEach(([langCode, videoPath]) => {
+            Object.entries(mixedVideos).forEach(([langCode, videoPath], index) => {
                 const videoFileName = videoPath.split('/').pop();
                 const videoUrl = `/video/${videoFileName}`;
                 
@@ -1588,14 +1588,35 @@
                 col.innerHTML = `
                     <div class="translation-result">
                         <h6><strong>${getLanguageName(langCode)} (${langCode})</strong></h6>
-                        <video controls class="w-100" onerror="console.error('Video failed to load:', this.src)">
-                            <source src="${videoUrl}" type="video/mp4">
-                            Your browser does not support the video element.
-                        </video>
+                        <div class="video-preview-container" data-video-url="${videoUrl}" data-lang-code="${langCode}">
+                            <div class="video-placeholder" onclick="loadVideoPreview('${langCode}', '${videoUrl}')" style="
+                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                color: white;
+                                padding: 60px 20px;
+                                text-align: center;
+                                border-radius: 10px;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                                position: relative;
+                                overflow: hidden;
+                            ">
+                                <i class="fas fa-play-circle fa-3x mb-3" style="opacity: 0.9;"></i>
+                                <h5 style="margin: 0; font-weight: 500;">Click to Load Preview</h5>
+                                <p style="margin: 5px 0 0 0; opacity: 0.8; font-size: 0.9em;">Optimized for faster loading</p>
+                                <div class="loading-spinner" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                                    <div class="spinner-border text-light" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="mt-2">
                             <a href="/adlocalizer/download/${videoFileName}" class="btn btn-primary btn-sm">
                                 <i class="fas fa-download"></i> Download
                             </a>
+                            <button class="btn btn-outline-secondary btn-sm ms-2" onclick="loadVideoPreview('${langCode}', '${videoUrl}')">
+                                <i class="fas fa-eye"></i> Preview
+                            </button>
                             <small class="text-muted d-block mt-1">File: ${videoFileName}</small>
                         </div>
                     </div>
@@ -1604,6 +1625,58 @@
             });
             
             document.getElementById('videosSection').style.display = 'block';
+            
+            // Auto-load the first video preview after a short delay
+            setTimeout(() => {
+                const firstLangCode = Object.keys(mixedVideos)[0];
+                const firstVideoPath = mixedVideos[firstLangCode];
+                const firstVideoFileName = firstVideoPath.split('/').pop();
+                const firstVideoUrl = `/video/${firstVideoFileName}`;
+                loadVideoPreview(firstLangCode, firstVideoUrl);
+            }, 500);
+        }
+        
+        // New function to load video previews on demand
+        window.loadVideoPreview = function(langCode, videoUrl) {
+            const container = document.querySelector(`[data-lang-code="${langCode}"]`);
+            if (!container) return;
+            
+            const placeholder = container.querySelector('.video-placeholder');
+            const spinner = placeholder.querySelector('.loading-spinner');
+            
+            // Show loading spinner
+            spinner.style.display = 'block';
+            placeholder.style.cursor = 'default';
+            
+            // Create video element
+            const video = document.createElement('video');
+            video.controls = true;
+            video.className = 'w-100';
+            video.style.borderRadius = '10px';
+            video.preload = 'metadata'; // Only load metadata initially
+            video.onerror = function() {
+                console.error('Video failed to load:', this.src);
+                placeholder.innerHTML = `
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2 text-warning"></i>
+                    <p>Failed to load video preview</p>
+                    <small>Try downloading the file directly</small>
+                `;
+            };
+            
+            video.onloadedmetadata = function() {
+                // Replace placeholder with video once metadata is loaded
+                container.innerHTML = '';
+                container.appendChild(video);
+            };
+            
+            // Create source element
+            const source = document.createElement('source');
+            source.src = videoUrl;
+            source.type = 'video/mp4';
+            video.appendChild(source);
+            
+            // Add fallback text
+            video.appendChild(document.createTextNode('Your browser does not support the video element.'));
         }
 
         // Download functions
