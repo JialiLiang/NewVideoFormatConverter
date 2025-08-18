@@ -86,26 +86,12 @@ def get_models_directory():
     return models_dir
 
 def check_replicate_available():
-    """Check if replicate is available and API token is set"""
-    try:
-        import replicate
-        api_token = os.environ.get('REPLICATE_API_TOKEN')
-        return api_token is not None
-    except ImportError:
-        return False
+    """Check if replicate is available and API token is set - DISABLED"""
+    # Replicate dependency has been removed to reduce deployment size
+    return False
 
 def get_available_models():
-    """Get list of all available models (only those that can actually run)"""
-    replicate_available = check_replicate_available()
-    
-    # Filter models based on what's actually available
-    available_models = {}
-    for model_id, model_config in VOCAL_REMOVAL_MODELS.items():
-        if model_config["engine"] == "demucs":
-            # DEMUCS should always be available
-            available_models[model_id] = model_config
-        elif model_config["engine"] == "replicate" and replicate_available:
-            # Only include replicate models if the library and API token are available
-            available_models[model_id] = model_config
-    
-    return available_models
+    """Get list of all available models (VOCAL REMOVAL DISABLED)"""
+    # Vocal removal feature has been disabled to reduce deployment size
+    # All models are unavailable because dependencies were removed
+    return {}

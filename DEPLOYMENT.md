@@ -18,36 +18,22 @@
    python3 app.py
    ```
 
-## Vocal Removal Models
+## ⚠️ Vocal Removal Feature Disabled
 
-The app supports high-quality vocal removal models:
+**AI vocal removal has been temporarily disabled to reduce deployment size.**
 
-- **DEMUCS v4**: Excellent quality, local processing (~15 seconds)
-- **Replicate All-in-One Audio**: Outstanding quality, cloud processing (~130 seconds)
+### What was removed:
+- **PyTorch dependencies**: ~2-3GB saved
+- **DEMUCS models**: ~240MB saved  
+- **Replicate API**: Cloud processing dependencies
+- **Total savings**: ~3-4GB deployment size reduction
 
-### Model Setup Details
-
-The `setup_models.py` script downloads:
-- **DEMUCS v4 (htdemucs_ft)**: ~240MB (required, local processing)
-- **Replicate API**: Cloud-based processing (requires API token)
+### Available Options:
+- **Option A**: Upload SFX-only video (recommended)
+- **Option B**: Upload video + replace with custom music
+- **Option C**: ~~AI vocal removal~~ (disabled)
 
 ## Production Deployment
-
-### Docker Setup
-```dockerfile
-FROM python:3.11
-
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-# Download AI models during build
-RUN python3 setup_models.py
-
-EXPOSE 5000
-CMD ["python3", "app.py"]
-```
 
 ### Render.com Setup
 1. Add to `render.yaml`:
@@ -75,16 +61,16 @@ web: python3 app.py
 
 ## Storage Requirements
 
-- **Disk space**: ~300MB for AI models
-- **Memory**: 2GB+ recommended for model inference
+- **Disk space**: Minimal (AI models removed)
+- **Memory**: 1GB+ recommended for video processing
 - **Temp storage**: Videos processed in `/tmp` directories
 
 ## Performance Notes
 
-- **DEMUCS v4**: Local processing, ~15 seconds, no API costs
-- **Replicate API**: Cloud processing, ~130 seconds, ~$0.13 per run
-- Models are cached after first download (DEMUCS only)
-- Replicate API requires internet connection and API token
+- **Faster deployment**: No heavy AI model downloads
+- **Reduced memory usage**: No PyTorch/DEMUCS inference
+- **Lower costs**: No GPU requirements for vocal processing
+- **Simpler setup**: Fewer dependencies to manage
 
 ## Troubleshooting
 

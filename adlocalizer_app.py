@@ -617,6 +617,7 @@ def upload_custom_music():
             shutil.copy2(str(default_music_path), str(custom_music_path))
             
             session['custom_music_path'] = str(custom_music_path)
+            session['custom_music_name'] = selected_music.split('.')[0]  # Store name without extension
             return jsonify({'success': True, 'filename': f'{selected_music} (default)', 'is_default': True})
         
         else:
@@ -640,6 +641,7 @@ def upload_custom_music():
             music_file.save(str(custom_music_path))
             
             session['custom_music_path'] = str(custom_music_path)
+            session['custom_music_name'] = music_file.filename.split('.')[0]  # Store name without extension
             return jsonify({'success': True, 'filename': music_file.filename, 'is_default': False})
     
     except Exception as e:
@@ -987,80 +989,25 @@ def remove_vocals_from_video(video_path, output_directory, model_id=None):
         return None
 
 def remove_vocals():
+    """Handle vocal removal request - FEATURE DISABLED"""
     try:
-        # Debug logging
-        logging.info("=== VOCAL REMOVAL FUNCTION CALLED ===")
-        logging.info(f"Session ID: {session.get('session_id')}")
-        logging.info(f"Video path: {session.get('video_path')}")
-        logging.info(f"Transcription video path: {session.get('transcription_video_path')}")
+        logging.warning("=== VOCAL REMOVAL FUNCTION CALLED BUT FEATURE IS DISABLED ===")
         
-        # Get model selection from request data (if any)
-        data = request.get_json() if request.is_json else {}
-        model_id = data.get('model_id') if data else None
-        
-        # Validate model if provided
-        if model_id and not validate_model_id(model_id):
-            logging.error(f"Invalid model ID provided: {model_id}")
-            return jsonify({'error': f'Invalid vocal removal model: {model_id}'}), 400
-        
-        # Use default model if none specified
-        if not model_id:
-            model_id = get_default_model()
-        
-        logging.info(f"Using vocal removal model: {model_id}")
-        
-        # Get video path from session (try multiple possible keys)
-        video_path = (session.get('video_path') or 
-                     session.get('transcription_video_path') or 
-                     session.get('uploaded_video_path'))
-        
-        # Debug logging to see what's in the session
-        logging.info(f"Session keys: {list(session.keys())}")
-        logging.info(f"video_path: {session.get('video_path')}")
-        logging.info(f"transcription_video_path: {session.get('transcription_video_path')}")
-        logging.info(f"uploaded_video_path: {session.get('uploaded_video_path')}")
-        
-        if not video_path:
-            logging.error("No video path found in session")
-            return jsonify({'error': 'No video available for vocal removal. Please upload a video first.'}), 400
-        
-        if not os.path.exists(video_path):
-            logging.error(f"Video file not found at path: {video_path}")
-            return jsonify({'error': 'Video file not found'}), 404
-        
-        # Create session-specific directories
-        session_id = session.get('session_id', str(uuid.uuid4()))
-        session['session_id'] = session_id
-        
-        base_dir = Path(f"temp_files/{session_id}")
-        vocal_removal_dir = base_dir / "vocal_removal"
-        vocal_removal_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Get model info for response
-        model_config = get_model_config(model_id)
-        model_name = model_config['name'] if model_config else model_id
-        
-        # Remove vocals and create instrumental version
-        logging.info(f"Starting vocal removal for video: {video_path} using model: {model_name}")
-        instrumental_video_path = remove_vocals_from_video(video_path, str(vocal_removal_dir), model_id)
-        
-        if instrumental_video_path:
-            logging.info(f"Vocal removal successful! Instrumental video created: {instrumental_video_path}")
-            session['instrumental_video_path'] = instrumental_video_path
-            return jsonify({
-                'success': True,
-                'message': f'Vocals removed successfully using {model_name}',
-                'instrumental_video_path': instrumental_video_path,
-                'model_used': model_name,
-                'model_id': model_id
-            })
-        else:
-            logging.error("Vocal removal failed - no instrumental video path returned")
-            return jsonify({'error': 'Failed to remove vocals. Please ensure Demucs is installed and try again.'}), 500
+        # Return error message indicating feature is disabled
+        return jsonify({
+            'error': 'Vocal removal feature is currently disabled',
+            'message': 'AI vocal removal has been temporarily disabled to reduce deployment size. The required dependencies (PyTorch, DEMUCS, etc.) have been removed.',
+            'suggestion': 'Please use Option A (SFX-only video) or Option B (custom music) instead.',
+            'success': False
+        }), 503  # Service Unavailable
         
     except Exception as e:
-        logging.error(f"Vocal removal error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logging.error(f"Vocal removal disabled - error in handler: {str(e)}")
+        return jsonify({
+            'error': 'Vocal removal feature is disabled',
+            'message': 'This feature has been temporarily disabled to reduce deployment size.',
+            'success': False
+        }), 503
 
 def mix_audio():
     try:
@@ -1108,7 +1055,8 @@ def mix_audio():
         # Handle custom music without voiceovers
         if use_custom_music and not audio_files:
             # Create a single output with just custom music (no voiceover)
-            suffix = "_custom_music"
+            music_name = session.get('custom_music_name', 'custom_music')
+            suffix = f"_{music_name}"
             output_file = export_dir / f"{video_filename.split('.')[0]}{suffix}.mp4"
             # Use None as audio_file to indicate no voiceover
             if mix_audio_with_video(None, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal, custom_music_path):
@@ -1117,7 +1065,8 @@ def mix_audio():
             # Normal case: loop through audio files (voiceovers)
             for lang_code, audio_file in audio_files.items():
                 if use_custom_music:
-                    suffix = "_custom_music"
+                    music_name = session.get('custom_music_name', 'custom_music')
+                    suffix = f"_{music_name}"
                 elif use_vocal_removal:
                     suffix = "_instrumental"  
                 else:

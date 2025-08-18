@@ -14,20 +14,18 @@ elevenlabs>=1.0.0
 python-dotenv>=1.0.0
 gunicorn>=21.0.0
 psutil>=5.9.0
-demucs>=4.0.0
-torch>=2.0.0
-torchaudio>=2.0.0
-soundfile>=0.12.1
 aiofiles>=23.0.0
-# Additional vocal removal models (optional - for better quality)
-# Uncomment and install these for access to state-of-the-art models:
+# AI Vocal removal dependencies removed to reduce deployment size
+# The following dependencies were removed (saved ~3-4GB):
+# demucs>=4.0.0
+# torch>=2.0.0  
+# torchaudio>=2.0.0
+# soundfile>=0.12.1
+# replicate>=0.22.0
 # audio-separator>=0.17.1
 # librosa>=0.10.0
 # omegaconf>=2.3.0
 # onnxruntime>=1.22.0
-
-# Replicate API for cloud-based vocal removal
-replicate>=0.22.0
 
 # IMPORTANT: After installing dependencies, run the model setup script:
 # python3 setup_models.py 
