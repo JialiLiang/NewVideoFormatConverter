@@ -217,8 +217,29 @@ def generate_elevenlabs_voice(text, language_code, output_directory, english_ide
         return None
         
     try:
+        # Get voice name
         voice_name = next((v["name"] for v in VOICES.values() if v["id"] == voice_id), "Unknown")
-        safe_name = f"{voice_name}_{language_code}_{english_identifier}"
+        voice_name = voice_name.replace(" ", "_")
+        
+        # Create a clean identifier from the text (max 30 chars)
+        # First, split into words and take first few words
+        words = text.split()
+        identifier_words = []
+        current_length = 0
+        for word in words:
+            if current_length + len(word) + 1 <= 30:  # +1 for underscore
+                identifier_words.append(word)
+                current_length += len(word) + 1
+            else:
+                break
+        
+        # Join words and clean the identifier
+        text_identifier = "_".join(identifier_words)
+        text_identifier = re.sub(r'[^a-zA-Z0-9]+', '_', text_identifier.strip())
+        text_identifier = text_identifier.strip('_')
+        
+        # Create filename with text_identifier, voice_name, and language_code
+        safe_name = f"{text_identifier}_{voice_name}_{language_code}"
         output_file = f"{output_directory}/{safe_name}.mp3"
         
         elevenlabs_api_key = get_secret("ELEVENLABS_API_KEY")
@@ -1424,6 +1445,38 @@ def download_all_adlocalizer():
         
     except Exception as e:
         logging.error(f"Download all error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+def download_all_voiceovers():
+    try:
+        session_id = session.get('session_id')
+        if not session_id:
+            return jsonify({'error': 'No session found'}), 404
+        
+        audio_files = session.get('audio_files', {})
+        if not audio_files:
+            return jsonify({'error': 'No voiceovers to download'}), 404
+        
+        # Get valid files for ZIP
+        valid_files = []
+        for lang_code, audio_path in audio_files.items():
+            if os.path.exists(audio_path):
+                valid_files.append((audio_path, os.path.basename(audio_path)))
+        
+        if not valid_files:
+            return jsonify({'error': 'No valid voiceover files found'}), 404
+        
+        logging.info(f"Creating streaming ZIP with {len(valid_files)} voiceover files")
+        
+        # Try fast ZIP creation first
+        try:
+            return create_fast_adlocalizer_zip(valid_files, 'voiceovers.zip')
+        except Exception as e:
+            logging.warning(f"Fast ZIP creation failed, falling back to streaming: {str(e)}")
+            return create_adlocalizer_streaming_zip_response(valid_files, 'voiceovers.zip')
+        
+    except Exception as e:
+        logging.error(f"Download all voiceovers error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def create_adlocalizer_streaming_zip_response(files, zip_name):

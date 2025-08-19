@@ -335,6 +335,19 @@
         <!-- Audio Results -->
         <div id="audioSection" class="section" style="display: none;">
             <h3><i class="fas fa-volume-up"></i> Generated Voiceovers</h3>
+            
+            <div class="text-center mb-3">
+                <button class="btn btn-success btn-lg" id="downloadAllVoiceoversBtn" onclick="downloadAllVoiceovers()">
+                    <i class="fas fa-download"></i> Download All Voiceovers (ZIP)
+                </button>
+                <div id="voiceoverZipLoading" style="display: none;" class="mt-3">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Creating ZIP...</span>
+                    </div>
+                    <p class="mt-2 text-success">Creating ZIP file, please wait...</p>
+                </div>
+            </div>
+            
             <div id="audioGrid"></div>
         </div>
 
@@ -343,14 +356,14 @@
             <h3><i class="fas fa-sliders-h"></i> 6. Audio Settings</h3>
             <div class="row">
                 <div class="col-md-6">
-                    <label for="originalVolume" class="form-label">Original Audio Volume</label>
-                    <input type="range" class="form-range" id="originalVolume" min="0" max="2" step="0.1" value="0.8">
-                    <div class="text-center" id="originalVolumeValue">0.8</div>
+                    <label for="originalVolume" class="form-label">Music Volume</label>
+                    <input type="range" class="form-range" id="originalVolume" min="0" max="2" step="0.1" value="0.6">
+                    <div class="text-center" id="originalVolumeValue">0.6</div>
                 </div>
                 <div class="col-md-6">
                     <label for="voiceoverVolume" class="form-label">Voiceover Volume</label>
-                    <input type="range" class="form-range" id="voiceoverVolume" min="0" max="2" step="0.1" value="1.3">
-                    <div class="text-center" id="voiceoverVolumeValue">1.3</div>
+                    <input type="range" class="form-range" id="voiceoverVolume" min="0" max="2" step="0.1" value="1.5">
+                    <div class="text-center" id="voiceoverVolumeValue">1.5</div>
                 </div>
             </div>
         </div>
@@ -1143,7 +1156,12 @@
                             Your browser does not support the audio element.
                         </audio>
                         <div class="mt-2">
-                            <small class="text-muted">File: ${audioFileName}</small>
+                            <small class="text-muted">
+                                <i class="fas fa-file-audio"></i> ${audioFileName}
+                                <div class="text-muted mt-1">
+                                    <i class="fas fa-info-circle"></i> Contains: First words of text, voice name, and language code
+                                </div>
+                            </small>
                         </div>
                     </div>
                 `;
@@ -1680,6 +1698,38 @@
         }
 
         // Download functions
+        window.downloadAllVoiceovers = async function() {
+            try {
+                // Check if we have voiceovers to download
+                if (Object.keys(audioFiles).length === 0) {
+                    alert('No voiceovers available to download. Please generate voiceovers first.');
+                    return;
+                }
+
+                // Show loading indicator
+                const downloadBtn = document.getElementById('downloadAllVoiceoversBtn');
+                const zipLoading = document.getElementById('voiceoverZipLoading');
+                
+                downloadBtn.style.display = 'none';
+                zipLoading.style.display = 'block';
+                
+                // Start download
+                window.location.href = '/api/download-all-voiceovers';
+                
+                // Hide loading after a delay (since we can't detect when download completes)
+                setTimeout(() => {
+                    downloadBtn.style.display = 'inline-block';
+                    zipLoading.style.display = 'none';
+                }, 5000); // Hide after 5 seconds
+                
+            } catch (error) {
+                // Hide loading on error
+                document.getElementById('downloadAllVoiceoversBtn').style.display = 'inline-block';
+                document.getElementById('voiceoverZipLoading').style.display = 'none';
+                alert('Error downloading voiceovers: ' + error.message);
+            }
+        }
+
         window.downloadAll = async function() {
             try {
                 // Show loading indicator
