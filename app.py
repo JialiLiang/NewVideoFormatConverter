@@ -316,6 +316,14 @@ def montage_maker():
                          tools=tools, 
                          tools_config=TOOLS_CONFIG)
 
+@app.route('/name-generator')
+def name_generator():
+    from tools_config import TOOLS_CONFIG
+    tools = get_active_tools()
+    return render_template('name_generator.html', 
+                         tools=tools, 
+                         tools_config=TOOLS_CONFIG)
+
 if __name__ == '__main__':
     # For Railway deployment, use PORT environment variable
     # For local development, use command line args

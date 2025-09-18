@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🪄 Creative Name Generator - Photoroom UA Video Tools</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #111827;
+            --muted: #9ca3af;
+            --card: #0b1220;
+            --brand: #6366f1;
+            --brand-600: #4f46e5;
+            --border: #1f2937;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --preview-card: #0e1626;
+        }
+
+        body {
+            background: var(--bg);
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: white;
+            margin: 0;
+            font-size: 14px;
+            line-height: 22px;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            padding: 32px 0;
+            text-align: center;
+        }
+
+        /* Typography Scale */
+        h1 {
+            font-size: 28px;
+            line-height: 34px;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+            margin: 0;
+        }
+
+        h2 {
+            font-size: 18px;
+            line-height: 26px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .label {
+            font-size: 12px;
+            line-height: 18px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        /* Layout Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 1024px) {
+            .grid {
+                grid-template-columns: 2fr 1fr;
+                gap: 32px;
+            }
+        }
+
+        /* Card System */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .preview-card {
+            background: var(--preview-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Input Styles */
+        .input {
+            width: 100%;
+            padding: 12px 16px;
+            background: #0a0f1b;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--brand);
+            box-shadow: 0 0 0 2px var(--brand);
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon input {
+            padding-left: 40px;
+            padding-right: 60px;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .input-counter {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* Button Styles */
+        .btn-primary {
+            background: var(--brand);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: var(--brand-600);
+            transform: translateY(-1px);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .btn-ghost:hover {
+            color: white;
+            border-color: var(--muted);
+        }
+
+        /* Card Radio Styles */
+        .card-radio {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .card-radio:hover {
+            border-color: var(--brand);
+        }
+
+        .card-radio input[type="radio"]:checked + .card-radio,
+        .card-radio:has(input[type="radio"]:checked) {
+            border-color: var(--brand);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        /* Feature Chips */
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chip:hover {
+            border-color: var(--brand);
+        }
+
+        .chip.active {
+            background: var(--brand);
+            border-color: var(--brand);
+            color: white;
+        }
+
+        /* Code Block */
+        .code-block {
+            background: #0a0f1b;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--brand);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: var(--brand-600);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        /* Sticky */
+        .sticky {
+            position: sticky;
+            top: 24px;
+        }
+
+        /* Spacing utilities */
+        .space-y-4 > * + * { margin-top: 16px; }
+        .space-y-6 > * + * { margin-top: 24px; }
+        .mt-2 { margin-top: 8px; }
+        .mt-3 { margin-top: 12px; }
+        .mt-4 { margin-top: 16px; }
+        .mb-2 { margin-bottom: 8px; }
+        .mb-3 { margin-bottom: 12px; }
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+        .section h3 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-success {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 25px;
+            font-weight: 500;
+        }
+        .generated-name {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: 2px solid #667eea;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            position: relative;
+        }
+        .generated-name .name-text {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #495057;
+            word-break: break-all;
+            margin-bottom: 15px;
+        }
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .copy-btn:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+        .copy-btn.copied {
+            background: #17a2b8;
+        }
+        .rule-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .format-display {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin: 15px 0;
+        }
+        .tag-example {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 8px 12px;
+            margin: 5px;
+            display: inline-block;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+        .preview-section {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .preview-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        .preview-text {
+            font-family: 'Courier New', monospace;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 0.9em;
+            word-break: break-all;
+        }
+        
+        /* Navigation Bar Styling */
+        .navbar {
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .nav-link {
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin: 0 2px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-1px);
+        }
+        
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
+        
+        .alert-info {
+            background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .creator-type-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Navigation Bar -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary rounded mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-photo-video"></i> {{ tools_config.brand.name }}
+                </a>
+                
+                <div class="navbar-nav ms-auto">
+                    {% for tool in tools %}
+                        {% if tool.name == "Creative Name Generator" %}
+                            <a class="nav-link active" href="{{ tool.url }}" aria-current="page">
+                                <i class="{{ tool.icon }}"></i> {{ tool.name }}
+                            </a>
+                        {% else %}
+                            <a class="nav-link" href="{{ tool.url }}" {% if tool.url.startswith('http') %}target="_blank"{% endif %}>
+                                <i class="{{ tool.icon }}"></i> {{ tool.name }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </nav>
+
+        <header class="header">
+            <h1>🪄 Creative Name Generator</h1>
+            <p style="color: var(--muted); margin-top: 8px; font-size: 14px;">
+                Make videos, not filenames that look like Wi-Fi passwords.
+            </p>
+        </header>
+
+
+        <!-- Main Content Grid -->
+        <div class="grid">
+            <!-- Left Column: Form Cards -->
+            <div class="space-y-6">
+                <!-- Creative Name Card -->
+                <div class="card">
+            <h3><i class="fas fa-form"></i> Generate Your Creative Name</h3>
+            
+            <div class="row">
+                <!-- Form in more compact layout -->
+                <div class="col-12">
+                    <form id="nameGeneratorForm">
+                        <div class="row">
+                            <!-- Left Column -->
+                            <div class="col-md-6">
+                                <!-- Creator Type -->
+                                <div class="mb-3">
+                                    <label for="creatorType" class="form-label">
+                                        <i class="fas fa-briefcase"></i> Creator Type
+                                    </label>
+                                    <select class="form-select" id="creatorType" onchange="updatePreview()">
+                                        <option value="">Select creator type...</option>
+                                        <option value="internal" selected>Internal</option>
+                                        <option value="freelancer">Freelancer</option>
+                                        <option value="ramdam">Ramdam</option>
+                                        <option value="influencer">Influencer</option>
+                                    </select>
+                                    <small class="text-muted">Type of content creator</small>
+                                </div>
+
+                                <!-- Creator Name (for non-internal) -->
+                                <div class="mb-3" id="creatorNameDiv" style="display: none;">
+                                    <label for="creatorName" class="form-label">
+                                        <i class="fas fa-user"></i> Creator Name
+                                    </label>
+                                    <input type="text" class="form-control" id="creatorName" placeholder="e.g., artlina 333, jeremy" 
+                                           onchange="formatInputToCamelCase('creatorName')" oninput="formatInputToCamelCase('creatorName')">
+                                    <small class="text-muted">Auto-formats: "art lina 333" → "ArtLina333"</small>
+                                </div>
+
+                        <!-- Creative Name - Premium Bling Style -->
+                        <div class="mb-3 p-4 creative-name-container" style="
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            border: 3px solid transparent;
+                            border-radius: 20px;
+                            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3), 0 0 20px rgba(118, 75, 162, 0.2);
+                            position: relative;
+                            overflow: hidden;
+                            animation: inputShimmer 3s ease-in-out infinite;
+                        ">
+                            <!-- Animated background overlay -->
+                            <div style="
+                                position: absolute;
+                                top: -50%;
+                                left: -50%;
+                                width: 200%;
+                                height: 200%;
+                                background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+                                animation: inputShine 2.3s ease-in-out infinite;
+                                pointer-events: none;
+                            "></div>
+                            
+                            <label for="filename" class="form-label" style="
+                                font-weight: 700; 
+                                color: white; 
+                                font-size: 1.3em;
+                                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                                margin-bottom: 15px;
+                                display: flex;
+                                align-items: center;
+                                gap: 10px;
+                            ">
+                                <span style="font-size: 1.2em;">✨</span>
+                                <span>Name Your Creative</span>
+                                <span style="font-size: 1.2em;">✨</span>
+                            </label>
+                            
+                            <input type="text" class="form-control form-control-lg creative-name-input" id="filename" 
+                                   placeholder="e.g., RedBottle, OutdoorPlant" 
+                                   onchange="formatCreativeName()" oninput="formatCreativeName()" 
+                                   style="
+                                       border: 3px solid rgba(255,255,255,0.3);
+                                       background: rgba(255,255,255,0.95);
+                                       font-size: 1.2em;
+                                       font-weight: 600;
+                                       border-radius: 15px;
+                                       padding: 15px 20px;
+                                       box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+                                       transition: all 0.3s ease;
+                                   ">
+                                   
+                            <small style="
+                                color: rgba(255,255,255,0.9);
+                                font-weight: 500;
+                                font-size: 0.9em;
+                                text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+                                display: flex;
+                                align-items: center;
+                                gap: 5px;
+                                margin-top: 10px;
+                                margin-bottom: 15px;
+                            ">
+                                <span>🪄</span>
+                                <span>Auto-formats & auto-numbers: "dirty kitchen" → "DirtyKitchen-1"</span>
+                                <span>💎</span>
+                            </small>
+                            
+                            <!-- Creative Name Number Selector -->
+                            <div style="
+                                display: flex;
+                                align-items: center;
+                                gap: 10px;
+                                background: rgba(255,255,255,0.15);
+                                padding: 12px 16px;
+                                border-radius: 12px;
+                                border: 2px solid rgba(255,255,255,0.2);
+                            ">
+                                <label for="creativeNumber" style="
+                                    color: white;
+                                    font-weight: 600;
+                                    font-size: 0.9em;
+                                    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+                                    margin: 0;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 5px;
+                                ">
+                                    <span>🔢</span>
+                                    <span>Creative Number:</span>
+                                </label>
+                                <input type="number" id="creativeNumber" value="1" min="1" max="999" 
+                                       onchange="manualNumberChange()" oninput="manualNumberChange()"
+                                       style="
+                                           width: 80px;
+                                           padding: 8px 12px;
+                                           border: 2px solid rgba(255,255,255,0.3);
+                                           border-radius: 8px;
+                                           background: rgba(255,255,255,0.9);
+                                           font-weight: 600;
+                                           font-size: 1em;
+                                           text-align: center;
+                                           color: #333;
+                                       ">
+                                <small style="
+                                    color: rgba(255,255,255,0.8);
+                                    font-size: 0.8em;
+                                    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+                                ">
+                                    ✨ Auto-finds next number | Override if needed
+                                </small>
+                            </div>
+                        </div>
+
+                                <!-- Feature Tags -->
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-star"></i> Feature Tags
+                                    </label>
+                                    <div class="d-flex flex-wrap gap-2" id="featureTagsContainer">
+                                        <button type="button" class="btn btn-outline-primary btn-sm feature-tag-btn active" data-value="AIBG" onclick="selectFeatureTag(this)">
+                                            AIBG
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="STORY" onclick="selectFeatureTag(this)">
+                                            STORY
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="LOGO" onclick="selectFeatureTag(this)">
+                                            LOGO
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="ANIM" onclick="selectFeatureTag(this)">
+                                            ANIM
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="MIX" onclick="selectFeatureTag(this)">
+                                            MIX
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="AIFILL" onclick="selectFeatureTag(this)">
+                                            AIFILL
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="RETOUCH" onclick="selectFeatureTag(this)">
+                                            RETOUCH
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="CHANGE" onclick="selectFeatureTag(this)">
+                                            CHANGE
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="IMGT-MODEL" onclick="selectFeatureTag(this)">
+                                            IMGT-MODEL
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="IMGT-STAGE" onclick="selectFeatureTag(this)">
+                                            IMGT-STAGE
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="IMGT-BEAUTIFY" onclick="selectFeatureTag(this)">
+                                            IMGT-BEAUTIFY
+                                        </button>
+                                    </div>
+                                    <input type="hidden" id="feature" value="AIBG">
+                                    <small class="text-muted">Click to select a feature tag</small>
+                                </div>
+                            </div>
+
+                            <!-- Right Column -->
+                            <div class="col-md-6">
+                                <!-- Creative Tags Option -->
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-tags"></i> Creative Tags
+                                    </label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="creativeTags" id="useFullTags" value="full" onchange="toggleCreativeTags()">
+                                        <label class="form-check-label" for="useFullTags">
+                                            Use full tag set (HOOK → VO → MUSIC → DIM)
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="creativeTags" id="usePlaceholder" value="placeholder" checked onchange="toggleCreativeTags()">
+                                        <label class="form-check-label" for="usePlaceholder">
+                                            Use placeholder (<code>_-_</code>) - not using creative system
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Language -->
+                                <div class="mb-3">
+                                    <label for="language" class="form-label">
+                                        <i class="fas fa-globe"></i> Language
+                                    </label>
+                                    <select class="form-select" id="language" onchange="updatePreview()">
+                                        <option value="">Select language...</option>
+                                        <option value="EN" selected>EN - English</option>
+                                        <option value="JP">JP - Japanese</option>
+                                        <option value="ES">ES - Spanish</option>
+                                        <option value="FR">FR - French</option>
+                                        <option value="DE">DE - German</option>
+                                        <option value="KR">KR - Korean</option>
+                                        <option value="CN">CN - Chinese</option>
+                                        <option value="BR">BR - Brazilian Portuguese</option>
+                                        <option value="IT">IT - Italian</option>
+                                        <option value="RU">RU - Russian</option>
+                                        <option value="AR">AR - Arabic</option>
+                                        <option value="IN">IN - Hindi</option>
+                                    </select>
+                                    <small class="text-muted">Content language</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Creative Tags Section -->
+                        <div id="creativeTagsSection">
+
+                            <!-- HOOK -->
+                            <div class="mb-3">
+                                <label for="hook" class="form-label">
+                                    <i class="fas fa-fish"></i> HOOK
+                                </label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <select class="form-select" id="hook" onchange="updateHookText(); updatePreview()">
+                                            <option value="come" selected>come</option>
+                                            <option value="UGC">UGC</option>
+                                            <option value="text">text</option>
+                                            <option value="emoji">emoji</option>
+                                            <option value="ASMR">ASMR</option>
+                                            <option value="AI">AI</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control" id="hookTextInput" placeholder="e.g., Turn your photo into a video" 
+                                               onchange="formatInputToCamelCase('hookTextInput')" oninput="formatInputToCamelCase('hookTextInput')" style="display: none;">
+                                        <input type="text" class="form-control" id="hookUgcInput" placeholder="e.g., arline778" 
+                                               onchange="updatePreview()" oninput="updatePreview()" style="display: none;">
+                                    </div>
+                                </div>
+                                <small class="text-muted">HOOK-[keyword], HOOK-text-[FormattedText], or HOOK-ugc-[username]</small>
+                            </div>
+
+                            <!-- VO (Voice Over) -->
+                            <div class="mb-3">
+                                <label for="voiceOver" class="form-label">
+                                    <i class="fas fa-microphone"></i> VO (Voice Over)
+                                </label>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <select class="form-select" id="voiceOver" onchange="updateVoiceText(); updatePreview()">
+                                            <option value="tom" selected>Tom</option>
+                                            <option value="doja">Doja</option>
+                                            <option value="chris">Chris</option>
+                                            <option value="custom">Custom voice</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" id="voiceName" placeholder="e.g., sarah, mike" 
+                                               onchange="formatInputToCamelCase('voiceName')" oninput="formatInputToCamelCase('voiceName')" style="display: none;">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" id="voScript" placeholder="e.g., dont take bad pictures" 
+                                               onchange="formatInputToCamelCase('voScript')" oninput="formatInputToCamelCase('voScript')">
+                                    </div>
+                                </div>
+                                <small class="text-muted">VO-[speaker] or VO-[speaker]-[FormattedScript]</small>
+                            </div>
+
+                            <!-- MUSIC -->
+                            <div class="mb-3">
+                                <label for="music" class="form-label">
+                                    <i class="fas fa-music"></i> MUSIC
+                                </label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <select class="form-select" id="music" onchange="updateMusicText(); updatePreview()">
+                                            <option value="any" selected>any</option>
+                                            <option value="rapbeat">rapbeat</option>
+                                            <option value="lastchristmas">lastchristmas</option>
+                                            <option value="custom">Custom song name</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control" id="musicCustom" placeholder="e.g., last christmas" 
+                                               onchange="formatInputToCamelCase('musicCustom')" oninput="formatInputToCamelCase('musicCustom')" style="display: none;">
+                                    </div>
+                                </div>
+                                <small class="text-muted">MUSIC-[songtitle] (auto-formats: "last christmas" → "LastChristmas")</small>
+                            </div>
+
+                            <!-- DIM (Dimension/Format) -->
+                            <div class="mb-3">
+                                <label for="dimension" class="form-label">
+                                    <i class="fas fa-expand"></i> DIM (Dimension)
+                                </label>
+                                <select class="form-select" id="dimension" onchange="updatePreview()">
+                                    <option value="">Select dimension...</option>
+                                    <option value="PT" selected>PT - Portrait (9:16)</option>
+                                    <option value="SQ">SQ - Square (1:1)</option>
+                                    <option value="LS">LS - Landscape (16:9)</option>
+                                </select>
+                                <small class="text-muted">Always specify aspect ratio</small>
+                            </div>
+                        </div>
+
+
+                    </form>
+                </div>
+            </div>
+        </div>
+            </div>
+            
+            <!-- Right: Live Preview -->
+            <div class="col-lg-4">
+                <div class="sticky-top" style="top: 20px;">
+                    <!-- Premium Preview Container -->
+                    <div class="p-4 preview-name-container" style="
+                        background: linear-gradient(135deg, #6bd0ff 0%, #249dee 100%);
+                        border: 3px solid transparent;
+                        border-radius: 20px;
+                        box-shadow: 0 10px 30px rgba(107, 208, 255, 0.3), 0 0 20px rgba(36, 157, 238, 0.2);
+                        position: relative;
+                        overflow: hidden;
+                        animation: previewShimmer 3s ease-in-out infinite;
+                        margin-bottom: 20px;
+                    ">
+                        <!-- Animated background overlay -->
+                        <div style="
+                            position: absolute;
+                            top: -50%;
+                            left: -50%;
+                            width: 200%;
+                            height: 200%;
+                            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+                            animation: previewShine 2.5s ease-in-out infinite;
+                            pointer-events: none;
+                        "></div>
+                        
+                        <h3 style="
+                            color: white;
+                            font-weight: 700;
+                            font-size: 1.3em;
+                            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                            margin-bottom: 20px;
+                            display: flex;
+                            align-items: center;
+                            gap: 10px;
+                            justify-content: center;
+                        ">
+                            <span style="font-size: 1.2em;">🚀</span>
+                            <span>New Creative Name</span>
+                            <span style="font-size: 1.2em;">🚀</span>
+                        </h3>
+                        
+                        <div class="generated-name" id="liveGeneratedName" style="
+                            background: rgba(255, 255, 255, 0.95);
+                            border: 3px solid rgba(255,255,255,0.3);
+                            border-radius: 15px;
+                            padding: 20px;
+                            margin-bottom: 15px;
+                        ">
+                            <div class="name-text" id="liveNameText" style="
+                                color: #333;
+                                font-weight: 600;
+                                font-size: 1.1em;
+                                word-break: break-all;
+                                margin-bottom: 15px;
+                            ">internal-[filename]_-_AIBG_EN</div>
+                            <button class="copy-btn" id="liveCopyBtn" onclick="copyLiveName()" style="
+                                background: linear-gradient(135deg, #6bd0ff, #249dee);
+                                color: white;
+                                border: none;
+                                padding: 10px 20px;
+                                border-radius: 10px;
+                                font-weight: 600;
+                                box-shadow: 0 4px 15px rgba(107, 208, 255, 0.3);
+                                transition: all 0.3s ease;
+                            ">
+                                <i class="fas fa-copy"></i> Copy to Clipboard
+                            </button>
+                        </div>
+                        
+                        <!-- Mock preview with ID/creator/date -->
+                        <div style="
+                            background: rgba(255,255,255,0.15);
+                            border-radius: 12px;
+                            padding: 15px;
+                        ">
+                            <div style="
+                                color: rgba(255,255,255,0.9);
+                                font-weight: 500;
+                                font-size: 0.9em;
+                                margin-bottom: 8px;
+                                display: flex;
+                                align-items: center;
+                                gap: 5px;
+                            ">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Preview after upload</span>
+                            </div>
+                            <div style="
+                                color: white;
+                                font-size: 0.85em;
+                                word-break: break-all;
+                                font-family: monospace;
+                                background: rgba(0,0,0,0.2);
+                                padding: 10px;
+                                border-radius: 8px;
+                            " id="mockPreview">
+                                12345_John_internal-[filename]_-_AIBG_EN_19092025
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Actions -->
+                        <div class="mt-3 text-center">
+                            <button class="btn btn-sm" onclick="clearForm()" style="
+                                background: rgba(255,255,255,0.2);
+                                color: white;
+                                border: 2px solid rgba(255,255,255,0.3);
+                                border-radius: 10px;
+                                font-weight: 600;
+                                padding: 8px 16px;
+                                transition: all 0.3s ease;
+                            ">
+                                <i class="fas fa-refresh"></i> Reset Form
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Iteration Naming Section -->
+        <div class="section">
+            <h3><i class="fas fa-repeat"></i> 🔄 Creative Iteration Generator</h3>
+            <p class="text-muted mb-4">
+                Generate iteration names for winning creatives. Paste an existing AdManage filename and get the next iteration automatically.
+            </p>
+            
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="mb-3">
+                        <label for="originalFilename" class="form-label">
+                            <i class="fas fa-file"></i> Original AdManage Filename
+                        </label>
+                        <input type="text" class="form-control form-control-lg" id="originalFilename" 
+                               placeholder="e.g., 10090_Jiali_internal-RedBottle_ANIM_EN"
+                               onchange="generateIteration()" oninput="generateIteration()">
+                        <small class="text-muted">Paste the complete filename from AdManage</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="iterationNumber" class="form-label">
+                            <i class="fas fa-hashtag"></i> Iteration Number
+                        </label>
+                        <input type="number" class="form-control" id="iterationNumber" 
+                               value="1" min="1" max="99"
+                               onchange="generateIteration()" oninput="generateIteration()">
+                        <small class="text-muted">Which iteration version (1, 2, 3...)</small>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="sticky-top" style="top: 20px;">
+                        <h5><i class="fas fa-magic"></i> Generated Iteration</h5>
+                        <div class="generated-name" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">
+                            <div class="name-text" id="iterationResult">
+                                Paste filename to generate iteration
+                            </div>
+                            <button class="copy-btn" id="iterationCopyBtn" onclick="copyIterationName()" style="background: rgba(255,255,255,0.2);">
+                                <i class="fas fa-copy"></i> Copy Iteration
+                            </button>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <div class="preview-label">
+                                <i class="fas fa-info-circle"></i> How it works
+                            </div>
+                            <div class="preview-text" style="font-size: 0.85em;">
+                                Adds -ITE-X after the product name:<br>
+                                <code>internal-RedBottle</code> → <code>internal-RedBottle-ITE-1</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Creative Naming Structure Section -->
+        <div class="section">
+            <h3><i class="fas fa-bolt"></i> 📌 Creative Naming Structure</h3>
+            <div class="alert alert-info">
+                <div class="format-display">
+                    <strong>Format:</strong> [id]_[creator]_[filename]_[extra tags]_[feature tags]_[language]_[date]
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Critical Rules:</strong>
+                        <ul class="mb-0">
+                            <li><code>_</code> = separate <strong>main fields</strong></li>
+                            <li><code>-</code> = separate <strong>details inside tags</strong></li>
+                            <li><strong>ID, Creator, Date</strong> auto-added by Admanage</li>
+                            <li><strong>All 4 tags</strong>: HOOK → VO → MUSIC → DIM (or use <code>_-_</code>)</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Examples:</strong><br>
+                        <div class="tag-example">
+                            internal-RedBottle_HOOK-come-text_VO-tom_MUSIC-rapbeat_PT_AIBG_EN
+                        </div>
+                        <div class="tag-example">
+                            internal-RedBottle_-_AIBG_EN
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global counter for creative names - magical auto-increment
+        let creativeNameCounter = 1;
+        let usedCreativeNames = new Set();
+        
+        // Show/hide creator name field based on creator type
+        function updateCreatorTypeFields() {
+            const creatorType = document.getElementById('creatorType').value;
+            const creatorNameDiv = document.getElementById('creatorNameDiv');
+            
+            if (creatorType && creatorType !== 'internal') {
+                creatorNameDiv.style.display = 'block';
+            } else {
+                creatorNameDiv.style.display = 'none';
+                document.getElementById('creatorName').value = '';
+            }
+            updatePreview();
+        }
+        
+        // Toggle creative tags section
+        function toggleCreativeTags() {
+            const useFullTags = document.getElementById('useFullTags').checked;
+            const creativeTagsSection = document.getElementById('creativeTagsSection');
+            
+            if (useFullTags) {
+                creativeTagsSection.style.display = 'block';
+            } else {
+                creativeTagsSection.style.display = 'none';
+            }
+            updatePreview();
+        }
+        
+        // Enhanced function to format text to PascalCase (handle spaces and camelCase detection)
+        function formatToPascalCase(text) {
+            if (!text) return '';
+            
+            // First, split by spaces and clean up
+            let words = text.trim().split(/\s+/);
+            
+            // If there's only one word, check for camelCase transitions
+            if (words.length === 1 && words[0].length > 1) {
+                // Split camelCase words (e.g., "dirtyKitchen" → ["dirty", "Kitchen"])
+                words = words[0].split(/(?=[A-Z])/).filter(word => word.length > 0);
+            }
+            
+            // Format each word: capitalize first letter, lowercase the rest
+            return words.map(word => {
+                if (word.length === 0) return '';
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            }).join('');
+        }
+
+        // Function to format creative name in real-time with magical auto-increment
+        function formatCreativeName() {
+            const input = document.getElementById('filename');
+            const numberInput = document.getElementById('creativeNumber');
+            const cursorPos = input.selectionStart;
+            const originalValue = input.value;
+            
+            // Remove any existing number suffix for formatting
+            const valueWithoutNumber = originalValue.replace(/-\d+$/, '');
+            const formatted = formatToPascalCase(valueWithoutNumber);
+            
+            // Add magical auto-increment number if name is not empty
+            let finalValue = formatted;
+            if (formatted && formatted.length > 0) {
+                // Check if this base name already exists
+                const baseName = formatted;
+                let numberToUse = 1;
+                
+                // Find the next available number (the magic!)
+                while (usedCreativeNames.has(`${baseName}-${numberToUse}`)) {
+                    numberToUse++;
+                }
+                
+                finalValue = `${baseName}-${numberToUse}`;
+                
+                // Update the number display to show what was auto-selected
+                numberInput.value = numberToUse;
+                
+                // Update the set of used names
+                if (originalValue !== finalValue) {
+                    usedCreativeNames.add(finalValue);
+                }
+            }
+            
+            // Only update if the value actually changed to avoid cursor jumping
+            if (originalValue !== finalValue) {
+                input.value = finalValue;
+                
+                // Try to maintain cursor position (before the number part)
+                const newPos = Math.min(cursorPos, formatted.length);
+                setTimeout(() => {
+                    input.setSelectionRange(newPos, newPos);
+                }, 0);
+            }
+            
+            updatePreview();
+        }
+
+        // Function to handle manual number changes (user override)
+        function manualNumberChange() {
+            const input = document.getElementById('filename');
+            const numberInput = document.getElementById('creativeNumber');
+            const currentName = input.value;
+            
+            // If there's a name, update it with the new number
+            if (currentName) {
+                const nameWithoutNumber = currentName.replace(/-\d+$/, '');
+                const newNumber = numberInput.value || 1;
+                const newName = `${nameWithoutNumber}-${newNumber}`;
+                
+                // Update the used names set
+                usedCreativeNames.add(newName);
+                input.value = newName;
+                updatePreview();
+            }
+        }
+
+        // Function to format any input field to CamelCase
+        function formatInputToCamelCase(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            
+            const cursorPos = input.selectionStart;
+            const originalValue = input.value;
+            const formatted = formatToPascalCase(originalValue);
+            
+            if (originalValue !== formatted) {
+                input.value = formatted;
+                
+                const newPos = Math.min(cursorPos, formatted.length);
+                setTimeout(() => {
+                    input.setSelectionRange(newPos, newPos);
+                }, 0);
+            }
+            
+            updatePreview();
+        }
+
+        // Function to handle hook text input visibility
+        function updateHookText() {
+            const hookSelect = document.getElementById('hook');
+            const hookTextInput = document.getElementById('hookTextInput');
+            const hookUgcInput = document.getElementById('hookUgcInput');
+            
+            // Hide both inputs first
+            hookTextInput.style.display = 'none';
+            hookUgcInput.style.display = 'none';
+            hookTextInput.value = '';
+            hookUgcInput.value = '';
+            
+            if (hookSelect.value === 'text') {
+                hookTextInput.style.display = 'block';
+            } else if (hookSelect.value === 'UGC') {
+                hookUgcInput.style.display = 'block';
+            }
+        }
+
+        // Function to handle voice dropdown changes
+        function updateVoiceText() {
+            const voiceSelect = document.getElementById('voiceOver');
+            const voiceNameInput = document.getElementById('voiceName');
+            
+            if (voiceSelect.value === 'custom') {
+                voiceNameInput.style.display = 'block';
+            } else {
+                voiceNameInput.style.display = 'none';
+                voiceNameInput.value = '';
+            }
+        }
+
+        // Function to handle music custom input visibility
+        function updateMusicText() {
+            const musicSelect = document.getElementById('music');
+            const musicCustomInput = document.getElementById('musicCustom');
+            
+            if (musicSelect.value === 'custom') {
+                musicCustomInput.style.display = 'block';
+            } else {
+                musicCustomInput.style.display = 'none';
+                musicCustomInput.value = '';
+            }
+        }
+
+        function updatePreview() {
+            const creatorType = document.getElementById('creatorType').value || '[creator-type]';
+            const creatorName = document.getElementById('creatorName').value;
+            const filename = document.getElementById('filename').value || '[filename]';
+            const useFullTags = document.getElementById('useFullTags').checked;
+            const language = document.getElementById('language').value || '[language]';
+            const feature = document.getElementById('feature').value;
+            
+            // Build creator type part
+            let creatorTypePart = '';
+            if (creatorType !== '[creator-type]') {
+                if (creatorType === 'internal') {
+                    creatorTypePart = `${creatorType}-${filename}`;
+                } else if (creatorName) {
+                    creatorTypePart = `${creatorType}-${creatorName}-${filename}`;
+                } else {
+                    creatorTypePart = `${creatorType}-[name]-${filename}`;
+                }
+            } else {
+                creatorTypePart = `[creator-type]-${filename}`;
+            }
+            
+            let preview = creatorTypePart;
+            
+            // Add creative tags or placeholder
+            if (useFullTags) {
+                const hook = document.getElementById('hook').value || '[hook]';
+                const hookTextInput = document.getElementById('hookTextInput').value;
+                const voiceName = document.getElementById('voiceName').value || '[voice]';
+                const voScript = document.getElementById('voScript').value;
+                const music = document.getElementById('music').value || '[music]';
+                const musicCustom = document.getElementById('musicCustom').value;
+                const dimension = document.getElementById('dimension').value || '[dim]';
+                
+                // Build HOOK
+                const hookUgcInput = document.getElementById('hookUgcInput').value;
+                let hookPart = `HOOK-${hook}`;
+                if (hook === 'text' && hookTextInput) {
+                    const formattedText = formatToPascalCase(hookTextInput);
+                    hookPart = `HOOK-text-${formattedText}`;
+                } else if (hook === 'UGC' && hookUgcInput) {
+                    hookPart = `HOOK-ugc-${hookUgcInput}`;
+                }
+                
+                // Build VO
+                const voiceOver = document.getElementById('voiceOver').value;
+                let voiceToUse = voiceOver === 'custom' ? voiceName : voiceOver;
+                let voPart = `VO-${voiceToUse || '[voice]'}`;
+                if (voScript) {
+                    const formattedScript = formatToPascalCase(voScript);
+                    voPart += `-${formattedScript}`;
+                }
+                
+                // Build MUSIC
+                let musicPart = 'MUSIC-';
+                if (music === 'custom' && musicCustom) {
+                    const formattedMusicName = formatToPascalCase(musicCustom);
+                    musicPart += formattedMusicName;
+                } else {
+                    musicPart += music;
+                }
+                
+                // Build tags block
+                const tagsBlock = `${hookPart}_${voPart}_${musicPart}_${dimension}`;
+                preview += `_${tagsBlock}`;
+            } else {
+                preview += `_-`;
+            }
+            
+            // Add feature tag if selected
+            if (feature) {
+                preview += `_${feature}`;
+            }
+            
+            // Add language
+            preview += `_${language}`;
+            
+            // Update live display
+            document.getElementById('liveNameText').textContent = preview;
+            
+            // Update mock preview with sample ID/creator/date
+            const sampleCreators = ['Jiali', 'Houda', 'Kaja', 'Sacha', 'Yann',"Alex"];
+            const randomId = Math.floor(Math.random() * 90000) + 10000;
+            const randomCreator = sampleCreators[Math.floor(Math.random() * sampleCreators.length)];
+            const currentDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
+            const mockPreview = `${randomId}_${randomCreator}_${preview}_${currentDate}`;
+            document.getElementById('mockPreview').textContent = mockPreview;
+        }
+        
+        // Update creator type change handler
+        document.getElementById('creatorType').addEventListener('change', updateCreatorTypeFields);
+        
+        // Feature tag selection function
+        function selectFeatureTag(button) {
+            // Remove active class from all buttons
+            document.querySelectorAll('.feature-tag-btn').forEach(btn => {
+                btn.classList.remove('active', 'btn-outline-primary');
+                btn.classList.add('btn-outline-secondary');
+            });
+            
+            // Add active class to clicked button
+            button.classList.remove('btn-outline-secondary');
+            button.classList.add('active', 'btn-outline-primary');
+            
+            // Update hidden input value
+            document.getElementById('feature').value = button.dataset.value;
+            
+            // Update preview
+            updatePreview();
+        }
+        
+        function copyLiveName() {
+            const nameText = document.getElementById('liveNameText').textContent;
+            navigator.clipboard.writeText(nameText).then(function() {
+                const copyBtn = document.getElementById('liveCopyBtn');
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                copyBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalText;
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+                alert('Could not copy to clipboard. Please copy manually: ' + nameText);
+            });
+        }
+
+        // Function to generate iteration name
+        function generateIteration() {
+            const originalFilename = document.getElementById('originalFilename').value.trim();
+            const iterationNumber = document.getElementById('iterationNumber').value || 1;
+            const resultElement = document.getElementById('iterationResult');
+            
+            if (!originalFilename) {
+                resultElement.textContent = 'Paste filename to generate iteration';
+                return;
+            }
+            
+            // Parse the AdManage filename format: [id]_[creator]_[filename]_[extra tags]_[feature tags]_[language]_[date]
+            const parts = originalFilename.split('_');
+            
+            if (parts.length < 3) {
+                resultElement.textContent = 'Invalid filename format';
+                return;
+            }
+            
+            // Find the product name part (usually the 3rd part, starts with creator type)
+            let productNameIndex = 2; // Default to 3rd part (index 2)
+            let productNamePart = parts[productNameIndex];
+            
+            // Check if the product name already has an iteration
+            const iterationRegex = /-ITE-\d+/;
+            if (iterationRegex.test(productNamePart)) {
+                // Remove existing iteration
+                productNamePart = productNamePart.replace(iterationRegex, '');
+            }
+            
+            // Add the new iteration
+            const newProductName = `${productNamePart}-ITE-${iterationNumber}`;
+            
+            // Reconstruct the filename
+            const newParts = [...parts];
+            newParts[productNameIndex] = newProductName;
+            const iterationFilename = newParts.join('_');
+            
+            resultElement.textContent = iterationFilename;
+        }
+
+        // Function to copy iteration name
+        function copyIterationName() {
+            const nameText = document.getElementById('iterationResult').textContent;
+            
+            if (nameText === 'Paste filename to generate iteration' || nameText === 'Invalid filename format') {
+                alert('Please enter a valid filename first');
+                return;
+            }
+            
+            navigator.clipboard.writeText(nameText).then(function() {
+                const copyBtn = document.getElementById('iterationCopyBtn');
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                copyBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalText;
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+                alert('Could not copy to clipboard. Please copy manually: ' + nameText);
+            });
+        }
+        
+        function clearForm() {
+            document.getElementById('nameGeneratorForm').reset();
+            document.getElementById('creatorNameDiv').style.display = 'none';
+            document.getElementById('creativeTagsSection').style.display = 'none';
+            document.getElementById('usePlaceholder').checked = true;
+            
+            // Hide conditional inputs
+            document.getElementById('hookTextInput').style.display = 'none';
+            document.getElementById('hookUgcInput').style.display = 'none';
+            document.getElementById('voiceName').style.display = 'none';
+            document.getElementById('musicCustom').style.display = 'none';
+            
+            // Set default values
+            document.getElementById('creatorType').value = 'internal';
+            document.getElementById('hook').value = 'come';
+            document.getElementById('voiceOver').value = 'tom';
+            document.getElementById('music').value = 'any';
+            document.getElementById('dimension').value = 'PT';
+            document.getElementById('feature').value = 'AIBG';
+            document.getElementById('language').value = 'EN';
+            document.getElementById('creativeNumber').value = '1';
+            
+            // Reset feature tag buttons
+            document.querySelectorAll('.feature-tag-btn').forEach(btn => {
+                btn.classList.remove('active', 'btn-outline-primary');
+                btn.classList.add('btn-outline-secondary');
+            });
+            // Set AIBG as active
+            const aibgBtn = document.querySelector('[data-value="AIBG"]');
+            if (aibgBtn) {
+                aibgBtn.classList.remove('btn-outline-secondary');
+                aibgBtn.classList.add('active', 'btn-outline-primary');
+            }
+            
+            updatePreview();
+            
+            // Remove validation classes
+            document.querySelectorAll('.is-invalid').forEach(el => {
+                el.classList.remove('is-invalid');
+            });
+        }
+        
+        // Initialize preview on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default values on page load
+            document.getElementById('creatorType').value = 'internal';
+            document.getElementById('hook').value = 'come';
+            document.getElementById('voiceOver').value = 'tom';
+            document.getElementById('music').value = 'any';
+            document.getElementById('dimension').value = 'PT';
+            document.getElementById('feature').value = 'AIBG';
+            document.getElementById('language').value = 'EN';
+            document.getElementById('creativeNumber').value = '1';
+            document.getElementById('usePlaceholder').checked = true;
+            
+            toggleCreativeTags();
+            updatePreview();
+        });
+    </script>
+</body>
+</html>

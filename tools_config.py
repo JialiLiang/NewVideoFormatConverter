@@ -23,6 +23,13 @@ TOOLS_CONFIG = {
             "description": "AI-powered video localization and translation"
         },
         {
+            "name": "Creative Name Generator",
+            "icon": "fas fa-magic",
+            "url": "/name-generator",
+            "active": True,
+            "description": "Generate creative file names following naming conventions"
+        },
+        {
             "name": "Static Generator (WIP)",
             "icon": "fas fa-file-code",
             "url": "/static-generator",
@@ -43,6 +50,7 @@ TOOLS_CONFIG = {
             "active": True,
             "description": "Automated video montage creation"
         },
+      
         # Add more tools here as you create them
         # {
         #     "name": "Video Editor",
