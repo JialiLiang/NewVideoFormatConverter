@@ -1089,43 +1089,43 @@ def mix_audio():
         if use_custom_music and not audio_files:
             # Create a single output with just custom music (no voiceover)
             music_name = session.get('custom_music_name', 'custom_music')
-            suffix = f"_{music_name}"
             
             # Apply the same naming logic for consistency
             base_name = video_filename.split('.')[0]
             if base_name.upper().endswith('_EN'):
-                # Replace _EN with the music name for custom music files
-                base_name = re.sub(r'_EN$', '', base_name, flags=re.IGNORECASE) + suffix
-            else:
-                # If no _EN found, append the suffix as before
-                base_name = f"{base_name}{suffix}"
-                
-            output_file = export_dir / f"{base_name}.mp4"
+                # Replace _EN with music suffix for custom music files
+                base_name = re.sub(r'_EN$', '', base_name, flags=re.IGNORECASE)
+            
+            # Format music name as music-{name}
+            suffix = f"_music-{music_name}"
+            output_file = export_dir / f"{base_name}{suffix}.mp4"
             # Use None as audio_file to indicate no voiceover
             if mix_audio_with_video(None, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal, custom_music_path):
                 mixed_videos['custom_music'] = str(output_file)
         else:
             # Normal case: loop through audio files (voiceovers)
             for lang_code, audio_file in audio_files.items():
-                if use_custom_music:
-                    music_name = session.get('custom_music_name', 'custom_music')
-                    suffix = f"_{music_name}"
-                elif use_vocal_removal:
-                    suffix = "_instrumental"  
-                else:
-                    suffix = ""
-                
                 # Create output filename with smart language code replacement
                 base_name = video_filename.split('.')[0]
                 
                 # Check if the filename ends with _EN and replace it with the target language
                 # Handle case variations and ensure clean replacement
                 if base_name.upper().endswith('_EN'):
-                    # Find the last occurrence of _EN (case insensitive) and replace it
+                    # Replace _EN with the target language code
                     base_name = re.sub(r'_EN$', f'_{lang_code}', base_name, flags=re.IGNORECASE)
                 else:
                     # If no _EN found, append the language code as before
                     base_name = f"{base_name}_{lang_code}"
+                
+                # Add appropriate suffix based on options
+                if use_custom_music:
+                    music_name = session.get('custom_music_name', 'custom_music')
+                    # Format music name as music-{name} instead of _{name}
+                    suffix = f"_music-{music_name}"
+                elif use_vocal_removal:
+                    suffix = "_instrumental"  
+                else:
+                    suffix = ""
                     
                 output_file = export_dir / f"{base_name}{suffix}.mp4"
                 if mix_audio_with_video(audio_file, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal, custom_music_path):
