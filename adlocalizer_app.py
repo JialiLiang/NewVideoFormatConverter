@@ -1090,7 +1090,17 @@ def mix_audio():
             # Create a single output with just custom music (no voiceover)
             music_name = session.get('custom_music_name', 'custom_music')
             suffix = f"_{music_name}"
-            output_file = export_dir / f"{video_filename.split('.')[0]}{suffix}.mp4"
+            
+            # Apply the same naming logic for consistency
+            base_name = video_filename.split('.')[0]
+            if base_name.upper().endswith('_EN'):
+                # Replace _EN with the music name for custom music files
+                base_name = re.sub(r'_EN$', '', base_name, flags=re.IGNORECASE) + suffix
+            else:
+                # If no _EN found, append the suffix as before
+                base_name = f"{base_name}{suffix}"
+                
+            output_file = export_dir / f"{base_name}.mp4"
             # Use None as audio_file to indicate no voiceover
             if mix_audio_with_video(None, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal, custom_music_path):
                 mixed_videos['custom_music'] = str(output_file)
@@ -1104,8 +1114,20 @@ def mix_audio():
                     suffix = "_instrumental"  
                 else:
                     suffix = ""
+                
+                # Create output filename with smart language code replacement
+                base_name = video_filename.split('.')[0]
+                
+                # Check if the filename ends with _EN and replace it with the target language
+                # Handle case variations and ensure clean replacement
+                if base_name.upper().endswith('_EN'):
+                    # Find the last occurrence of _EN (case insensitive) and replace it
+                    base_name = re.sub(r'_EN$', f'_{lang_code}', base_name, flags=re.IGNORECASE)
+                else:
+                    # If no _EN found, append the language code as before
+                    base_name = f"{base_name}_{lang_code}"
                     
-                output_file = export_dir / f"{video_filename.split('.')[0]}_{lang_code}{suffix}.mp4"
+                output_file = export_dir / f"{base_name}{suffix}.mp4"
                 if mix_audio_with_video(audio_file, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal, custom_music_path):
                     mixed_videos[lang_code] = str(output_file)
         

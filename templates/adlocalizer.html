@@ -356,12 +356,7 @@
             <h3><i class="fas fa-sliders-h"></i> 6. Audio Settings</h3>
             <div class="row">
                 <div class="col-md-6">
-                    <label for="originalVolume" class="form-label">
-                        Background Audio Volume
-                        <small class="text-muted d-block">
-                            <span id="backgroundVolumeDescription">Original video audio or uploaded music</span>
-                        </small>
-                    </label>
+                    <label for="originalVolume" class="form-label">Music Volume</label>
                     <input type="range" class="form-range" id="originalVolume" min="0" max="2" step="0.1" value="0.6">
                     <div class="text-center" id="originalVolumeValue">0.6</div>
                 </div>
@@ -801,21 +796,6 @@
             });
         }
 
-        // Update volume control description based on selected option
-        function updateVolumeControlDescription(option) {
-            const descriptionElement = document.getElementById('backgroundVolumeDescription');
-            
-            if (option === 'sfx') {
-                descriptionElement.textContent = 'Controls original video audio (SFX, ambient sounds)';
-            } else if (option === 'custom') {
-                descriptionElement.textContent = 'Controls uploaded music file volume';
-            } else if (option === 'vocal') {
-                descriptionElement.textContent = 'Controls instrumental audio after vocal removal';
-            } else {
-                descriptionElement.textContent = 'Original video audio or uploaded music';
-            }
-        }
-
         // Initialize vocal models with hardcoded data (backup) and API data
         function initializeVocalModels() {
             // Set hardcoded fallback models
@@ -1206,9 +1186,6 @@
             const transcriptionDetected = document.getElementById('transcriptionVideoDetected');
             const customMusicArea = document.getElementById('customMusicArea');
             
-            // Update volume control description based on option
-            updateVolumeControlDescription(option);
-            
             if (option === 'sfx') {
                 infoDiv.className = 'alert alert-success mb-3';
                 infoDiv.innerHTML = '<i class="fas fa-music"></i> <strong>Option A:</strong> Upload SFX-only version of your video';
@@ -1366,9 +1343,6 @@
             
             // Hide upload area
             document.getElementById('videoUploadArea').style.display = 'none';
-            
-            // Reset volume control description
-            updateVolumeControlDescription(null);
             
             // Clear video file input
             const videoFile = document.getElementById('videoFile');
