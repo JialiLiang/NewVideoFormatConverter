@@ -277,16 +277,10 @@
 }
 
 /* Body and Layout */
-html, body {
-  height: 100%;
-}
-
 body {
   background: linear-gradient(135deg, var(--indigo-1) 0%, var(--indigo-2) 100%);
   min-height: 100vh;
   font-family: var(--font-family);
-  margin: 0;
-  padding: 0;
 }
 
 /* Main Container */
@@ -383,19 +377,10 @@ body {
 
 .made-with-love {
   text-align: center;
-  padding: var(--space-lg) 0;
+  padding: var(--space-xl) 0;
   color: var(--surface-1);
   font-weight: 500;
-  opacity: 0.9;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  margin-top: var(--space-lg);
-}
-
-.made-with-love p {
-  margin: 0;
-  font-size: 0.9rem;
+  opacity: 0.8;
 }
 
 /* Animation Utilities */
@@ -426,14 +411,5 @@ body {
   
   .section {
     padding: var(--space-md);
-  }
-  
-  .made-with-love {
-    padding: var(--space-md) 0;
-    margin-top: var(--space-md);
-  }
-  
-  .made-with-love p {
-    font-size: 0.8rem;
   }
 }
