@@ -236,7 +236,7 @@
                                     <label for="creatorType" class="form-label">
                                         <i class="fas fa-briefcase"></i> Creator Type
                                     </label>
-                                    <select class="form-select" id="creatorType" onchange="updatePreview()">
+                                    <select class="form-select" id="creatorType" onchange="updateCreatorTypeFields(); updatePreview()">
                                         <option value="">Select creator type...</option>
                                         <option value="internal" selected>Internal</option>
                                         <option value="freelancer">Freelancer</option>
@@ -251,7 +251,7 @@
                                     <label for="creatorName" class="form-label" id="creatorNameLabel">
                                         <i class="fas fa-user"></i> Creator Name
                                     </label>
-                                    <input type="text" class="form-control" id="creatorName" placeholder="such as artlina 333, jeremy" 
+                                    <input type="text" class="form-control" id="creatorName" placeholder="such as artlina333, Jeremy" 
                                            onchange="formatInputToCamelCase('creatorName')" oninput="formatInputToCamelCase('creatorName')">
                                     <small class="text-muted" id="creatorNameNote">(“If you’re internal, no need to type your name — AdManage adds it automatically)</small>
                                 </div>
