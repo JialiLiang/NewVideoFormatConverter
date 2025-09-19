@@ -136,27 +136,18 @@ VOICES = {
     "3": {"name": "Chris", "id": "iP95p4xoKVk53GoZ742B"}
 }
 
-# Language codes and names for AdLocalizer
-LANGUAGES = {
-    "EN": "English",
-    "JP": "Japanese",
-    "CN": "Traditional Chinese",
-    "DE": "German",
-    "IN": "Hindi",
-    "FR": "French",
-    "KR": "Korean",
-    "BR": "Brazilian Portuguese",
-    "IT": "Italian",
-    "ES": "Spanish",
-    "ID": "Indonesian",
-    "TR": "Turkish",
-    "PH": "Filipino",
-    "PL": "Polish",
-    "SA": "Arabic",
-    "MY": "Malay",
-    "VN": "Vietnamese",
-    "TH": "Thai"
-}
+# Import centralized language configuration
+from language_config import (
+    LANGUAGES, 
+    get_legacy_language_dict, 
+    get_language_name,
+    get_iso_code_from_old,
+    get_old_code_from_iso,
+    validate_language_code
+)
+
+# For external API compatibility when needed
+LEGACY_LANGUAGES = get_legacy_language_dict()
 
 def get_enhanced_system_message(target_language, mode="faithful"):
     """Get enhanced system message for more localized translations"""
@@ -520,8 +511,9 @@ def translate():
         
         translations = {}
         for lang_code in languages:
-            if lang_code in LANGUAGES:
-                lang_name = LANGUAGES[lang_code]
+            # Support both old and new language codes
+            if validate_language_code(lang_code):
+                lang_name = get_language_name(lang_code)
                 logging.info(f"Translating to {lang_name} ({lang_code})")
                 translation = translate_text(text, lang_name, translation_mode)
                 if translation:

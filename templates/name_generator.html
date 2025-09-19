@@ -37,7 +37,7 @@
             border-radius:15px; padding:20px; margin:20px 0; text-align:center; position:relative;
         }
         .generated-name .name-text{
-            font-family:'Courier New', monospace; font-size:1.2em; font-weight:bold; color:var(--ink-2); word-break:break-all; margin-bottom:15px;
+            font-family:'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace; font-size:1.3em; font-weight:bold; color:var(--ink-2); word-break:break-all; margin-bottom:15px; line-height:1.4;
         }
 
         /* Copy buttons — from green -> indigo */
@@ -58,12 +58,69 @@
         .format-display{
             background:var(--lavender-1);
             border:1px solid var(--lavender-2);
-            border-radius:8px; padding:15px; font-family:'Courier New', monospace; font-size:.9em; margin:15px 0;
+            border-radius:8px; padding:15px; font-family:'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace; font-size:.9em; margin:15px 0;
         }
         .tag-example{
             background:var(--lavender-1);
             border:1px solid var(--lavender-2);
-            border-radius:5px; padding:8px 12px; margin:5px; display:inline-block; font-family:'Courier New', monospace; font-size:.85em;
+            border-radius:5px; padding:8px 12px; margin:5px; display:inline-block; font-family:'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace; font-size:.85em;
+        }
+        
+        /* Feature tag styling with colors */
+        .tag-core{
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 20px;
+            padding: 8px 16px;
+            margin: 5px;
+            display: inline-block;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
+            font-size: .85em;
+            font-weight: 600;
+            border: none;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .tag-tools{
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border-radius: 20px;
+            padding: 8px 16px;
+            margin: 5px;
+            display: inline-block;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
+            font-size: .85em;
+            font-weight: 600;
+            border: none;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        }
+        
+        .tag-imgt{
+            background: linear-gradient(135deg, #fd7e14, #e83e8c);
+            color: white;
+            border-radius: 20px;
+            padding: 8px 16px;
+            margin: 5px;
+            display: inline-block;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
+            font-size: .85em;
+            font-weight: 600;
+            border: none;
+            box-shadow: 0 2px 8px rgba(253, 126, 20, 0.3);
+        }
+        
+        .tag-experimental{
+            background: linear-gradient(135deg, #6f42c1, #e83e8c);
+            color: white;
+            border-radius: 20px;
+            padding: 8px 16px;
+            margin: 5px;
+            display: inline-block;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
+            font-size: .85em;
+            font-weight: 600;
+            border: none;
+            box-shadow: 0 2px 8px rgba(111, 66, 193, 0.3);
         }
 
         /* Preview panel (right) — shift from cyan to unified accent indigo/blue) */
@@ -105,7 +162,7 @@
         }
         .preview-label{ font-weight:600; color:var(--ink-2); margin-bottom:10px; }
         .preview-text{
-            font-family:'Courier New', monospace;
+            font-family:'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
             background:var(--white);
             border:1px solid #dee2e6;
             border-radius:5px; padding:10px; font-size:.9em; word-break:break-all;
@@ -194,7 +251,7 @@
                                     <label for="creatorName" class="form-label" id="creatorNameLabel">
                                         <i class="fas fa-user"></i> Creator Name
                                     </label>
-                                    <input type="text" class="form-control" id="creatorName" placeholder="e.g., artlina 333, jeremy" 
+                                    <input type="text" class="form-control" id="creatorName" placeholder="such as artlina 333, jeremy" 
                                            onchange="formatInputToCamelCase('creatorName')" oninput="formatInputToCamelCase('creatorName')">
                                     <small class="text-muted" id="creatorNameNote">(“If you’re internal, no need to type your name — AdManage adds it automatically)</small>
                                 </div>
@@ -237,8 +294,8 @@
                             </label>
                             
                             <input type="text" class="form-control form-control-lg creative-name-input" id="filename" 
-                                   placeholder="e.g., RedBottle, OutdoorPlant" 
-                                   onchange="formatCreativeName()" oninput="formatCreativeName()" 
+                                   placeholder="such as: my blue hoodie" 
+                                   onchange="formatCreativeName()" oninput="updatePreviewDebounced()" 
                                    style="
                                        border: 3px solid rgba(255,255,255,0.3);
                                        background: rgba(255,255,255,0.95);
@@ -290,7 +347,7 @@
                                     <span>Variation Number:</span>
                                 </label>
                                 <input type="number" id="creativeNumber" value="1" min="1" max="999" 
-                                       onchange="manualNumberChange()" oninput="manualNumberChange()"
+                                       onchange="updatePreviewDebounced()"
                                        style="
                                            width: 80px;
                                            padding: 8px 12px;
@@ -307,12 +364,16 @@
                                     font-size: 0.8em;
                                     text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
                                 ">
-                                    ✨ Auto-finds next number | Override if needed
+                                    ✨ 
                                 </small>
                             </div>
                         </div>
 
-                                <!-- Feature Tags -->
+                            </div>
+
+                            <!-- Right Column -->
+                            <div class="col-md-6">
+                                <!-- Feature Tags moved here for better layout -->
                                 <div class="mb-3">
                                     <label class="form-label">
                                         <i class="fas fa-star"></i> Feature Tags
@@ -359,61 +420,6 @@
                                     <small class="text-muted">Click to select a feature tag • <a href="#feature-tags-help" class="text-decoration-none">📖 Feature tags explained</a></small>
                                 </div>
                             </div>
-
-                            <!-- Right Column -->
-                            <div class="col-md-6">
-                                <!-- Creative Tags Option -->
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-tags"></i> Creative Tags
-                                    </label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="creativeTags" id="useFullTags" value="full" onchange="toggleCreativeTags()">
-                                        <label class="form-check-label" for="useFullTags">
-                                            Apply all creative tags (Hook, Voiceover, Music, Dimension)
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="creativeTags" id="usePlaceholder" value="placeholder" checked onchange="toggleCreativeTags()">
-                                        <label class="form-check-label" for="usePlaceholder">
-                                            Skip tags and insert four placeholders (_-_-_-_-_)
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <!-- Language -->
-                                <div class="mb-3">
-                                    <label for="language" class="form-label">
-                                        <i class="fas fa-globe"></i> Language
-                                    </label>
-                                    <select class="form-select" id="language" onchange="updatePreview()">
-                                        <option value="">Select language...</option>
-                                        <!-- Priority languages -->
-                                        <option value="EN" selected>EN - English</option>
-                                        <option value="FR">FR - French (France)</option>
-                                        <option value="BR">BR - Portuguese (Brazil)</option>
-                                        <option value="ES">ES - Spanish (Spain)</option>
-                                        <option value="JP">JP - Japanese</option>
-                                        <option value="KR">KR - Korean</option>
-                                        <!-- Other languages (alphabetical) -->
-                                        <option value="SA">SA - Arabic</option>
-                                        <option value="HK">HK - Cantonese</option>
-                                        <option value="CN">CN - Chinese</option>
-                                        <option value="NL">NL - Dutch</option>
-                                        <option value="PH">PH - Filipino</option>
-                                        <option value="DE">DE - German</option>
-                                        <option value="IN">IN - Hindi</option>
-                                        <option value="ID">ID - Indonesian</option>
-                                        <option value="IT">IT - Italian</option>
-                                        <option value="MY">MY - Malay</option>
-                                        <option value="PL">PL - Polish</option>
-                                        <option value="TH">TH - Thai</option>
-                                        <option value="TR">TR - Turkish</option>
-                                        <option value="VN">VN - Vietnamese</option>
-                                    </select>
-                                    <small class="text-muted">Content language</small>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- Creative Tags Section -->
@@ -427,22 +433,22 @@
                                 <div class="row">
                                     <div class="col-md-6">
                                         <select class="form-select" id="hook" onchange="updateHookText(); updatePreview()">
-                                            <option value="come" selected>come</option>
+                                            <option value="any" selected>any</option>
+                                            <option value="come">come</option>
                                             <option value="UGC">UGC</option>
                                             <option value="text">text</option>
                                             <option value="emoji">emoji</option>
                                             <option value="ASMR">ASMR</option>
-                                            <option value="AI">AI</option>
+                                            <option value="AIAvatar">AIAvatar</option>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
-                                        <input type="text" class="form-control" id="hookTextInput" placeholder="e.g., Turn your photo into a video" 
+                                        <input type="text" class="form-control" id="hookTextInput" placeholder="such as Turn your photo into a video" 
                                                onchange="formatInputToCamelCase('hookTextInput')" oninput="formatInputToCamelCase('hookTextInput')" style="display: none;">
-                                        <input type="text" class="form-control" id="hookUgcInput" placeholder="e.g., arline778" 
+                                        <input type="text" class="form-control" id="hookUgcInput" placeholder="such as arline778(optional)" 
                                                onchange="updatePreview()" oninput="updatePreview()" style="display: none;">
                                     </div>
                                 </div>
-                                <small class="text-muted">HOOK-[keyword], HOOK-text-[FormattedText], or HOOK-ugc-[username]</small>
                             </div>
 
                             <!-- VO (Voice Over) -->
@@ -451,25 +457,26 @@
                                     <i class="fas fa-microphone"></i> VO (Voice Over)
                                 </label>
                                 <div class="row">
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <select class="form-select" id="voiceOver" onchange="updateVoiceText(); updatePreview()">
-                                            <option value="tom" selected>Tom</option>
+                                            <option value="any" selected>any</option>
+                                            <option value="null">null</option>
+                                            <option value="tom">Tom</option>
                                             <option value="doja">Doja</option>
                                             <option value="chris">Chris</option>
-                                            <option value="chris">Human</option>
+                                            <option value="human">Human</option>
                                             <option value="custom">Custom voice</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4">
-                                        <input type="text" class="form-control" id="voiceName" placeholder="e.g., sarah, mike" 
+                                    <div class="col-md-3">
+                                        <input type="text" class="form-control" id="voiceName" placeholder="such as Snooypdog" 
                                                onchange="formatInputToCamelCase('voiceName')" oninput="formatInputToCamelCase('voiceName')" style="display: none;">
                                     </div>
-                                    <div class="col-md-4">
-                                        <input type="text" class="form-control" id="voScript" placeholder="e.g., dont take bad pictures" 
-                                               onchange="formatInputToCamelCase('voScript')" oninput="formatInputToCamelCase('voScript')">
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control" id="voScript" placeholder="such as Don't take bad pictures(optional)" 
+                                               onchange="formatInputToCamelCase('voScript')" oninput="updatePreviewDebounced()">
                                     </div>
                                 </div>
-                                <small class="text-muted">VO-[speaker] or VO-[speaker]-[FormattedScript]</small>
                             </div>
 
                             <!-- MUSIC -->
@@ -481,21 +488,19 @@
                                     <div class="col-md-6">
                                         <select class="form-select" id="music" onchange="updateMusicText(); updatePreview()">
                                             <option value="any" selected>any</option>
-                                            <option value="rapbeat">rapbeat</option>
-                                            <option value="lastchristmas">lastchristmas</option>
-                                            <option value="lofi">lofi</option>
+                                            <option value="lofi">lofi(ambiance sound)</option>
                                             <option value="kpop">kpop</option>
                                             <option value="hiphop">hiphop</option>
-                                            <option value="nostalgic">nostalgic</option>
+                                            <option value="90s">90s</option>
+                                            <option value="trend">trend</option>
                                             <option value="custom">Custom song name</option>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
-                                        <input type="text" class="form-control" id="musicCustom" placeholder="e.g., last christmas" 
-                                               onchange="formatInputToCamelCase('musicCustom')" oninput="formatInputToCamelCase('musicCustom')" style="display: none;">
+                                        <input type="text" class="form-control" id="musicCustom" placeholder="such as last christmas" 
+                                               onchange="formatInputToCamelCase('musicCustom')" oninput="updatePreviewDebounced()" style="display: none;">
                                     </div>
                                 </div>
-                                <small class="text-muted">MUSIC-[songtitle] (auto-formats: "last christmas" → "LastChristmas")</small>
                             </div>
 
                             <!-- DIM (Dimension/Format) -->
@@ -510,6 +515,70 @@
                                     <option value="LS">LS - Landscape (16:9)</option>
                                 </select>
                                 <small class="text-muted">Always specify aspect ratio</small>
+                            </div>
+
+                            <!-- Language -->
+                            <div class="mb-3">
+                                <label for="language" class="form-label">
+                                    <i class="fas fa-globe"></i> Language
+                                </label>
+                                <select class="form-select" id="language" onchange="updatePreview()">
+                                    <option value="">Select language...</option>
+                                    <!-- Priority languages (ISO 639-1 codes) -->
+                                    <option value="en" selected>en - English</option>
+                                    <option value="fr">fr - French</option>
+                                    <option value="pt">pt - Portuguese (Brazilian)</option>
+                                    <option value="es">es - Spanish</option>
+                                    <option value="ja">ja - Japanese</option>
+                                    <option value="ko">ko - Korean</option>
+                                    <!-- Other languages (alphabetical by ISO 639-1 code) -->
+                                    <option value="ar">ar - Arabic</option>
+                                    <option value="zh">zh - Chinese</option>
+                                    <option value="de">de - German</option>
+                                    <option value="hi">hi - Hindi</option>
+                                    <option value="id">id - Indonesian</option>
+                                    <option value="it">it - Italian</option>
+                                    <option value="ms">ms - Malay</option>
+                                    <option value="nl">nl - Dutch</option>
+                                    <option value="pl">pl - Polish</option>
+                                    <option value="th">th - Thai</option>
+                                    <option value="tl">tl - Filipino</option>
+                                    <option value="tr">tr - Turkish</option>
+                                    <option value="vi">vi - Vietnamese</option>
+                                </select>
+                                <small class="text-muted">
+                                    Content language • 
+                                    <a href="#language-codes-help" class="text-decoration-none" onclick="toggleLanguageCodesHelp()">
+                                        <i class="fas fa-info-circle"></i> ISO 639-1 codes
+                                    </a> • 
+                                    <a href="/language-mapping" target="_blank" class="text-decoration-none">
+                                        <i class="fas fa-external-link-alt"></i> Full mapping
+                                    </a>
+                                </small>
+                                
+                                <!-- Collapsible Language Codes Help -->
+                                <div class="collapse mt-2" id="languageCodesHelp">
+                                    <div class="alert alert-info" style="font-size: 0.85em;">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <strong>📝 Key Changes:</strong><br>
+                                                <small>
+                                                    <span class="badge bg-secondary me-1">JP</span>→<span class="badge bg-primary me-2">ja</span>
+                                                    <span class="badge bg-secondary me-1">KR</span>→<span class="badge bg-primary me-2">ko</span><br>
+                                                    <span class="badge bg-secondary me-1">BR</span>→<span class="badge bg-primary me-2">pt</span>
+                                                    <span class="badge bg-secondary me-1">SA</span>→<span class="badge bg-primary me-2">ar</span>
+                                                </small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>💡 ISO 639-1 Standard:</strong><br>
+                                                <small>
+                                                    Now using international 2-letter language codes (lowercase). 
+                                                    Old codes still work during transition.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -572,10 +641,11 @@
                             <div class="name-text" id="liveNameText" style="
                                 color: #333;
                                 font-weight: 600;
-                                font-size: 1.1em;
+                                font-size: 1.2em;
                                 word-break: break-all;
                                 margin-bottom: 15px;
-                            ">internal_[filename]_-_-_-_-_AIBG_EN</div>
+                                line-height: 1.4;
+                            ">internal_[filename]_HOOK-any_VO-any_MUSIC-any_PO_AIBG_en</div>
                             <button class="copy-btn" id="liveCopyBtn" onclick="copyLiveName()" style="
                                 background: linear-gradient(135deg, #6bd0ff, #249dee);
                                 color: white;
@@ -610,14 +680,15 @@
                             </div>
                             <div style="
                                 color: white;
-                                font-size: 0.85em;
+                                font-size: 0.9em;
                                 word-break: break-all;
                                 font-family: monospace;
                                 background: rgba(0,0,0,0.2);
                                 padding: 10px;
                                 border-radius: 8px;
+                                line-height: 1.4;
                             " id="mockPreview">
-                                12345_John_internal_[filename]_-_-_-_-_AIBG_EN_19092025
+                                12345_John_internal_[filename]_HOOK-any_VO-any_MUSIC-any_PO_AIBG_en_19092025
                             </div>
                         </div>
                         
@@ -654,7 +725,7 @@
                             <i class="fas fa-file"></i> Original AdManage Filename
                         </label>
                         <input type="text" class="form-control form-control-lg" id="originalFilename" 
-                               placeholder="e.g., 10090_Jiali_internal_RedBottle_ANIM_EN"
+                               placeholder="such as 12345_Jiali_internal_RedBottle_ANIM_en"
                                onchange="generateIteration()" oninput="generateIteration()">
                         <small class="text-muted">Paste the complete filename from AdManage</small>
                     </div>
@@ -675,7 +746,7 @@
                         <h5><i class="fas fa-magic"></i> Generated Iteration</h5>
                         <div class="generated-name" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">
                             <div class="name-text" id="iterationResult" style="color: white;">
-                                12345_Jiali_internal_RedBottle-ITE-1_ANIM_EN
+                                12345_Jiali_internal_RedBottle-ITE-1_ANIM_en
                             </div>
                             <button class="copy-btn" id="iterationCopyBtn" onclick="copyIterationName()" style="background: rgba(255,255,255,0.2);">
                                 <i class="fas fa-copy"></i> Copy Iteration
@@ -687,8 +758,8 @@
                                 <i class="fas fa-info-circle"></i> How it works
                             </div>
                             <div class="preview-text" style="font-size: 0.85em;">
-                                Adds -ITE-X after the product name:<br>
-                                <code>internal_RedBottle</code> → <code>internal_RedBottle-ITE-1</code>
+                                Adds -ITE-X after the filename:<br>
+                                <code>MyBlueHoodie-1</code> → <code>MyBlueHoodie-1-ITE-1</code>
                             </div>
                         </div>
                     </div>
@@ -701,7 +772,7 @@
             <h3><i class="fas fa-bolt"></i> 📌 Creative Naming Structure</h3>
             <div class="alert alert-info">
                 <div class="format-display">
-                    <strong>Format:</strong> [id]_[creator]_[creator-type-filename]_[HOOK-…_VO-…_MUSIC-…_DIM]_[feature]_[language]_[date]
+                    <strong>Format:</strong> [id]_[creator]_[creator-type]_[filename]_[extra 4 tags]_[feature]_[language]_[date]
                 </div>
                 <div class="row">
                     <div class="col-md-6">
@@ -710,16 +781,16 @@
                             <li><code>_</code> = separate <strong>main fields</strong></li>
                             <li><code>-</code> = separate <strong>details inside tags</strong></li>
                             <li><strong>ID, Creator, Date</strong> auto-added by Admanage</li>
-                            <li><strong>All 4 tags</strong>: HOOK → VO → MUSIC → DIM (or use <code>_-_-_-_-_</code>)</li>
+                            <li><strong>All 4 tags</strong>: HOOK → VO → MUSIC → DIM (always applied)</li>
                         </ul>
                     </div>
                     <div class="col-md-6">
                         <strong>Examples:</strong><br>
                         <div class="tag-example">
-                            internal_RedBottle_HOOK-come-text_VO-tom_MUSIC-rapbeat_PO_AIBG_EN
+                            internal_RedBottle_HOOK-come-text_VO-tom_MUSIC-rapbeat_PO_AIBG_en
                         </div>
                         <div class="tag-example">
-                            internal_RedBottle_-_-_-_-_AIBG_EN
+                            internal_RedBottle_HOOK-any_VO-any_MUSIC-any_PO_AIBG_en
                         </div>
                     </div>
                 </div>
@@ -735,34 +806,34 @@
                 <div class="row">
                     <div class="col-md-6">
                         <h6><i class="fas fa-star text-primary"></i> Core Features</h6>
-                        <div class="tag-example">AIBG</div>
+                        <div class="tag-core">AIBG</div>
                         <small class="text-muted d-block mb-2">AI background ads</small>
                         
-                        <div class="tag-example">STORY</div>
+                        <div class="tag-core">STORY</div>
                         <small class="text-muted d-block mb-2">AI Instagram Story ads</small>
                         
-                        <div class="tag-example">LOGO</div>
+                        <div class="tag-core">LOGO</div>
                         <small class="text-muted d-block mb-2">AI logo ads</small>
                         
-                        <div class="tag-example">ANIM</div>
+                        <div class="tag-core">ANIM</div>
                         <small class="text-muted d-block mb-2">Animated Design</small>
                         
-                        <div class="tag-example">MIX</div>
+                        <div class="tag-core">MIX</div>
                         <small class="text-muted d-block mb-2">Multiple features combined</small>
                     </div>
                     
                     <div class="col-md-6">
                         <h6><i class="fas fa-magic text-success"></i> Other Tools</h6>
-                        <div class="tag-example">AIFILL</div>
+                        <div class="tag-tools">AIFILL</div>
                         <small class="text-muted d-block mb-2">AI Fill tool</small>
                         
-                        <div class="tag-example">RETOUCH</div>
+                        <div class="tag-tools">RETOUCH</div>
                         <small class="text-muted d-block mb-2">Photo retouching</small>
                         
-                        <div class="tag-example">CHANGE</div>
+                        <div class="tag-tools">CHANGE</div>
                         <small class="text-muted d-block mb-2">Describe a Change feature</small>
                         
-                        <div class="tag-example">RnD</div>
+                        <div class="tag-experimental">RnD</div>
                         <small class="text-muted d-block mb-2">🧪 Experimental new feature, not yet in existing tags</small>
                     </div>
                 </div>
@@ -770,13 +841,13 @@
                 <div class="mt-4">
                     <h6><i class="fas fa-layer-group text-info"></i> Image Transformation (IMGT) Suite</h6>
                     <div class="d-flex flex-wrap gap-2 align-items-center">
-                        <div class="tag-example">IMGT-MODEL</div>
+                        <div class="tag-imgt">IMGT-MODEL</div>
                         <small class="text-muted">Virtual model •</small>
                         
-                        <div class="tag-example">IMGT-STAGE</div>
+                        <div class="tag-imgt">IMGT-STAGE</div>
                         <small class="text-muted">Product staging •</small>
                         
-                        <div class="tag-example">IMGT-BEAUTIFY</div>
+                        <div class="tag-imgt">IMGT-BEAUTIFY</div>
                         <small class="text-muted">Product beautifier</small>
                     </div>
                     <small class="text-muted d-block mt-2">
@@ -795,57 +866,61 @@
         let creativeNameCounter = 1;
         let usedCreativeNames = new Set();
         
-        // Show/hide creator name field based on creator type
-        function updateCreatorTypeFields() {
-            const creatorType = document.getElementById('creatorType').value;
-            const creatorNameDiv = document.getElementById('creatorNameDiv');
-            const creatorNameLabel = document.getElementById('creatorNameLabel');
-            
-            if (creatorType && creatorType !== 'internal') {
-                creatorNameDiv.style.display = 'block';
-                
-                // Update label text based on creator type
-                let labelText = 'Creator Name';
-                switch(creatorType) {
-                    case 'freelancer':
-                        labelText = 'Freelancer Creator Name';
-                        break;
-                    case 'ramdam':
-                        labelText = 'Ramdam Creator Name';
-                        break;
-                    case 'influencer':
-                        labelText = 'Influencer Creator Name';
-                        break;
-                    default:
-                        labelText = 'Creator Name';
-                }
-                creatorNameLabel.innerHTML = `<i class="fas fa-user"></i> ${labelText}`;
-                
-            } else {
-                creatorNameDiv.style.display = 'none';
-                document.getElementById('creatorName').value = '';
-            }
-            updatePreview();
+        // Cache DOM elements for better performance
+        let creatorTypeEl, creatorNameEl, filenameEl, languageEl, featureEl, hookEl, hookTextEl, hookUgcEl,
+            voiceOverEl, voiceNameEl, voScriptEl, musicEl, musicCustomEl, dimensionEl, creativeNumberEl,
+            liveNameEl, mockPreviewEl;
+        
+        // Generate date once per session
+        const TODAY_YYYYMMDD = (() => {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth()+1).padStart(2,'0');
+            const day = String(d.getDate()).padStart(2,'0');
+            return `${day}${m}${y}`;
+        })();
+        
+        // Debounce preview updates
+        let rafId = null;
+        function updatePreviewDebounced() {
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(updatePreview);
         }
         
-        // Toggle creative tags section
-        function toggleCreativeTags() {
-            const useFullTags = document.getElementById('useFullTags').checked;
+        function initEls() {
+            creatorTypeEl = document.getElementById('creatorType');
+            creatorNameEl = document.getElementById('creatorName');
+            filenameEl = document.getElementById('filename');
+            languageEl = document.getElementById('language');
+            featureEl = document.getElementById('feature');
+            hookEl = document.getElementById('hook');
+            hookTextEl = document.getElementById('hookTextInput');
+            hookUgcEl = document.getElementById('hookUgcInput');
+            voiceOverEl = document.getElementById('voiceOver');
+            voiceNameEl = document.getElementById('voiceName');
+            voScriptEl = document.getElementById('voScript');
+            musicEl = document.getElementById('music');
+            musicCustomEl = document.getElementById('musicCustom');
+            dimensionEl = document.getElementById('dimension');
+            creativeNumberEl = document.getElementById('creativeNumber');
+            liveNameEl = document.getElementById('liveNameText');
+            mockPreviewEl = document.getElementById('mockPreview');
+        }
+        
+        
+        
+        // Always show creative tags section (removed toggle functionality)
+        function showCreativeTags() {
             const creativeTagsSection = document.getElementById('creativeTagsSection');
-            
-            if (useFullTags) {
-                creativeTagsSection.style.display = 'block';
-            } else {
-                creativeTagsSection.style.display = 'none';
-            }
+            creativeTagsSection.style.display = 'block';
             updatePreview();
         }
         
-        // Enhanced function to format text to PascalCase (handle spaces and camelCase detection)
+        // Enhanced function to format text to PascalCase with smart abbreviation
         function formatToPascalCase(text) {
             if (!text) return '';
             
-            // Remove forbidden filename characters: ! " # $ % & ' ( ) * + , / : ; < = > ? [ \ ] ^ ` { | } ~
+            // Remove forbidden filename characters: ! " # $ % & ' ( ) * + , / : : ; < = > ? [ \ ] ^ ` { | } ~
             const forbiddenChars = /[!"#$%&'()*+,/:;<=>?[\\\]^`{|}~]/g;
             const cleanedText = text.replace(forbiddenChars, '');
             
@@ -854,87 +929,37 @@
             
             // If there's only one word, check for camelCase transitions
             if (words.length === 1 && words[0].length > 1) {
-                // Split camelCase words (e.g., "dirtyKitchen" → ["dirty", "Kitchen"])
+                // Split camelCase words (such as "dirtyKitchen" → ["dirty", "Kitchen"])
                 words = words[0].split(/(?=[A-Z])/).filter(word => word.length > 0);
             }
             
-            // Format each word: capitalize first letter, lowercase the rest
-            return words.map(word => {
+            // Simple PascalCase formatting
+            const formattedWords = words.map(word => {
                 if (word.length === 0) return '';
                 return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-            }).join('');
+            });
+            
+            return formattedWords.join('');
         }
 
-        // Function to format creative name in real-time with magical auto-increment
+        // Function to format creative name for input field (capitalize first letters, keep spaces)
         function formatCreativeName() {
-            const input = document.getElementById('filename');
-            const numberInput = document.getElementById('creativeNumber');
-            const cursorPos = input.selectionStart;
-            const originalValue = input.value;
+            const input = filenameEl;
+            const original = input.value;
             
-            // Remove any existing number suffix for formatting
-            const valueWithoutNumber = originalValue.replace(/-\d+$/, '');
-            const formatted = formatToPascalCase(valueWithoutNumber);
+            // Strip any typed numeric suffix permanently on blur
+            const withoutNum = original.replace(/-\d+\s*$/, '');
             
-            // Add magical auto-increment number if name is not empty
-            let finalValue = formatted;
-            if (formatted && formatted.length > 0) {
-                // Check if this base name already exists
-                const baseName = formatted;
-                
-                // Find the next available number (the magic!)
-                // Start with 1, then 2, 3...
-                let numberToUse = 1;
-                while (usedCreativeNames.has(`${baseName}-${numberToUse}`)) {
-                    numberToUse++;
-                }
-                
-                // Always add dash and number starting from 1
-                finalValue = `${baseName}-${numberToUse}`;
-                
-                // Update the number display to show what was auto-selected
-                numberInput.value = numberToUse;
-                
-                // Update the set of used names
-                if (originalValue !== finalValue) {
-                    usedCreativeNames.add(finalValue);
-                }
-            }
+            // Simple Title Case without altering spaces in the field
+            const formatted = withoutNum.replace(/\b\w/g, l => l.toUpperCase());
             
-            // Only update if the value actually changed to avoid cursor jumping
-            if (originalValue !== finalValue) {
-                input.value = finalValue;
-                
-                // Try to maintain cursor position (before the number part)
-                const newPos = Math.min(cursorPos, formatted.length);
-                setTimeout(() => {
-                    input.setSelectionRange(newPos, newPos);
-                }, 0);
+            if (formatted !== original) {
+                input.value = formatted;
             }
             
             updatePreview();
         }
 
-        // Function to handle manual number changes (user override)
-        function manualNumberChange() {
-            const input = document.getElementById('filename');
-            const numberInput = document.getElementById('creativeNumber');
-            const currentName = input.value;
-            
-            // If there's a name, update it with the new number
-            if (currentName) {
-                const nameWithoutNumber = currentName.replace(/-\d+$/, '');
-                const newNumber = parseInt(numberInput.value) || 1;
-                
-                // Always add dash and number starting from 1
-                const newName = `${nameWithoutNumber}-${newNumber}`;
-                
-                // Update the used names set
-                usedCreativeNames.add(newName);
-                input.value = newName;
-                updatePreview();
-            }
-        }
 
         // Function to format any input field to CamelCase
         function formatInputToCamelCase(inputId) {
@@ -1003,12 +1028,22 @@
         }
 
         function updatePreview() {
-            const creatorType = document.getElementById('creatorType').value || '[creator-type]';
-            const creatorName = document.getElementById('creatorName').value;
-            const filename = document.getElementById('filename').value || '[filename]';
-            const useFullTags = document.getElementById('useFullTags').checked;
-            const language = document.getElementById('language').value || '[language]';
-            const feature = document.getElementById('feature').value;
+            const creatorType = creatorTypeEl.value || '[creator-type]';
+            const creatorName = creatorNameEl.value;
+            const rawFilename = filenameEl.value || '[filename]';
+            const language = languageEl.value || '[language]';
+            const feature = featureEl.value;
+            
+            // Format filename for preview (remove spaces, PascalCase) but don't modify the input field
+            let filename = rawFilename;
+            if (rawFilename && rawFilename !== '[filename]') {
+                // ALWAYS ignore user-typed suffix like "-1"
+                const base = formatToPascalCase(rawFilename.replace(/-\d+\s*$/, '').trim());
+                
+                // Always use the control's number
+                const num = Math.min(Math.max(parseInt(creativeNumberEl.value) || 1, 1), 999);
+                filename = `${base}-${num}`;
+            }
             
             // Build creator type part
             let creatorTypePart = '';
@@ -1026,51 +1061,46 @@
             
             let preview = creatorTypePart;
             
-            // Add creative tags or placeholder
-            if (useFullTags) {
-                const hook = document.getElementById('hook').value || '[hook]';
-                const hookTextInput = document.getElementById('hookTextInput').value;
-                const voiceName = document.getElementById('voiceName').value || '[voice]';
-                const voScript = document.getElementById('voScript').value;
-                const music = document.getElementById('music').value || '[music]';
-                const musicCustom = document.getElementById('musicCustom').value;
-                const dimension = document.getElementById('dimension').value || '[dim]';
-                
-                // Build HOOK
-                const hookUgcInput = document.getElementById('hookUgcInput').value;
-                let hookPart = `HOOK-${hook}`;
-                if (hook === 'text' && hookTextInput) {
-                    const formattedText = formatToPascalCase(hookTextInput);
-                    hookPart = `HOOK-text-${formattedText}`;
-                } else if (hook === 'UGC' && hookUgcInput) {
-                    hookPart = `HOOK-ugc-${hookUgcInput}`;
-                }
-                
-                // Build VO
-                const voiceOver = document.getElementById('voiceOver').value;
-                let voiceToUse = voiceOver === 'custom' ? voiceName : voiceOver;
-                let voPart = `VO-${voiceToUse || '[voice]'}`;
-                if (voScript) {
-                    const formattedScript = formatToPascalCase(voScript);
-                    voPart += `-${formattedScript}`;
-                }
-                
-                // Build MUSIC
-                let musicPart = 'MUSIC-';
-                if (music === 'custom' && musicCustom) {
-                    const formattedMusicName = formatToPascalCase(musicCustom);
-                    musicPart += formattedMusicName;
-                } else {
-                    musicPart += music;
-                }
-                
-                // Build tags block
-                const tagsBlock = `${hookPart}_${voPart}_${musicPart}_${dimension}`;
-                preview += `_${tagsBlock}`;
-            } else {
-                // Add four placeholders: one for each tag (HOOK, VO, MUSIC, DIM)
-                preview += `_-_-_-_-`;
+            // Always apply full creative tags (removed placeholder option)
+            const hook = hookEl.value || '[hook]';
+            const hookTextInput = hookTextEl.value;
+            const voiceName = voiceNameEl.value || '[voice]';
+            const voScript = voScriptEl.value;
+            const music = musicEl.value || '[music]';
+            const musicCustom = musicCustomEl.value;
+            const dimension = dimensionEl.value || '[dim]';
+            
+            // Build HOOK
+            const hookUgcInput = hookUgcEl.value;
+            let hookPart = `HOOK-${hook}`;
+            if (hook === 'text' && hookTextInput) {
+                const formattedText = formatToPascalCase(hookTextInput);
+                hookPart = `HOOK-text-${formattedText}`;
+            } else if (hook === 'UGC' && hookUgcInput) {
+                hookPart = `HOOK-ugc-${hookUgcInput.trim()}`;
             }
+            
+            // Build VO
+            const voiceOver = voiceOverEl.value;
+            let voiceToUse = voiceOver === 'custom' ? voiceName : voiceOver;
+            let voPart = `VO-${voiceToUse || '[voice]'}`;
+            if (voScript) {
+                const formattedScript = formatToPascalCase(voScript);
+                voPart += `-${formattedScript}`;
+            }
+            
+            // Build MUSIC
+            let musicPart = 'MUSIC-';
+            if (music === 'custom' && musicCustom) {
+                const formattedMusicName = formatToPascalCase(musicCustom);
+                musicPart += formattedMusicName;
+            } else {
+                musicPart += music;
+            }
+            
+            // Build tags block
+            const tagsBlock = `${hookPart}_${voPart}_${musicPart}_${dimension}`;
+            preview += `_${tagsBlock}`;
             
             // Add feature tag if selected
             if (feature) {
@@ -1081,17 +1111,46 @@
             preview += `_${language}`;
             
             // Update live display
-            document.getElementById('liveNameText').textContent = preview;
+            liveNameEl.textContent = preview;
             
-            // Update mock preview with sample ID/creator/date
-            const randomId = Math.floor(Math.random() * 90000) + 10000;
-            const currentDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
-            const mockPreview = `${randomId}_Jiali_${preview}_${currentDate}`;
-            document.getElementById('mockPreview').textContent = mockPreview;
+            // Update mock preview with sample ID/creator/date (using cached date)
+            const fixedId = 12345;
+            const mockPreview = `${fixedId}_Jiali_${preview}_${TODAY_YYYYMMDD}`;
+            mockPreviewEl.textContent = mockPreview;
         }
         
         // Update creator type change handler
-        document.getElementById('creatorType').addEventListener('change', updateCreatorTypeFields);
+        function updateCreatorTypeFields() {
+            const creatorType = creatorTypeEl.value;
+            const creatorNameDiv = document.getElementById('creatorNameDiv');
+            const creatorNameLabel = document.getElementById('creatorNameLabel');
+            
+            if (creatorType && creatorType !== 'internal') {
+                creatorNameDiv.style.display = 'block';
+                
+                // Update label text based on creator type
+                let labelText = 'Creator Name';
+                switch(creatorType) {
+                    case 'freelancer':
+                        labelText = 'Freelancer Creator Name';
+                        break;
+                    case 'ramdam':
+                        labelText = 'Ramdam Creator Name';
+                        break;
+                    case 'influencer':
+                        labelText = 'Influencer Creator Name';
+                        break;
+                    default:
+                        labelText = 'Creator Name';
+                }
+                creatorNameLabel.innerHTML = `<i class="fas fa-user"></i> ${labelText}`;
+                
+            } else {
+                creatorNameDiv.style.display = 'none';
+                creatorNameEl.value = '';
+            }
+            updatePreviewDebounced();
+        }
         
         // Feature tag selection function
         function selectFeatureTag(button) {
@@ -1137,35 +1196,35 @@
             const resultElement = document.getElementById('iterationResult');
             
             if (!originalFilename) {
-                resultElement.textContent = '12345_Jiali_internal_RedBottle-ITE-1_ANIM_EN';
+                resultElement.textContent = '12345_Jiali_internal_RedBottle-ITE-1_ANIM_en';
                 return;
             }
             
-            // Parse the AdManage filename format: [id]_[creator]_[creator-type-filename]_[HOOK-…_VO-…_MUSIC-…_DIM]_[feature]_[language]_[date]
+            // Parse the AdManage filename format: [id]_[creator]_[creator-type]_[filename]_[HOOK-…_VO-…_MUSIC-…_DIM]_[feature]_[language]_[date]
             const parts = originalFilename.split('_');
             
-            if (parts.length < 3) {
+            if (parts.length < 4) {
                 resultElement.textContent = 'Invalid filename format';
                 return;
             }
             
-            // Find the product name part (usually the 3rd part, starts with creator type)
-            let productNameIndex = 2; // Default to 3rd part (index 2)
-            let productNamePart = parts[productNameIndex];
+            // Find the filename part (4th part, index 3)
+            let filenameIndex = 3; // Filename is at index 3
+            let filenamePart = parts[filenameIndex];
             
-            // Check if the product name already has an iteration
+            // Check if the filename already has an iteration
             const iterationRegex = /-ITE-\d+/;
-            if (iterationRegex.test(productNamePart)) {
+            if (iterationRegex.test(filenamePart)) {
                 // Remove existing iteration
-                productNamePart = productNamePart.replace(iterationRegex, '');
+                filenamePart = filenamePart.replace(iterationRegex, '');
             }
             
             // Add the new iteration
-            const newProductName = `${productNamePart}-ITE-${iterationNumber}`;
+            const newFilename = `${filenamePart}-ITE-${iterationNumber}`;
             
             // Reconstruct the filename
             const newParts = [...parts];
-            newParts[productNameIndex] = newProductName;
+            newParts[filenameIndex] = newFilename;
             const iterationFilename = newParts.join('_');
             
             resultElement.textContent = iterationFilename;
@@ -1199,8 +1258,7 @@
         function clearForm() {
             document.getElementById('nameGeneratorForm').reset();
             document.getElementById('creatorNameDiv').style.display = 'none';
-            document.getElementById('creativeTagsSection').style.display = 'none';
-            document.getElementById('usePlaceholder').checked = true;
+            document.getElementById('creativeTagsSection').style.display = 'block';
             
             // Hide conditional inputs
             document.getElementById('hookTextInput').style.display = 'none';
@@ -1210,12 +1268,12 @@
             
             // Set default values
             document.getElementById('creatorType').value = 'internal';
-            document.getElementById('hook').value = 'come';
-            document.getElementById('voiceOver').value = 'tom';
+            document.getElementById('hook').value = 'any';
+            document.getElementById('voiceOver').value = 'any';
             document.getElementById('music').value = 'any';
             document.getElementById('dimension').value = 'PO';
             document.getElementById('feature').value = 'AIBG';
-            document.getElementById('language').value = 'EN';
+            document.getElementById('language').value = 'en';
             document.getElementById('creativeNumber').value = '1';
             
             // Reset feature tag buttons
@@ -1238,20 +1296,32 @@
             });
         }
         
+        // Toggle language codes help section
+        function toggleLanguageCodesHelp() {
+            const helpSection = document.getElementById('languageCodesHelp');
+            if (helpSection.classList.contains('show')) {
+                helpSection.classList.remove('show');
+            } else {
+                helpSection.classList.add('show');
+            }
+        }
+        
         // Initialize preview on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Set default values on page load
-            document.getElementById('creatorType').value = 'internal';
-            document.getElementById('hook').value = 'come';
-            document.getElementById('voiceOver').value = 'tom';
-            document.getElementById('music').value = 'any';
-            document.getElementById('dimension').value = 'PO';
-            document.getElementById('feature').value = 'AIBG';
-            document.getElementById('language').value = 'EN';
-            document.getElementById('creativeNumber').value = '1';
-            document.getElementById('usePlaceholder').checked = true;
+            // Initialize cached DOM elements
+            initEls();
             
-            toggleCreativeTags();
+            // Set default values on page load
+            creatorTypeEl.value = 'internal';
+            hookEl.value = 'any';
+            voiceOverEl.value = 'any';
+            musicEl.value = 'any';
+            dimensionEl.value = 'PO';
+            featureEl.value = 'AIBG';
+            languageEl.value = 'en';
+            creativeNumberEl.value = '1';
+            
+            showCreativeTags();
             updatePreview();
         });
     </script>

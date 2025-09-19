@@ -62,27 +62,11 @@ def adlocalizer():
     from tools_config import TOOLS_CONFIG
     tools = get_active_tools()
     
-    # Import AdLocalizer specific data
-    LANGUAGES = {
-        "EN": "English",
-        "JP": "Japanese",
-        "CN": "Traditional Chinese",
-        "DE": "German",
-        "IN": "Hindi",
-        "FR": "French",
-        "KR": "Korean",
-        "BR": "Brazilian Portuguese",
-        "IT": "Italian",
-        "ES": "Spanish",
-        "ID": "Indonesian",
-        "TR": "Turkish",
-        "PH": "Filipino",
-        "PL": "Polish",
-        "SA": "Arabic",
-        "MY": "Malay",
-        "VN": "Vietnamese",
-        "TH": "Thai"
-    }
+    # Import centralized language configuration
+    from language_config import LANGUAGES, get_all_languages_for_display
+    
+    # Create a clean format for the template (code -> name mapping)
+    template_languages = {code: info['name'] for code, info in LANGUAGES.items()}
     
     VOICES = {
         "1": {"name": "Tom Cruise", "id": "g60FwKJuhCJqbDCeuXjm"},
@@ -90,7 +74,7 @@ def adlocalizer():
         "3": {"name": "Chris", "id": "iP95p4xoKVk53GoZ742B"}
     }
     
-    return render_template('adlocalizer.html', languages=LANGUAGES, voices=VOICES, tools=tools, tools_config=TOOLS_CONFIG)
+    return render_template('adlocalizer.html', languages=template_languages, voices=VOICES, tools=tools, tools_config=TOOLS_CONFIG)
 
 
 
@@ -323,6 +307,15 @@ def name_generator():
     from tools_config import TOOLS_CONFIG
     tools = get_active_tools()
     return render_template('name_generator.html', 
+                         tools=tools, 
+                         tools_config=TOOLS_CONFIG)
+
+@app.route('/language-mapping')
+def language_mapping():
+    """Language code mapping reference page"""
+    from tools_config import TOOLS_CONFIG
+    tools = get_active_tools()
+    return render_template('language_mapping.html', 
                          tools=tools, 
                          tools_config=TOOLS_CONFIG)
 

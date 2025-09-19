@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}🌍 Language Code Mapping - ISO 639-1 Standard{% endblock %}
+
+{% set use_main_container = true %}
+{% set current_tool = "Language Mapping" %}
+
+{% block head %}
+<style>
+    .mapping-table {
+        background: var(--white);
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .mapping-table th {
+        background: linear-gradient(135deg, var(--indigo-1), var(--indigo-2));
+        color: var(--white);
+        border: none;
+        padding: 15px;
+        font-weight: 600;
+    }
+    
+    .mapping-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid var(--neutral-2);
+        vertical-align: middle;
+    }
+    
+    .old-code {
+        font-family: 'Courier New', monospace;
+        background: var(--lavender-1);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+        color: var(--ink-2);
+    }
+    
+    .iso-code {
+        font-family: 'Courier New', monospace;
+        background: var(--accent-1);
+        color: var(--white);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+    
+    .region-badge {
+        background: var(--neutral-2);
+        color: var(--ink-2);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.85em;
+    }
+    
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.8em;
+        font-weight: 600;
+    }
+    
+    .status-updated {
+        background: var(--accent-1);
+        color: var(--white);
+    }
+    
+    .status-legacy {
+        background: var(--neutral-2);
+        color: var(--ink-2);
+    }
+    
+    .info-card {
+        background: linear-gradient(135deg, var(--lavender-1), var(--neutral-1));
+        border: 2px solid var(--lavender-2);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .priority-section {
+        background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+        color: var(--white);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .code-example {
+        background: var(--neutral-1);
+        border-left: 4px solid var(--indigo-1);
+        padding: 15px;
+        margin: 15px 0;
+        font-family: 'Courier New', monospace;
+        border-radius: 0 8px 8px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header text-center mb-5">
+    <h1><i class="fas fa-globe"></i> Language Code Mapping</h1>
+    <p class="lead">ISO 639-1 Standard Implementation for Ad Localizer & Name Generator</p>
+</div>
+
+<!-- Overview Section -->
+<div class="section">
+    <div class="info-card">
+        <h3><i class="fas fa-info-circle"></i> What Changed?</h3>
+        <p class="mb-3">We've standardized all language codes to follow the <strong>ISO 639-1</strong> international standard. This ensures consistency, better integration with external systems, and follows industry best practices.</p>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h6><strong>Before (Legacy Codes):</strong></h6>
+                <div class="code-example">
+                    EN, JP, KR, BR, SA, VN, etc.
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6><strong>After (ISO 639-1 Standard):</strong></h6>
+                <div class="code-example">
+                    en, ja, ko, pt, ar, vi, etc.
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-info mt-3">
+            <h6><i class="fas fa-exclamation-circle"></i> Key Changes to Note:</h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <ul class="mb-0">
+                        <li><strong>JP → ja</strong> (Japanese)</li>
+                        <li><strong>KR → ko</strong> (Korean)</li>
+                        <li><strong>BR → pt</strong> (Portuguese)</li>
+                        <li><strong>SA → ar</strong> (Arabic)</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <ul class="mb-0">
+                        <li><strong>IN → hi</strong> (Hindi)</li>
+                        <li><strong>VN → vi</strong> (Vietnamese)</li>
+                        <li><strong>PH → tl</strong> (Filipino)</li>
+                        <li><strong>MY → ms</strong> (Malay)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+</div>
+<!-- Complete Language Mapping Table -->
+<div class="section">
+    <h3><i class="fas fa-table"></i> Complete Language Code Mapping</h3>
+    <p class="text-muted mb-4">All supported languages with their old codes, new ISO 639-1 codes, and regions.</p>
+    
+    <div class="table-responsive">
+        <table class="table mapping-table">
+            <thead>
+                <tr>
+                    <th><i class="fas fa-hashtag"></i> Old Code</th>
+                    <th><i class="fas fa-globe"></i> ISO 639-1</th>
+                    <th><i class="fas fa-language"></i> Language</th>
+                    <th><i class="fas fa-map-marker-alt"></i> Region</th>
+                    <th><i class="fas fa-star"></i> Priority</th>
+                    <th><i class="fas fa-history"></i> Old Code</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="old-code">EN</span></td>
+                    <td><span class="iso-code">en</span></td>
+                    <td>English</td>
+                    <td><span class="region-badge">Global</span></td>
+                    <td><i class="fas fa-star text-warning"></i></td>
+                    <td><span class="text-muted">/</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">FR</span></td>
+                    <td><span class="iso-code">fr</span></td>
+                    <td>French</td>
+                    <td><span class="region-badge">France</span></td>
+                    <td><i class="fas fa-star text-warning"></i></td>
+                    <td><span class="text-muted">/</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">BR</span></td>
+                    <td><span class="iso-code">pt</span></td>
+                    <td>Portuguese (Brazilian)</td>
+                    <td><span class="region-badge">Brazil</span></td>
+                    <td><i class="fas fa-star text-warning"></i></td>
+                    <td><span class="old-code">BR</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">ES</span></td>
+                    <td><span class="iso-code">es</span></td>
+                    <td>Spanish</td>
+                    <td><span class="region-badge">Spain</span></td>
+                    <td><i class="fas fa-star text-warning"></i></td>
+                    <td><span class="text-muted">/</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">JP</span></td>
+                    <td><span class="iso-code">ja</span></td>
+                    <td>Japanese</td>
+                    <td><span class="region-badge">Japan</span></td>
+                    <td><i class="fas fa-star text-warning"></i></td>
+                    <td><span class="old-code">JP</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">KR</span></td>
+                    <td><span class="iso-code">ko</span></td>
+                    <td>Korean</td>
+                    <td><span class="region-badge">Korea</span></td>
+                    <td><i class="fas fa-star text-warning"></i></td>
+                    <td><span class="old-code">KR</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">SA</span></td>
+                    <td><span class="iso-code">ar</span></td>
+                    <td>Arabic</td>
+                    <td><span class="region-badge">Saudi Arabia/Middle East</span></td>
+                    <td></td>
+                    <td><span class="old-code">SA</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">CN</span></td>
+                    <td><span class="iso-code">zh</span></td>
+                    <td>Chinese</td>
+                    <td><span class="region-badge">China/Taiwan</span></td>
+                    <td></td>
+                    <td><span class="old-code">CN</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">DE</span></td>
+                    <td><span class="iso-code">de</span></td>
+                    <td>German</td>
+                    <td><span class="region-badge">Germany</span></td>
+                    <td></td>
+                    <td><span class="text-muted">/</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">IN</span></td>
+                    <td><span class="iso-code">hi</span></td>
+                    <td>Hindi</td>
+                    <td><span class="region-badge">India</span></td>
+                    <td></td>
+                    <td><span class="old-code">IN</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">ID</span></td>
+                    <td><span class="iso-code">id</span></td>
+                    <td>Indonesian</td>
+                    <td><span class="region-badge">Indonesia</span></td>
+                    <td></td>
+                    <td><span class="text-muted">/</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">IT</span></td>
+                    <td><span class="iso-code">it</span></td>
+                    <td>Italian</td>
+                    <td><span class="region-badge">Italy</span></td>
+                    <td></td>
+                    <td><span class="text-muted">/</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">MY</span></td>
+                    <td><span class="iso-code">ms</span></td>
+                    <td>Malay</td>
+                    <td><span class="region-badge">Malaysia</span></td>
+                    <td></td>
+                    <td><span class="old-code">MY</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">NL</span></td>
+                    <td><span class="iso-code">nl</span></td>
+                    <td>Dutch</td>
+                    <td><span class="region-badge">Netherlands</span></td>
+                    <td></td>
+                    <td><span class="text-muted">/</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">PH</span></td>
+                    <td><span class="iso-code">tl</span></td>
+                    <td>Filipino</td>
+                    <td><span class="region-badge">Philippines</span></td>
+                    <td></td>
+                    <td><span class="old-code">PH</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">PL</span></td>
+                    <td><span class="iso-code">pl</span></td>
+                    <td>Polish</td>
+                    <td><span class="region-badge">Poland</span></td>
+                    <td></td>
+                    <td><span class="text-muted">/</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">TH</span></td>
+                    <td><span class="iso-code">th</span></td>
+                    <td>Thai</td>
+                    <td><span class="region-badge">Thailand</span></td>
+                    <td></td>
+                    <td><span class="text-muted">/</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">TR</span></td>
+                    <td><span class="iso-code">tr</span></td>
+                    <td>Turkish</td>
+                    <td><span class="region-badge">Turkey</span></td>
+                    <td></td>
+                    <td><span class="text-muted">/</span></td>
+                </tr>
+                <tr>
+                    <td><span class="old-code">VN</span></td>
+                    <td><span class="iso-code">vi</span></td>
+                    <td>Vietnamese</td>
+                    <td><span class="region-badge">Vietnam</span></td>
+                    <td></td>
+                    <td><span class="old-code">VN</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add click-to-copy functionality for code examples
+        document.querySelectorAll('.iso-code, .old-code').forEach(function(element) {
+            element.style.cursor = 'pointer';
+            element.title = 'Click to copy';
+            
+            element.addEventListener('click', function() {
+                navigator.clipboard.writeText(this.textContent).then(function() {
+                    // Visual feedback
+                    const original = element.style.backgroundColor;
+                    element.style.backgroundColor = '#28a745';
+                    element.style.color = 'white';
+                    
+                    setTimeout(function() {
+                        element.style.backgroundColor = original;
+                        element.style.color = '';
+                    }, 1000);
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -71,6 +71,95 @@ ALLOWED_EXTENSIONS = {'mp4', 'mov'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def detect_naming_convention_and_replace(original_filename, target_format):
+    """
+    Detect if filename follows the creative naming convention and replace dimension accordingly.
+    Format: [id]_[creator]_[creator-type-filename]_[HOOK-…_VO-…_MUSIC-…_DIM]_[feature]_[language]_[date]
+    
+    If the convention is detected, replace PO with the target format.
+    If not detected, append the target format suffix to the end.
+    
+    Args:
+        original_filename: The original filename without extension
+        target_format: 'square', 'square_blur', 'landscape', 'vertical'
+    
+    Returns:
+        tuple: (new_filename, format_name)
+    """
+    # Define format mappings
+    format_mappings = {
+        'square': ('SQ', 'Square (1080x1080)'),
+        'square_blur': ('SQ', 'Square (1080x1080)'),
+        'landscape': ('LS', 'Landscape (1920x1080)'),
+        'vertical': ('PO', 'Portrait (1080x1920)')
+    }
+    
+    target_dim_code, format_name = format_mappings[target_format]
+    
+    # Split filename by underscores
+    parts = original_filename.split('_')
+    
+    # Look for dimension codes (PO, LS, SQ) in the parts
+    # According to the convention, PO should be in the "last third place" of the creative tags section
+    dimension_found = False
+    dimension_index = -1
+    
+    # Search for existing dimension codes
+    for i, part in enumerate(parts):
+        if part in ['PO', 'LS', 'SQ']:
+            dimension_found = True
+            dimension_index = i
+            break
+    
+    if dimension_found:
+        # Replace the found dimension with the target dimension
+        new_parts = parts.copy()
+        new_parts[dimension_index] = target_dim_code
+        new_filename = '_'.join(new_parts)
+        app_logger.info(f"Detected naming convention: replaced {parts[dimension_index]} with {target_dim_code}")
+    else:
+        # Try to detect if it's a creative naming convention by looking for common patterns
+        # Check if we have at least 3-4 parts and some contain typical creative naming elements
+        creative_indicators = ['HOOK-', 'VO-', 'MUSIC-', 'AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-', 'RnD']
+        has_creative_indicators = any(any(indicator in part for indicator in creative_indicators) for part in parts)
+        
+        if len(parts) >= 3 and has_creative_indicators:
+            # This looks like a creative naming convention but missing dimension
+            # Insert the dimension code before what looks like the feature tag
+            # Look for feature tags (AIBG, STORY, etc.)
+            feature_tags = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'RnD']
+            feature_tags.extend([tag for tag in parts if tag.startswith('IMGT-')])
+            
+            feature_index = -1
+            for i, part in enumerate(parts):
+                if part in feature_tags or part.startswith('IMGT-'):
+                    feature_index = i
+                    break
+            
+            if feature_index > 0:
+                # Insert dimension before the feature tag
+                new_parts = parts.copy()
+                new_parts.insert(feature_index, target_dim_code)
+                new_filename = '_'.join(new_parts)
+                app_logger.info(f"Detected creative convention missing dimension: inserted {target_dim_code} before feature tag")
+            else:
+                # Fallback: append format suffix as before
+                new_filename = f"{original_filename}_{target_format}"
+                app_logger.info(f"Creative convention detected but no clear feature tag: appended {target_format}")
+        else:
+            # Not a creative naming convention, use legacy suffix approach
+            legacy_suffixes = {
+                'square': '_square',
+                'square_blur': '_square', 
+                'landscape': '_landscape',
+                'vertical': '_PO'
+            }
+            suffix = legacy_suffixes.get(target_format, f'_{target_format}')
+            new_filename = f"{original_filename}{suffix}"
+            app_logger.info(f"No creative convention detected: using legacy suffix {suffix}")
+    
+    return new_filename, format_name
+
 def generate_job_id():
     return str(uuid.uuid4())
 
@@ -199,20 +288,9 @@ def process_videos_background(job_id, input_files, formats, job_dir):
             base_name = os.path.splitext(input_file['original_name'])[0]
             
             for format_type in formats:
-                if format_type == 'square':
-                    output_filename = f"{base_name}_square.mp4"
-                    format_name = "Square (1080x1080)"
-                elif format_type == 'square_blur':
-                    output_filename = f"{base_name}_square_blur.mp4"
-                    format_name = "Square with Blur (1080x1080)"
-                elif format_type == 'landscape':
-                    output_filename = f"{base_name}_landscape_blur.mp4"
-                    format_name = "Landscape with Blur (1920x1080)"
-                elif format_type == 'vertical':
-                    output_filename = f"{base_name}_vertical_blur.mp4"
-                    format_name = "Vertical with Blur (1080x1920)"
-                else:
-                    continue
+                # Use smart naming convention detection
+                output_filename_base, format_name = detect_naming_convention_and_replace(base_name, format_type)
+                output_filename = f"{output_filename_base}.mp4"
                 
                 output_path = os.path.join(output_dir, output_filename)
                 conversion_tasks.append((
