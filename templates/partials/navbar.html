@@ -1,0 +1,30 @@
+<!-- Unified Navigation Bar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary rounded mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-photo-video"></i> {{ tools_config.brand.name }}
+        </a>
+        
+        <!-- Mobile toggle button -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <!-- Navigation items -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="navbar-nav ms-auto">
+                {% for tool in tools %}
+                    {% if tool.name == current_tool %}
+                        <a class="nav-link active" href="{{ tool.url }}" aria-current="page">
+                            <i class="{{ tool.icon }}"></i> {{ tool.name }}
+                        </a>
+                    {% else %}
+                        <a class="nav-link" href="{{ tool.url }}" {% if tool.url.startswith('http') %}target="_blank"{% endif %}>
+                            <i class="{{ tool.icon }}"></i> {{ tool.name }}
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</nav>

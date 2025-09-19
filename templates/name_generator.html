@@ -1,324 +1,160 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🪄 Creative Name Generator - Photoroom UA Video Tools</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+{% extends "base.html" %}
+
+{% block title %}🪄 Creative Name Generator - Photoroom UA Video Tools{% endblock %}
+
+{% set use_main_container = true %}
+{% set current_tool = "Creative Name Generator" %}
+
+{% block head %}
+<style>
+        /* Page-specific styles - design tokens handle the base styles */
+        .header{ text-align:center; margin-bottom:30px; color:var(--ink-1); }
+
+        /* Animations keep same, just shift glows into palette */
+        @keyframes inputShimmer{
+            0%,100%{ box-shadow:0 10px 30px rgba(102,126,234,.30), 0 0 20px rgba(118,75,162,.20); }
+            50%    { box-shadow:0 15px 40px rgba(102,126,234,.50), 0 0 30px rgba(118,75,162,.40); }
         }
-        .main-container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            margin: 20px auto;
-            max-width: 1200px;
-            padding: 30px;
+        @keyframes inputShine{
+            0%{ transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100%{ transform: translateX(100%) translateY(100%) rotate(45deg); }
         }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #333;
+        @keyframes previewShimmer{
+            0%,100%{ box-shadow:0 10px 30px rgba(122,167,255,.30), 0 0 20px rgba(77,136,255,.20); }
+            50%    { box-shadow:0 15px 40px rgba(122,167,255,.50), 0 0 30px rgba(77,136,255,.40); }
         }
-        
-        /* Premium Creative Name Input Animations (Purple Theme) */
-        @keyframes inputShimmer {
-            0%, 100% {
-                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3), 0 0 20px rgba(118, 75, 162, 0.2);
-            }
-            50% {
-                box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5), 0 0 30px rgba(118, 75, 162, 0.4);
-            }
+        @keyframes previewShine{
+            0%{ transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100%{ transform: translateX(100%) translateY(100%) rotate(45deg); }
         }
-        
-        @keyframes inputShine {
-            0% {
-                transform: translateX(-100%) translateY(-100%) rotate(45deg);
-            }
-            100% {
-                transform: translateX(100%) translateY(100%) rotate(45deg);
-            }
+
+        /* Design tokens handle form elements, buttons, and section styling */
+
+        /* Generated name card */
+        .generated-name{
+            background:linear-gradient(135deg, var(--neutral-1), var(--neutral-2));
+            border:2px solid var(--indigo-1);
+            border-radius:15px; padding:20px; margin:20px 0; text-align:center; position:relative;
         }
-        
-        /* Preview Section Animations (Blue Theme) */
-        @keyframes previewShimmer {
-            0%, 100% {
-                box-shadow: 0 10px 30px rgba(107, 208, 255, 0.3), 0 0 20px rgba(36, 157, 238, 0.2);
-            }
-            50% {
-                box-shadow: 0 15px 40px rgba(107, 208, 255, 0.5), 0 0 30px rgba(36, 157, 238, 0.4);
-            }
+        .generated-name .name-text{
+            font-family:'Courier New', monospace; font-size:1.2em; font-weight:bold; color:var(--ink-2); word-break:break-all; margin-bottom:15px;
         }
-        
-        @keyframes previewShine {
-            0% {
-                transform: translateX(-100%) translateY(-100%) rotate(45deg);
-            }
-            100% {
-                transform: translateX(100%) translateY(100%) rotate(45deg);
-            }
+
+        /* Copy buttons — from green -> indigo */
+        .copy-btn{
+            background: linear-gradient(135deg, var(--indigo-1), var(--indigo-2));
+            color:var(--white); border:none; border-radius:8px; padding:8px 16px; cursor:pointer; transition:all .3s ease;
+            box-shadow:0 4px 12px rgba(102,126,234,.25);
         }
-        
-        /* Creative Name Input Focus Effects */
-        .creative-name-input:focus {
-            border-color: rgba(255,255,255,0.8) !important;
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1), 0 0 20px rgba(255,255,255,0.5) !important;
-            transform: scale(1.02);
+        .copy-btn:hover{ transform:translateY(-1px); filter:brightness(1.05); }
+        .copy-btn.copied{ background: linear-gradient(135deg, var(--accent-1), var(--accent-2)); }
+
+        /* Rule/format blocks aligned to palette */
+        .rule-card{
+            background:var(--neutral-1);
+            border-left:4px solid var(--indigo-1);
+            border-radius:8px; padding:15px; margin:15px 0;
         }
-        
-        .creative-name-container:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4), 0 0 30px rgba(118, 75, 162, 0.3);
+        .format-display{
+            background:var(--lavender-1);
+            border:1px solid var(--lavender-2);
+            border-radius:8px; padding:15px; font-family:'Courier New', monospace; font-size:.9em; margin:15px 0;
         }
-        
-        .preview-name-container:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 40px rgba(107, 208, 255, 0.4), 0 0 30px rgba(36, 157, 238, 0.3);
+        .tag-example{
+            background:var(--lavender-1);
+            border:1px solid var(--lavender-2);
+            border-radius:5px; padding:8px 12px; margin:5px; display:inline-block; font-family:'Courier New', monospace; font-size:.85em;
         }
-        .section {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e9ecef;
+
+        /* Preview panel (right) — shift from cyan to unified accent indigo/blue) */
+        .preview-name-container{
+            background: linear-gradient(135deg, var(--accent-1) 0%, var(--accent-2) 100%) !important;
+            border:3px solid transparent; border-radius:20px;
+            box-shadow:0 10px 30px rgba(122,167,255,.30), 0 0 20px rgba(77,136,255,.20);
+            position:relative; overflow:hidden; animation:previewShimmer 3s ease-in-out infinite; margin-bottom:20px;
         }
-        .section h3 {
-            color: #495057;
-            margin-bottom: 20px;
-            font-weight: 600;
+
+        /* Design tokens handle navbar styling */
+
+        .form-label{ font-weight:600; color:var(--ink-2); margin-bottom:8px; }
+        .input-group{ margin-bottom:20px; }
+
+        .creator-type-badge{
+            background:var(--indigo-1); color:var(--surface-1); padding:4px 8px; border-radius:12px; font-size:.75em; margin-left:5px;
         }
-        .form-control, .form-select {
-            border-radius: 10px;
-            border: 2px solid #e9ecef;
-            padding: 12px 15px;
-            transition: all 0.3s ease;
+
+        /* Fancy input container keeps purple gradient */
+        .creative-name-container{
+            background: linear-gradient(135deg, var(--indigo-1) 0%, var(--indigo-2) 100%) !important;
+            border:3px solid transparent; border-radius:20px;
+            box-shadow:0 10px 30px rgba(102,126,234,.30), 0 0 20px rgba(118,75,162,.20);
+            position:relative; overflow:hidden; animation:inputShimmer 3s ease-in-out infinite;
         }
-        .form-control:focus, .form-select:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        .creative-name-input:focus{
+            border-color: rgba(255,255,255,.8) !important;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,.1), 0 0 20px rgba(255,255,255,.5) !important;
+            transform:scale(1.02);
         }
-        .btn-primary {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+        .creative-name-container:hover{
+            transform:translateY(-2px);
+            box-shadow:0 15px 40px rgba(102,126,234,.4), 0 0 30px rgba(118,75,162,.3);
+        }
+        .preview-section{
+            background: linear-gradient(135deg, var(--neutral-1), var(--neutral-2));
+            border-radius:10px; padding:20px; margin-top:20px;
+        }
+        .preview-label{ font-weight:600; color:var(--ink-2); margin-bottom:10px; }
+        .preview-text{
+            font-family:'Courier New', monospace;
+            background:var(--white);
+            border:1px solid #dee2e6;
+            border-radius:5px; padding:10px; font-size:.9em; word-break:break-all;
+        }
+
+        /* Iteration panel: replace green gradient with palette gradient */
+        .section .generated-name + .btn,
+        .section .generated-name .btn{ /* safeguard, but we'll style the actual iteration block below */
+            background:linear-gradient(135deg, var(--indigo-1), var(--indigo-2));
+            color:var(--white);
+        }
+        /* Specific iteration section card that had green */
+        .section .sticky-top .generated-name{
+            background: linear-gradient(135deg, var(--indigo-1), var(--indigo-2)) !important;
+            color:var(--white);
             border: none;
-            border-radius: 10px;
-            padding: 12px 25px;
-            font-weight: 500;
-            transition: all 0.3s ease;
         }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        #iterationCopyBtn{ background: rgba(255,255,255,.2) !important; color:var(--white); }
+
+        /* Feature tag buttons — align Bootstrap outline to our palette */
+        .btn-outline-primary{
+            color: var(--indigo-1);
+            border-color: var(--indigo-1);
         }
-        .btn-success {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            border: none;
-            border-radius: 10px;
-            padding: 12px 25px;
-            font-weight: 500;
+        .btn-outline-primary:hover,
+        .btn-outline-primary.active{
+            color: var(--white);
+            background-color: var(--indigo-1);
+            border-color: var(--indigo-1);
         }
-        .generated-name {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            border: 2px solid #667eea;
-            border-radius: 15px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-            position: relative;
-        }
-        .generated-name .name-text {
-            font-family: 'Courier New', monospace;
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #495057;
-            word-break: break-all;
-            margin-bottom: 15px;
-        }
-        .copy-btn {
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 8px 16px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .copy-btn:hover {
-            background: #218838;
-            transform: translateY(-1px);
-        }
-        .copy-btn.copied {
-            background: #17a2b8;
-        }
-        .rule-card {
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-        }
-        .format-display {
-            background: #e3f2fd;
-            border: 1px solid #2196f3;
-            border-radius: 8px;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-            margin: 15px 0;
-        }
-        .tag-example {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 5px;
-            padding: 8px 12px;
-            margin: 5px;
-            display: inline-block;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85em;
-        }
-        .preview-section {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        .preview-label {
-            font-weight: 600;
-            color: #495057;
-            margin-bottom: 10px;
-        }
-        .preview-text {
-            font-family: 'Courier New', monospace;
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 10px;
-            font-size: 0.9em;
-            word-break: break-all;
-        }
-        
-        /* Navigation Bar Styling */
-        .navbar {
-            background: linear-gradient(135deg, #667eea, #764ba2) !important;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        
-        .navbar-brand {
-            font-weight: 600;
-            font-size: 1.2rem;
-        }
-        
-        .nav-link {
-            font-weight: 500;
-            transition: all 0.3s ease;
-            border-radius: 8px;
-            margin: 0 2px;
-        }
-        
-        .nav-link:hover {
-            background: rgba(255,255,255,0.1);
-            transform: translateY(-1px);
-        }
-        
-        .nav-link.active {
-            background: rgba(255,255,255,0.2);
-            font-weight: 600;
-        }
-        
-        .alert-info {
-            background: linear-gradient(135deg, #d1ecf1, #bee5eb);
-            border: 1px solid #bee5eb;
-            color: #0c5460;
-        }
-        
-        .form-label {
-            font-weight: 600;
-            color: #495057;
-            margin-bottom: 8px;
-        }
-        
-        .input-group {
-            margin-bottom: 20px;
-        }
-        
-        .creator-type-badge {
-            background: #667eea;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.75em;
-            margin-left: 5px;
+        .btn-outline-secondary{
+            color: #8b8e99;
+            border-color: #cfd3da;
         }
     </style>
-</head>
-<body>
-    <div class="main-container">
-        <!-- Navigation Bar -->
-        <nav class="navbar navbar-expand-lg navbar-dark bg-primary rounded mb-4">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="#">
-                    <i class="fas fa-photo-video"></i> {{ tools_config.brand.name }}
-                </a>
-                
-                <div class="navbar-nav ms-auto">
-                    {% for tool in tools %}
-                        {% if tool.name == "Creative Name Generator" %}
-                            <a class="nav-link active" href="{{ tool.url }}" aria-current="page">
-                                <i class="{{ tool.icon }}"></i> {{ tool.name }}
-                            </a>
-                        {% else %}
-                            <a class="nav-link" href="{{ tool.url }}" {% if tool.url.startswith('http') %}target="_blank"{% endif %}>
-                                <i class="{{ tool.icon }}"></i> {{ tool.name }}
-                            </a>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-        </nav>
+{% endblock %}
+
+{% block content %}
 
         <div class="header">
             <h1><i class="fas fa-magic"></i> Creative Name Generator</h1>
-            <blockquote class="quote-style" style="
+            <blockquote style="
                 font-style: italic;
-                font-size: 1em;
                 color: #6c757d;
-                margin: 10px auto 15px;
-                padding: 12px 25px 8px 35px;
+                margin: 20px auto;
+                text-align: center;
                 max-width: 500px;
-                position: relative;
-                background: linear-gradient(135deg, rgba(102, 126, 234, 0.03), rgba(107, 208, 255, 0.03));
-                border-left: 3px solid #667eea;
-                border-radius: 0 10px 10px 0;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
             ">
-                <span style="
-                    font-size: 1.4em;
-                    color: #667eea;
-                    position: absolute;
-                    top: 2px;
-                    left: 8px;
-                    font-family: Georgia, serif;
-                    opacity: 0.6;
-                ">"</span>
-                <span style="
-                    font-family: 'Georgia', 'Times New Roman', serif;
-                    font-weight: 400;
-                    line-height: 1.3;
-                    display: inline;
-                ">
-                    Make videos, not filenames that look like Wi-Fi passwords.
-                </span>
-                <span style="
-                    font-size: 0.85em;
-                    color: #667eea;
-                    font-weight: 600;
-                    margin-left: 8px;
-                ">— Jiali</span>
+                Make videos, not filenames that look like Wi-Fi passwords.
             </blockquote>
         </div>
 
@@ -396,7 +232,7 @@
                                 gap: 10px;
                             ">
                                 <span style="font-size: 1.2em;">✨</span>
-                                <span>Name Your Creative</span>
+                                <span>Type here</span>
                                 <span style="font-size: 1.2em;">✨</span>
                             </label>
                             
@@ -451,7 +287,7 @@
                                     gap: 5px;
                                 ">
                                     <span>🔢</span>
-                                    <span>Creative Number:</span>
+                                    <span>Variation Number:</span>
                                 </label>
                                 <input type="number" id="creativeNumber" value="1" min="1" max="999" 
                                        onchange="manualNumberChange()" oninput="manualNumberChange()"
@@ -515,9 +351,12 @@
                                         <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="IMGT-BEAUTIFY" onclick="selectFeatureTag(this)">
                                             IMGT-BEAUTIFY
                                         </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="RnD" onclick="selectFeatureTag(this)">
+                                            RnD
+                                        </button>
                                     </div>
                                     <input type="hidden" id="feature" value="AIBG">
-                                    <small class="text-muted">Click to select a feature tag</small>
+                                    <small class="text-muted">Click to select a feature tag • <a href="#feature-tags-help" class="text-decoration-none">📖 Feature tags explained</a></small>
                                 </div>
                             </div>
 
@@ -531,13 +370,13 @@
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="creativeTags" id="useFullTags" value="full" onchange="toggleCreativeTags()">
                                         <label class="form-check-label" for="useFullTags">
-                                            Use full tag set (HOOK → VO → MUSIC → DIM)
+                                            Apply all creative tags (Hook, Voiceover, Music, Dimension)
                                         </label>
                                     </div>
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="creativeTags" id="usePlaceholder" value="placeholder" checked onchange="toggleCreativeTags()">
                                         <label class="form-check-label" for="usePlaceholder">
-                                            Use placeholder (<code>_-_</code>) - not using creative system
+                                            Skip tags and insert placeholder (_-_)
                                         </label>
                                     </div>
                                 </div>
@@ -549,18 +388,28 @@
                                     </label>
                                     <select class="form-select" id="language" onchange="updatePreview()">
                                         <option value="">Select language...</option>
+                                        <!-- Priority languages -->
                                         <option value="EN" selected>EN - English</option>
+                                        <option value="FR">FR - French (France)</option>
+                                        <option value="BR">BR - Portuguese (Brazil)</option>
+                                        <option value="ES">ES - Spanish (Spain)</option>
                                         <option value="JP">JP - Japanese</option>
-                                        <option value="ES">ES - Spanish</option>
-                                        <option value="FR">FR - French</option>
-                                        <option value="DE">DE - German</option>
                                         <option value="KR">KR - Korean</option>
+                                        <!-- Other languages (alphabetical) -->
+                                        <option value="SA">SA - Arabic</option>
+                                        <option value="HK">HK - Cantonese</option>
                                         <option value="CN">CN - Chinese</option>
-                                        <option value="BR">BR - Brazilian Portuguese</option>
-                                        <option value="IT">IT - Italian</option>
-                                        <option value="RU">RU - Russian</option>
-                                        <option value="AR">AR - Arabic</option>
+                                        <option value="NL">NL - Dutch</option>
+                                        <option value="PH">PH - Filipino</option>
+                                        <option value="DE">DE - German</option>
                                         <option value="IN">IN - Hindi</option>
+                                        <option value="ID">ID - Indonesian</option>
+                                        <option value="IT">IT - Italian</option>
+                                        <option value="MY">MY - Malay</option>
+                                        <option value="PL">PL - Polish</option>
+                                        <option value="TH">TH - Thai</option>
+                                        <option value="TR">TR - Turkish</option>
+                                        <option value="VN">VN - Vietnamese</option>
                                     </select>
                                     <small class="text-muted">Content language</small>
                                 </div>
@@ -607,6 +456,7 @@
                                             <option value="tom" selected>Tom</option>
                                             <option value="doja">Doja</option>
                                             <option value="chris">Chris</option>
+                                            <option value="chris">Human</option>
                                             <option value="custom">Custom voice</option>
                                         </select>
                                     </div>
@@ -633,7 +483,10 @@
                                             <option value="any" selected>any</option>
                                             <option value="rapbeat">rapbeat</option>
                                             <option value="lastchristmas">lastchristmas</option>
-                                            <option value="lofi">lofi</option>
+                                            <option value="lofi"></option>
+                                            <option value="kpop"></option>
+                                            <option value="hiphop"></option>
+                                            <option value="nostalgic"></option>
                                             <option value="custom">Custom song name</option>
                                         </select>
                                     </div>
@@ -821,8 +674,8 @@
                     <div class="sticky-top" style="top: 20px;">
                         <h5><i class="fas fa-magic"></i> Generated Iteration</h5>
                         <div class="generated-name" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">
-                            <div class="name-text" id="iterationResult">
-                                Paste filename to generate iteration
+                            <div class="name-text" id="iterationResult" style="color: white;">
+                                12345_Jiali_internal-RedBottle-ITE-1_ANIM_EN
                             </div>
                             <button class="copy-btn" id="iterationCopyBtn" onclick="copyIterationName()" style="background: rgba(255,255,255,0.2);">
                                 <i class="fas fa-copy"></i> Copy Iteration
@@ -848,7 +701,7 @@
             <h3><i class="fas fa-bolt"></i> 📌 Creative Naming Structure</h3>
             <div class="alert alert-info">
                 <div class="format-display">
-                    <strong>Format:</strong> [id]_[creator]_[filename]_[extra tags]_[feature tags]_[language]_[date]
+                    <strong>Format:</strong> [id]_[creator]_[creator-type-filename]_[HOOK-…_VO-…_MUSIC-…_DIM]_[feature]_[language]_[date]
                 </div>
                 <div class="row">
                     <div class="col-md-6">
@@ -873,10 +726,70 @@
             </div>
         </div>
 
-        <!-- Help Section -->
-    </div>
+        <!-- Feature Tags Help Section -->
+        <div class="section" id="feature-tags-help">
+            <h3><i class="fas fa-info-circle"></i> 📖 Feature Tags Explained</h3>
+            <div class="alert alert-light border">
+                <p class="mb-3">Each feature tag represents a specific Photoroom tool or capability:</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-star text-primary"></i> Core Features</h6>
+                        <div class="tag-example">AIBG</div>
+                        <small class="text-muted d-block mb-2">AI background ads</small>
+                        
+                        <div class="tag-example">STORY</div>
+                        <small class="text-muted d-block mb-2">AI Instagram Story ads</small>
+                        
+                        <div class="tag-example">LOGO</div>
+                        <small class="text-muted d-block mb-2">AI logo ads</small>
+                        
+                        <div class="tag-example">ANIM</div>
+                        <small class="text-muted d-block mb-2">Animated Design</small>
+                        
+                        <div class="tag-example">MIX</div>
+                        <small class="text-muted d-block mb-2">Multiple features combined</small>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-magic text-success"></i> Other Tools</h6>
+                        <div class="tag-example">AIFILL</div>
+                        <small class="text-muted d-block mb-2">AI Fill tool</small>
+                        
+                        <div class="tag-example">RETOUCH</div>
+                        <small class="text-muted d-block mb-2">Photo retouching</small>
+                        
+                        <div class="tag-example">CHANGE</div>
+                        <small class="text-muted d-block mb-2">Describe a Change feature</small>
+                        
+                        <div class="tag-example">RnD</div>
+                        <small class="text-muted d-block mb-2">🧪 Experimental new feature, not yet in existing tags</small>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6><i class="fas fa-layer-group text-info"></i> Image Transformation (IMGT) Suite</h6>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="tag-example">IMGT-MODEL</div>
+                        <small class="text-muted">Virtual model •</small>
+                        
+                        <div class="tag-example">IMGT-STAGE</div>
+                        <small class="text-muted">Product staging •</small>
+                        
+                        <div class="tag-example">IMGT-BEAUTIFY</div>
+                        <small class="text-muted">Product beautifier</small>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        <i class="fas fa-lightbulb"></i> <strong>IMGT</strong> is the umbrella category for image transformation tools
+                    </small>
+                </div>
+            </div>
+        </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Help Section -->
+{% endblock %}
+
+{% block scripts %}
     <script>
         // Global counter for creative names - magical auto-increment
         let creativeNameCounter = 1;
@@ -913,8 +826,12 @@
         function formatToPascalCase(text) {
             if (!text) return '';
             
+            // Remove forbidden filename characters: ! " # $ % & ' ( ) * + , / : ; < = > ? [ \ ] ^ ` { | } ~
+            const forbiddenChars = /[!"#$%&'()*+,/:;<=>?[\\\]^`{|}~]/g;
+            const cleanedText = text.replace(forbiddenChars, '');
+            
             // First, split by spaces and clean up
-            let words = text.trim().split(/\s+/);
+            let words = cleanedText.trim().split(/\s+/);
             
             // If there's only one word, check for camelCase transitions
             if (words.length === 1 && words[0].length > 1) {
@@ -945,13 +862,15 @@
             if (formatted && formatted.length > 0) {
                 // Check if this base name already exists
                 const baseName = formatted;
-                let numberToUse = 1;
                 
                 // Find the next available number (the magic!)
+                // Start with 1, then 2, 3...
+                let numberToUse = 1;
                 while (usedCreativeNames.has(`${baseName}-${numberToUse}`)) {
                     numberToUse++;
                 }
                 
+                // Always add dash and number starting from 1
                 finalValue = `${baseName}-${numberToUse}`;
                 
                 // Update the number display to show what was auto-selected
@@ -986,7 +905,9 @@
             // If there's a name, update it with the new number
             if (currentName) {
                 const nameWithoutNumber = currentName.replace(/-\d+$/, '');
-                const newNumber = numberInput.value || 1;
+                const newNumber = parseInt(numberInput.value) || 1;
+                
+                // Always add dash and number starting from 1
                 const newName = `${nameWithoutNumber}-${newNumber}`;
                 
                 // Update the used names set
@@ -1143,11 +1064,9 @@
             document.getElementById('liveNameText').textContent = preview;
             
             // Update mock preview with sample ID/creator/date
-            const sampleCreators = ['John', 'Sarah', 'Mike', 'Emma', 'Alex'];
             const randomId = Math.floor(Math.random() * 90000) + 10000;
-            const randomCreator = sampleCreators[Math.floor(Math.random() * sampleCreators.length)];
             const currentDate = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
-            const mockPreview = `${randomId}_${randomCreator}_${preview}_${currentDate}`;
+            const mockPreview = `${randomId}_Jiali_${preview}_${currentDate}`;
             document.getElementById('mockPreview').textContent = mockPreview;
         }
         
@@ -1198,11 +1117,11 @@
             const resultElement = document.getElementById('iterationResult');
             
             if (!originalFilename) {
-                resultElement.textContent = 'Paste filename to generate iteration';
+                resultElement.textContent = '12345_Jiali_internal-RedBottle-ITE-1_ANIM_EN';
                 return;
             }
             
-            // Parse the AdManage filename format: [id]_[creator]_[filename]_[extra tags]_[feature tags]_[language]_[date]
+            // Parse the AdManage filename format: [id]_[creator]_[creator-type-filename]_[HOOK-…_VO-…_MUSIC-…_DIM]_[feature]_[language]_[date]
             const parts = originalFilename.split('_');
             
             if (parts.length < 3) {
@@ -1236,7 +1155,7 @@
         function copyIterationName() {
             const nameText = document.getElementById('iterationResult').textContent;
             
-            if (nameText === 'Paste filename to generate iteration' || nameText === 'Invalid filename format') {
+            if (nameText === 'Invalid filename format') {
                 alert('Please enter a valid filename first');
                 return;
             }
@@ -1316,5 +1235,4 @@
             updatePreview();
         });
     </script>
-</body>
-</html>
+{% endblock %}

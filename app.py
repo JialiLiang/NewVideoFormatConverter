@@ -44,15 +44,17 @@ app_logger.setLevel(logging.INFO)
 
 @app.route('/')
 def index():
-    """Main landing page - redirect to video converter"""
-    return redirect('/video-converter')
+    """Main landing page - show all Photoroom UA creative tools"""
+    from tools_config import TOOLS_CONFIG
+    tools = get_active_tools()
+    return render_template('index.html', tools=tools, tools_config=TOOLS_CONFIG)
 
 @app.route('/video-converter')
 def video_converter():
     """Video converter tool"""
     from tools_config import TOOLS_CONFIG
     tools = get_active_tools()
-    return render_template('index.html', tools=tools, tools_config=TOOLS_CONFIG)
+    return render_template('video_converter.html', tools=tools, tools_config=TOOLS_CONFIG)
 
 @app.route('/adlocalizer')
 def adlocalizer():

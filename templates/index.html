@@ -1,859 +1,112 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎥 Photoroom Video Format Converter</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .container {
-            padding: 2rem 0;
-        }
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px);
-        }
-        .card-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border-radius: 15px 15px 0 0 !important;
-            text-align: center;
-            padding: 1.5rem;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border: none;
-            border-radius: 10px;
-            padding: 0.75rem 1.5rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
-        }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-            background: linear-gradient(135deg, #5a6fd8, #6b42b8);
-        }
-        .btn-success {
-            background: linear-gradient(135deg, #56ab2f, #a8e6cf);
-            border: none;
-            border-radius: 10px;
-            padding: 0.75rem 1.5rem;
-            font-weight: 600;
-            color: #333;
-        }
-        .btn-success:hover {
-            background: linear-gradient(135deg, #4d9928, #95d9b8);
-            color: #333;
-        }
-        .form-check-input:checked {
-            background-color: #667eea;
-            border-color: #667eea;
-        }
-        .form-control {
-            border-radius: 10px;
-            border: 2px solid #e9ecef;
-            padding: 0.75rem;
-        }
-        .form-control:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-        }
-        .progress {
-            height: 25px;
-            border-radius: 15px;
-            background-color: #e9ecef;
-        }
-        .progress-bar {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 15px;
-            transition: width 0.3s ease;
-        }
-        .status-card {
-            margin-top: 2rem;
-            display: none;
-        }
-        .result-item {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-left: 4px solid #667eea;
-            transition: all 0.3s ease;
-        }
-        .result-item.new-result {
-            background: #d4edda;
-            border-left-color: #28a745;
-            transform: scale(1.02);
-            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
-        }
-        .spinner-border {
-            color: #667eea;
-        }
-        .alert {
-            border-radius: 10px;
-            border: none;
-        }
-        .format-card {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-        }
-        .format-card:hover {
-            background: #e9ecef;
-            border-color: #667eea;
-        }
-        .format-card.selected {
-            background: rgba(102, 126, 234, 0.1);
-            border-color: #667eea;
-        }
-        .upload-area {
-            border: 2px dashed #ccc;
-            border-radius: 15px;
-            padding: 3rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-            cursor: pointer;
-        }
-        .upload-area:hover {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.05);
-        }
-        .upload-area.dragover {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
-        }
-        .file-item {
-            background: #e9ecef;
-            border-radius: 8px;
-            padding: 0.5rem 1rem;
-            margin: 0.25rem;
-            display: inline-block;
-            font-size: 0.9rem;
-        }
-        .made-with-love {
-            text-align: center;
-            margin-bottom: 2rem;
-            color: white;
-            font-weight: 500;
-        }
-        
-        /* Navigation Bar Styling */
-        .navbar {
-            background: linear-gradient(135deg, #667eea, #764ba2) !important;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        
-        .navbar-brand {
-            font-weight: 600;
-            font-size: 1.2rem;
-        }
-        
-        .nav-link {
-            font-weight: 500;
-            transition: all 0.3s ease;
-            border-radius: 8px;
-            margin: 0 2px;
-        }
-        
-        .nav-link:hover {
-            background: rgba(255,255,255,0.1);
-            transform: translateY(-1px);
-        }
-        
-        .nav-link.active {
-            background: rgba(255,255,255,0.2);
-            font-weight: 600;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Navigation Bar -->
-        <nav class="navbar navbar-expand-lg navbar-dark bg-primary rounded mb-4">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="#">
-                    <i class="fas fa-photo-video"></i> {{ tools_config.brand.name }}
-                </a>
-                
-                <div class="navbar-nav ms-auto">
-                    {% for tool in tools %}
-                        {% if tool.name == "Video Converter" %}
-                            <a class="nav-link active" href="{{ tool.url }}" aria-current="page">
-                                <i class="{{ tool.icon }}"></i> {{ tool.name }}
-                            </a>
-                        {% else %}
-                            <a class="nav-link" href="{{ tool.url }}" {% if tool.url.startswith('http') %}target="_blank"{% endif %}>
-                                <i class="{{ tool.icon }}"></i> {{ tool.name }}
-                            </a>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-        </nav>
+{% extends "base.html" %}
 
-        <div class="made-with-love">
-            <p>Made with ❤️ by Jiali</p>
+{% block title %}🎨 Photoroom UA Creative Tools{% endblock %}
+
+{% block head %}
+<style>
+    /* Homepage-specific overrides */
+    .hero-subtitle {
+        font-size: 1.5rem;
+        font-weight: 300;
+        margin-bottom: var(--space-xl);
+        opacity: 0.9;
+    }
+    
+    .hero-description {
+        font-size: 1.1rem;
+        max-width: 600px;
+        margin: 0 auto var(--space-2xl);
+        line-height: 1.6;
+        opacity: 0.8;
+    }
+    
+    .tools-grid {
+        padding: var(--space-xl) 0;
+    }
+    
+    .tool-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: var(--space-md);
+        color: var(--ink-1);
+    }
+    
+    .tool-description {
+        color: var(--ink-3);
+        line-height: 1.6;
+        margin-bottom: var(--space-md);
+    }
+    
+    .tool-status {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-ready {
+        background: var(--success-2);
+        color: var(--success-1);
+    }
+    
+    .status-wip {
+        background: var(--warning-2);
+        color: var(--warning-1);
+    }
+    
+    .brand-logo {
+        font-size: 4rem;
+        margin-bottom: var(--space-md);
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+    }
+    
+    .container {
+        max-width: 1200px;
+    }
+</style>
+{% endblock %}
+
+{% set use_main_container = false %}
+{% set current_tool = "Home" %}
+
+{% block content_custom %}
+    <!-- Hero Section -->
+        <div class="hero-section">
+            <div class="brand-logo">🎨</div>
+            <h1 class="hero-title">Hello!</h1>
+            <p class="hero-subtitle">Welcome to Photoroom UA Creative Tools</p>
+            <p class="hero-description">
+                This is the homepage of all our Photoroom UA internal creative toolings. 
+                Explore our collection of powerful tools designed to streamline your creative workflow, 
+                from video conversion and localization to creative naming and content generation.
+            </p>
         </div>
         
-        <div class="row justify-content-center">
-            <div class="col-md-10 col-lg-8">
-                <div class="card">
-                            <div class="card-header">
-            <h1 class="mb-0">🎥 Video Format Converter</h1>
-            <p class="mb-0 mt-2">Convert your videos to different formats with ease! 🎯 Smart dynamic adjustment - works perfectly whether your input is vertical, landscape, or square.</p>
-        </div>
-                    <div class="card-body p-4">
-                        <!-- Upload Section -->
-                        <div class="mb-4">
-                            <h5 class="mb-3">📁 Upload Videos</h5>
-                            <div class="upload-area" id="uploadArea">
-                                <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-muted"></i>
-                                <p class="mb-3">Drag and drop your videos here</p>
-                                <p class="mb-0 text-muted"><small>or click to browse files</small></p>
-                                <input type="file" id="fileInput" multiple accept=".mp4,.mov" class="d-none">
+        <!-- Tools Grid -->
+        <div class="tools-grid">
+            <div class="row">
+                {% for tool in tools %}
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <a href="{{ tool.url }}" class="tool-card d-block" {% if tool.url.startswith('http') %}target="_blank"{% endif %}>
+                        <div class="text-center">
+                            <div class="tool-icon">
+                                <i class="{{ tool.icon }}"></i>
                             </div>
-                            <div id="fileList" class="mt-3"></div>
+                            <h3 class="tool-title">{{ tool.name }}</h3>
+                            <p class="tool-description">{{ tool.description }}</p>
+                            {% if 'WIP' in tool.name %}
+                                <span class="tool-status status-wip">Work in Progress</span>
+                            {% else %}
+                                <span class="tool-status status-ready">Ready to Use</span>
+                            {% endif %}
                         </div>
-
-                        <!-- Format Selection -->
-                        <div class="mb-4">
-                            <h5 class="mb-3">🎯 Select Output Formats</h5>
-                            <div class="row">
-                                <div class="col-md-6 col-lg-3 mb-3">
-                                    <div class="format-card" data-format="square">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" value="square" id="squareFormat" checked>
-                                            <label class="form-check-label" for="squareFormat">
-                                                <strong>Square</strong><br>
-                                                <small class="text-muted">1080x1080</small>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 col-lg-3 mb-3">
-                                    <div class="format-card" data-format="square_blur">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" value="square_blur" id="squareBlurFormat">
-                                            <label class="form-check-label" for="squareBlurFormat">
-                                                <strong>Square with Blur</strong><br>
-                                                <small class="text-muted">1080x1080</small>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 col-lg-3 mb-3">
-                                    <div class="format-card" data-format="landscape">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" value="landscape" id="landscapeFormat">
-                                            <label class="form-check-label" for="landscapeFormat">
-                                                <strong>Landscape with Blur</strong><br>
-                                                <small class="text-muted">1920x1080</small>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 col-lg-3 mb-3">
-                                    <div class="format-card" data-format="vertical">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" value="vertical" id="verticalFormat">
-                                            <label class="form-check-label" for="verticalFormat">
-                                                <strong>Vertical with Blur</strong><br>
-                                                <small class="text-muted">1080x1920</small>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Convert Button -->
-                        <div class="mb-4">
-                            <button type="button" class="btn btn-primary btn-lg w-100" id="convertBtn" disabled>
-                                <i class="fas fa-magic"></i> 🚀 Convert Videos!
-                            </button>
-                        </div>
-
-                        <!-- Status Section -->
-                        <div class="status-card" id="statusCard">
-                            <div class="alert alert-info">
-                                <i class="fas fa-spinner fa-spin"></i> <span id="statusText">Processing your videos...</span>
-                            </div>
-                            <div class="progress mb-3">
-                                <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%">
-                                    <span id="progressText">0%</span>
-                                </div>
-                            </div>
-                            <div class="text-center">
-                                <button type="button" class="btn btn-outline-danger" id="cancelBtn" onclick="cancelProcessing()">
-                                    <i class="fas fa-stop"></i> Cancel Processing
-                                </button>
-                            </div>
-                        </div>
-
-                                <!-- Progressive Results Section -->
-        <div id="progressiveResults" style="display: none;">
-            <h5 class="mb-3">🎬 Your Converted Videos</h5>
-            <div class="mb-3" id="completionSummary" style="display: none;">
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle"></i> All conversions completed!
-                    <button type="button" class="btn btn-success btn-sm ms-3" id="downloadAllBtn1">
-                        <i class="fas fa-download"></i> 📦 Download All as ZIP
-                    </button>
-                    <div id="zipLoading1" style="display: none;" class="d-inline-block ms-2">
-                        <div class="spinner-border spinner-border-sm text-success" role="status">
-                            <span class="visually-hidden">Creating ZIP...</span>
-                        </div>
-                        <small class="text-success ms-1">Creating ZIP...</small>
-                    </div>
+                    </a>
                 </div>
-            </div>
-            <div id="progressiveResultsList"></div>
-        </div>
-
-        <!-- Final Results Section (kept for compatibility) -->
-        <div id="resultsSection" style="display: none;">
-            <h5 class="mb-3">🎬 Your Converted Videos</h5>
-            <div class="mb-3">
-                <button type="button" class="btn btn-success" id="downloadAllBtn2">
-                    <i class="fas fa-download"></i> 📦 Download All as ZIP
-                </button>
-                <div id="zipLoading2" style="display: none;" class="mt-2">
-                    <div class="spinner-border text-success" role="status">
-                        <span class="visually-hidden">Creating ZIP...</span>
-                    </div>
-                    <p class="mt-2 text-success">Creating ZIP file, please wait...</p>
-                </div>
-            </div>
-            <div id="resultsList"></div>
-        </div>
-                    </div>
-                </div>
+                {% endfor %}
             </div>
         </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        let selectedFiles = [];
-        let currentJobId = null;
-        let statusInterval = null;
-        let knownResults = new Set(); // Track which results we've already shown
-        let allowNavigation = false; // Flag to allow navigation during downloads
-
-        // File input handling
-        const fileInput = document.getElementById('fileInput');
-        const uploadArea = document.getElementById('uploadArea');
-        const fileList = document.getElementById('fileList');
-        const convertBtn = document.getElementById('convertBtn');
-
-        fileInput.addEventListener('change', handleFiles);
-        uploadArea.addEventListener('click', () => fileInput.click());
-        uploadArea.addEventListener('dragover', handleDragOver);
-        uploadArea.addEventListener('drop', handleDrop);
-        uploadArea.addEventListener('dragleave', handleDragLeave);
-
-        // Format card handling
-        document.querySelectorAll('.format-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                if (e.target.type !== 'checkbox') {
-                    const checkbox = card.querySelector('input[type="checkbox"]');
-                    checkbox.checked = !checkbox.checked;
-                }
-                updateFormatCards();
-            });
-        });
-
-        document.querySelectorAll('.format-card input[type="checkbox"]').forEach(checkbox => {
-            checkbox.addEventListener('change', updateFormatCards);
-        });
-
-        function updateFormatCards() {
-            document.querySelectorAll('.format-card').forEach(card => {
-                const checkbox = card.querySelector('input[type="checkbox"]');
-                if (checkbox.checked) {
-                    card.classList.add('selected');
-                } else {
-                    card.classList.remove('selected');
-                }
-            });
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        }
-
-        function handleDragLeave(e) {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-        }
-
-        function handleDrop(e) {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const files = Array.from(e.dataTransfer.files);
-            addFiles(files);
-        }
-
-        function handleFiles(e) {
-            const files = Array.from(e.target.files);
-            console.log('handleFiles - Files selected:', files.length, files.map(f => f.name));
-            addFiles(files);
-            // Clear the input so the same file can be selected again if needed
-            e.target.value = '';
-        }
-
-        function addFiles(files) {
-            console.log('Adding files:', files);
-            const validFiles = files.filter(file => {
-                const isValid = file.type === 'video/mp4' || file.type === 'video/quicktime' || 
-                    file.name.toLowerCase().endsWith('.mp4') || file.name.toLowerCase().endsWith('.mov');
-                console.log('File:', file.name, 'Type:', file.type, 'Valid:', isValid);
-                return isValid;
-            });
-            
-            if (validFiles.length === 0) {
-                alert('Please select valid video files (.mp4 or .mov)');
-                return;
-            }
-            
-            // Avoid duplicates
-            const newFiles = validFiles.filter(newFile => 
-                !selectedFiles.some(existingFile => 
-                    existingFile.name === newFile.name && existingFile.size === newFile.size
-                )
-            );
-            
-            selectedFiles = [...selectedFiles, ...newFiles];
-            console.log('Selected files now:', selectedFiles.length);
-            updateFileList();
-            updateConvertButton();
-            
-            if (newFiles.length < validFiles.length) {
-                const duplicates = validFiles.length - newFiles.length;
-                alert(`${duplicates} duplicate file(s) were skipped.`);
-            }
-        }
-
-        function updateFileList() {
-            if (selectedFiles.length === 0) {
-                fileList.innerHTML = '';
-                return;
-            }
-
-            fileList.innerHTML = `
-                <div class="mb-2">
-                    <strong>Selected files (${selectedFiles.length}):</strong>
-                    <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearFiles()">
-                        <i class="fas fa-trash"></i> Clear All
-                    </button>
-                </div>
-                <div>
-                    ${selectedFiles.map((file, index) => `
-                        <span class="file-item">
-                            ${file.name}
-                            <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2" onclick="removeFile(${index})">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </span>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        function removeFile(index) {
-            selectedFiles.splice(index, 1);
-            updateFileList();
-            updateConvertButton();
-        }
-
-        function clearFiles() {
-            console.log('clearFiles() called - clearing', selectedFiles.length, 'files');
-            selectedFiles = [];
-            updateFileList();
-            updateConvertButton();
-        }
-
-        function updateConvertButton() {
-            const hasFiles = selectedFiles.length > 0;
-            const hasFormats = document.querySelectorAll('.format-card input[type="checkbox"]:checked').length > 0;
-            console.log('updateConvertButton - Files:', selectedFiles.length, 'Formats:', document.querySelectorAll('.format-card input[type="checkbox"]:checked').length);
-            console.log('Selected files array:', selectedFiles.map(f => f.name));
-            convertBtn.disabled = !hasFiles || !hasFormats;
-            
-            if (hasFiles && hasFormats) {
-                convertBtn.innerHTML = '<i class="fas fa-magic"></i> 🚀 Convert ' + selectedFiles.length + ' Video(s)!';
-            } else if (!hasFiles) {
-                convertBtn.innerHTML = '<i class="fas fa-magic"></i> 🚀 Upload Videos First';
-            } else {
-                convertBtn.innerHTML = '<i class="fas fa-magic"></i> 🚀 Select Format First';
-            }
-        }
-
-        // Convert button handler
-        convertBtn.addEventListener('click', convertVideos);
-
-        async function convertVideos() {
-            const selectedFormats = Array.from(document.querySelectorAll('.format-card input[type="checkbox"]:checked'))
-                .map(checkbox => checkbox.value);
-
-            if (selectedFiles.length === 0 || selectedFormats.length === 0) {
-                alert('Please select files and formats to convert.');
-                return;
-            }
-
-            const formData = new FormData();
-            console.log('Converting videos - selected files:', selectedFiles.length);
-            selectedFiles.forEach((file, index) => {
-                console.log(`Adding file ${index}:`, file.name, file.size, 'bytes');
-                formData.append('files', file);
-            });
-            selectedFormats.forEach(format => {
-                console.log('Adding format:', format);
-                formData.append('formats', format);
-            });
-
-            try {
-                convertBtn.disabled = true;
-                showStatus('Uploading files...');
-
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    throw new Error('Upload failed');
-                }
-
-                const result = await response.json();
-                currentJobId = result.job_id;
-                
-                // Start polling for status
-                startStatusPolling();
-
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error uploading files. Please try again.');
-                convertBtn.disabled = false;
-                hideStatus();
-            }
-        }
-
-        function showStatus(text) {
-            document.getElementById('statusText').textContent = text;
-            document.getElementById('statusCard').style.display = 'block';
-            document.getElementById('resultsSection').style.display = 'none';
-        }
-
-        function hideStatus() {
-            document.getElementById('statusCard').style.display = 'none';
-        }
-
-        function updateProgress(progress) {
-            const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
-            progressBar.style.width = progress + '%';
-            progressText.textContent = Math.round(progress) + '%';
-        }
-
-        function startStatusPolling() {
-            if (statusInterval) {
-                clearInterval(statusInterval);
-            }
-
-            // Reset progressive results
-            knownResults.clear();
-            document.getElementById('progressiveResults').style.display = 'block';
-            document.getElementById('completionSummary').style.display = 'none';
-            document.getElementById('progressiveResultsList').innerHTML = '';
-
-            statusInterval = setInterval(async () => {
-                try {
-                    const response = await fetch(`/status/${currentJobId}`);
-                    if (!response.ok) {
-                        throw new Error('Failed to get status');
-                    }
-
-                    const status = await response.json();
-                    
-                    if (status.status === 'processing') {
-                        showStatus('Processing videos...');
-                        updateProgress(status.progress);
-                        
-                        // Show progressive results
-                        if (status.results && status.results.length > 0) {
-                            updateProgressiveResults(status);
-                        }
-                    } else if (status.status === 'completed') {
-                        clearInterval(statusInterval);
-                        showProgressiveCompleted(status);
-                    } else if (status.status === 'error') {
-                        clearInterval(statusInterval);
-                        alert('Processing failed: ' + (status.errors?.[0] || 'Unknown error'));
-                        convertBtn.disabled = false;
-                        hideStatus();
-                    }
-                } catch (error) {
-                    console.error('Status polling error:', error);
-                }
-            }, 2000);  // Poll every 2 seconds instead of 1 second
-        }
-
-        function updateProgressiveResults(status) {
-            const progressiveResultsList = document.getElementById('progressiveResultsList');
-            
-            // Add new results that we haven't shown yet
-            if (status.results) {
-                status.results.forEach(result => {
-                    const resultKey = `${result.filename}`;
-                    if (!knownResults.has(resultKey)) {
-                        knownResults.add(resultKey);
-                        
-                        // Create result item with animation
-                        const resultDiv = document.createElement('div');
-                        resultDiv.className = 'result-item new-result';
-                        resultDiv.innerHTML = `
-                            <div class="row align-items-center">
-                                <div class="col-md-8">
-                                    <h6 class="mb-1">
-                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                        ${result.filename}
-                                    </h6>
-                                    <small class="text-muted">
-                                        Original: ${result.original_name} | Format: ${result.format_name}
-                                    </small>
-                                </div>
-                                <div class="col-md-4 text-end">
-                                    <a href="/download/${currentJobId}/${result.filename}" class="btn btn-success btn-sm" onclick="allowNavigation = true; setTimeout(() => { allowNavigation = false; }, 1000);">
-                                        <i class="fas fa-download"></i> Download Now
-                                    </a>
-                                </div>
-                            </div>
-                        `;
-                        
-                        progressiveResultsList.appendChild(resultDiv);
-                        
-                        // Add animation class after a brief delay
-                        setTimeout(() => {
-                            resultDiv.classList.remove('new-result');
-                        }, 100);
-                    }
-                });
-            }
-        }
-
-        function showProgressiveCompleted(status) {
-            hideStatus();
-            convertBtn.disabled = false;
-            
-            // Show completion summary
-            document.getElementById('completionSummary').style.display = 'block';
-            
-            // Update any remaining results
-            updateProgressiveResults(status);
-            
-            // Setup download all button (progressive results)
-            document.getElementById('downloadAllBtn1').onclick = () => {
-                const downloadBtn = document.getElementById('downloadAllBtn1');
-                const zipLoading = document.getElementById('zipLoading1');
-                
-                downloadBtn.style.display = 'none';
-                zipLoading.style.display = 'inline-block';
-                
-                allowNavigation = true;
-                window.location.href = `/download_zip/${currentJobId}`;
-                
-                // Reset flag and hide loading after delay
-                setTimeout(() => { 
-                    allowNavigation = false;
-                    downloadBtn.style.display = 'inline-block';
-                    zipLoading.style.display = 'none';
-                }, 5000);
-            };
-
-            if (status.errors && status.errors.length > 0) {
-                alert('Some conversions had issues:\n' + status.errors.join('\n'));
-            }
-        }
-
-        function showResults(status) {
-            hideStatus();
-            convertBtn.disabled = false;
-
-            if (status.results && status.results.length > 0) {
-                document.getElementById('resultsSection').style.display = 'block';
-                
-                const resultsList = document.getElementById('resultsList');
-                resultsList.innerHTML = status.results.map(result => `
-                    <div class="result-item">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <h6 class="mb-1">${result.filename}</h6>
-                                <small class="text-muted">
-                                    Original: ${result.original_name} | Format: ${result.format_name}
-                                </small>
-                            </div>
-                            <div class="col-md-4 text-end">
-                                <a href="/download/${currentJobId}/${result.filename}" class="btn btn-outline-primary btn-sm" onclick="allowNavigation = true; setTimeout(() => { allowNavigation = false; }, 1000);">
-                                    <i class="fas fa-download"></i> Download
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-
-                // Setup download all button (final results)
-                document.getElementById('downloadAllBtn2').onclick = () => {
-                    const downloadBtn = document.getElementById('downloadAllBtn2');
-                    const zipLoading = document.getElementById('zipLoading2');
-                    
-                    downloadBtn.style.display = 'none';
-                    zipLoading.style.display = 'block';
-                    
-                    allowNavigation = true;
-                    window.location.href = `/download_zip/${currentJobId}`;
-                    
-                    // Reset flag and hide loading after delay
-                    setTimeout(() => { 
-                        allowNavigation = false;
-                        downloadBtn.style.display = 'inline-block';
-                        zipLoading.style.display = 'none';
-                    }, 5000);
-                };
-            }
-
-            if (status.errors && status.errors.length > 0) {
-                alert('Some conversions failed:\n' + status.errors.join('\n'));
-            }
-        }
-
-        async function cancelProcessing() {
-            if (!currentJobId) {
-                return;
-            }
-
-            const cancelBtn = document.getElementById('cancelBtn');
-            const originalText = cancelBtn.innerHTML;
-            cancelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelling...';
-            cancelBtn.disabled = true;
-
-            try {
-                const response = await fetch(`/cancel/${currentJobId}`, {
-                    method: 'POST'
-                });
-
-                if (response.ok) {
-                    clearInterval(statusInterval);
-                    hideStatus();
-                    convertBtn.disabled = false;
-                    currentJobId = null;
-                    
-                    const statusText = document.getElementById('statusText');
-                    statusText.textContent = 'Processing cancelled by user';
-                    document.getElementById('statusCard').style.display = 'block';
-                    
-                    setTimeout(() => {
-                        hideStatus();
-                    }, 3000);
-                } else {
-                    throw new Error('Failed to cancel job');
-                }
-            } catch (error) {
-                console.error('Error cancelling job:', error);
-                alert('Failed to cancel processing. Please try again.');
-            } finally {
-                cancelBtn.innerHTML = originalText;
-                cancelBtn.disabled = false;
-            }
-        }
-
-        // Initialize format cards
-        updateFormatCards();
         
-        // Make sure the initially checked format is detected
-        setTimeout(() => {
-            updateConvertButton();
-            console.log('Initial state - Files:', selectedFiles.length, 'Checked formats:', document.querySelectorAll('.format-card input[type="checkbox"]:checked').length);
-        }, 100);
-        
-        // Debug function to check file state
-        window.debugFileState = function() {
-            console.log('=== FILE STATE DEBUG ===');
-            console.log('selectedFiles.length:', selectedFiles.length);
-            console.log('selectedFiles:', selectedFiles.map(f => ({name: f.name, size: f.size, type: f.type})));
-            console.log('fileInput.files.length:', fileInput.files.length);
-            console.log('Checked formats:', Array.from(document.querySelectorAll('.format-card input[type="checkbox"]:checked')).map(cb => cb.value));
-            console.log('Convert button disabled:', convertBtn.disabled);
-            console.log('========================');
-        };
-
-        // Add page exit cleanup
-        window.addEventListener('beforeunload', function(e) {
-            // Don't show popup if navigation is explicitly allowed (e.g., during downloads)
-            if (allowNavigation) {
-                return;
-            }
-            
-            // Only show popup if processing is actually active (statusInterval is running)
-            if (currentJobId && statusInterval) {
-                // Cancel the job when user leaves the page
-                fetch(`/cancel/${currentJobId}`, {
-                    method: 'POST',
-                    keepalive: true  // Ensure request completes even if page is closing
-                }).then(response => {
-                    console.log('Cleanup request sent successfully');
-                }).catch(err => console.log('Cleanup request failed:', err));
-                
-                // Show confirmation dialog
-                e.preventDefault();
-                e.returnValue = 'Video processing is in progress. Are you sure you want to leave?';
-                return e.returnValue;
-            }
-        });
-
-        // Clean up when page becomes hidden (mobile/tab switching)
-        // Only cancel if the page is hidden for more than 30 seconds
-        let pageHiddenTimeout = null;
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden && currentJobId && statusInterval) {
-                console.log('Page hidden during processing, setting cancellation timer...');
-                pageHiddenTimeout = setTimeout(() => {
-                    if (document.hidden && currentJobId && statusInterval) {
-                        console.log('Page hidden for 30 seconds, requesting cancellation...');
-                        fetch(`/cancel/${currentJobId}`, {
-                            method: 'POST'
-                        }).then(response => {
-                            if (response.ok) {
-                                console.log('Cancellation request successful');
-                            } else {
-                                console.log('Cancellation request returned:', response.status);
-                            }
-                        }).catch(err => console.log('Cleanup request failed:', err));
-                    }
-                }, 30000); // 30 seconds delay
-            } else if (!document.hidden && pageHiddenTimeout) {
-                // Page became visible again, cancel the timeout
-                console.log('Page visible again, cancelling timeout');
-                clearTimeout(pageHiddenTimeout);
-                pageHiddenTimeout = null;
-            }
-        });
-    </script>
-</body>
-</html> 
+{% endblock %}

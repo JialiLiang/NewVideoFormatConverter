@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" class="h-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Photoroom UA Creative Tools{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Design Tokens CSS -->
+    <link href="{{ url_for('static', filename='styles/tokens.css') }}" rel="stylesheet">
+    
+    <!-- Page-specific head content -->
+    {% block head %}{% endblock %}
+</head>
+<body class="d-flex flex-column h-100">
+    <!-- Main container wrapper -->
+    {% if use_main_container %}
+    <div class="main-container flex-grow-1">
+        <!-- Navigation -->
+        {% include "partials/navbar.html" %}
+        
+        <!-- Page content -->
+        <main class="flex-grow-1">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% else %}
+    <!-- For pages that need custom layout (like homepage) -->
+    <div class="container flex-grow-1">
+        <!-- Navigation -->
+        {% include "partials/navbar.html" %}
+        
+        <!-- Page content -->
+        <main class="flex-grow-1">
+            {% block content_custom %}{% endblock %}
+        </main>
+    </div>
+    {% endif %}
+    
+    <!-- Sticky Footer - Always at bottom -->
+    <footer class="mt-auto">
+        {% block footer %}
+        <div class="made-with-love">
+            <p>Made with ❤️ by Jiali for the Photoroom UA Team</p>
+        </div>
+        {% endblock %}
+    </footer>
+    
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Page-specific scripts -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>
