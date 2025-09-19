@@ -191,12 +191,12 @@
 
                                 <!-- Creator Name (for non-internal) -->
                                 <div class="mb-3" id="creatorNameDiv" style="display: none;">
-                                    <label for="creatorName" class="form-label">
+                                    <label for="creatorName" class="form-label" id="creatorNameLabel">
                                         <i class="fas fa-user"></i> Creator Name
                                     </label>
                                     <input type="text" class="form-control" id="creatorName" placeholder="e.g., artlina 333, jeremy" 
                                            onchange="formatInputToCamelCase('creatorName')" oninput="formatInputToCamelCase('creatorName')">
-                                    <small class="text-muted">Auto-formats: "art lina 333" → "ArtLina333"</small>
+                                    <small class="text-muted" id="creatorNameNote">(“If you’re internal, no need to type your name — AdManage adds it automatically)</small>
                                 </div>
 
                         <!-- Creative Name - Premium Bling Style -->
@@ -799,9 +799,28 @@
         function updateCreatorTypeFields() {
             const creatorType = document.getElementById('creatorType').value;
             const creatorNameDiv = document.getElementById('creatorNameDiv');
+            const creatorNameLabel = document.getElementById('creatorNameLabel');
             
             if (creatorType && creatorType !== 'internal') {
                 creatorNameDiv.style.display = 'block';
+                
+                // Update label text based on creator type
+                let labelText = 'Creator Name';
+                switch(creatorType) {
+                    case 'freelancer':
+                        labelText = 'Freelancer Creator Name';
+                        break;
+                    case 'ramdam':
+                        labelText = 'Ramdam Creator Name';
+                        break;
+                    case 'influencer':
+                        labelText = 'Influencer Creator Name';
+                        break;
+                    default:
+                        labelText = 'Creator Name';
+                }
+                creatorNameLabel.innerHTML = `<i class="fas fa-user"></i> ${labelText}`;
+                
             } else {
                 creatorNameDiv.style.display = 'none';
                 document.getElementById('creatorName').value = '';
