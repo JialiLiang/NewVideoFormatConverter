@@ -382,8 +382,8 @@
                                         <button type="button" class="btn btn-outline-primary btn-sm feature-tag-btn active" data-value="AIBG" onclick="selectFeatureTag(this)">
                                             AIBG
                                         </button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="STORY" onclick="selectFeatureTag(this)">
-                                            STORY
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="IGSTORY" onclick="selectFeatureTag(this)">
+                                            IGSTORY
                                         </button>
                                         <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="LOGO" onclick="selectFeatureTag(this)">
                                             LOGO
@@ -826,7 +826,7 @@
                             • Creator type: internal_ or freelancer-xxx_ or ramdam-xxx_ or influencer-xxx_<br>
                             • Creative name with optional number<br>
                             • All 4 tags: HOOK-xxx, VO-xxx, MUSIC-xxx, DIM (or empty "-")<br>
-                            • Feature tag (AIBG, STORY, LOGO, etc.)<br>
+                            • Feature tag (AIBG, IGSTORY, LOGO, etc.)<br>
                             • Language code (EN, FR, PT, etc. or lowercase)<br><br>
                             <strong>🔍 Optional Parts:</strong><br>
                             • ID number (for AdManage format)<br>
@@ -881,7 +881,7 @@
                         <div class="tag-core">AIBG</div>
                         <small class="text-muted d-block mb-2">AI background ads</small>
                         
-                        <div class="tag-core">STORY</div>
+                        <div class="tag-core">IGSTORY</div>
                         <small class="text-muted d-block mb-2">AI Instagram Story ads</small>
                         
                         <div class="tag-core">LOGO</div>
@@ -1487,7 +1487,7 @@
                 
                 // Check feature tag (index 8)
                 const feature = parts[8];
-                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
                 structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
                 
                 // Check language (index 9)
@@ -1532,7 +1532,7 @@
                 
                 // Check feature tag (index 7)
                 const feature = parts[7];
-                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
                 structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
                 
                 // Check language (index 8) - can be uppercase or lowercase
@@ -1576,7 +1576,7 @@
                 
                 // Check feature tag (index 6)
                 const feature = parts[6];
-                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
                 structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
                 
                 // Check language (index 7)
