@@ -1632,6 +1632,9 @@
                 return { label: 'HOOK content', value: hookValue, isValid: true };
             } else if (hookValue.startsWith('text-') || hookValue.startsWith('ugc-')) {
                 return { label: 'HOOK content', value: hookValue, isValid: true };
+            } else if (hookValue.length > 0) {
+                // Any non-empty custom hook content is valid
+                return { label: 'HOOK content', value: hookValue, isValid: true };
             } else {
                 return { label: 'HOOK content', value: hookValue, isValid: false };
             }
