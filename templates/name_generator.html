@@ -1437,9 +1437,15 @@
             const parts = name.split('_');
             
             // Check if it's AdManage format (with ID/creator/date) or basic format
-            const isAdManageFormat = parts.length >= 9 && /^\d+$/.test(parts[0]) && /^\d{8}$/.test(parts[parts.length - 1]);
-            const isAdManageCompactFormat = parts.length >= 8 && /^\d+$/.test(parts[0]) && /^\d{8}$/.test(parts[parts.length - 1]);
-            const isBasicFormat = parts.length >= 7;
+            const hasId = /^\d+$/.test(parts[0]);
+            const hasDate = /^\d{8}$/.test(parts[parts.length - 1]);
+            
+            // Check if it's compact format (has empty tags represented by "-")
+            const hasEmptyTags = parts.some(part => part === '-');
+            
+            const isAdManageFormat = hasId && hasDate && parts.length >= 9 && !hasEmptyTags;
+            const isAdManageCompactFormat = hasId && hasDate && parts.length >= 8 && hasEmptyTags;
+            const isBasicFormat = parts.length >= 7 && !hasId;
             
             let structureChecks = [];
             let contentChecks = [];
@@ -1516,9 +1522,11 @@
                 structureChecks.push(checkStructure('Creator Type + Filename', creatorTypeFilename, hasValidCreatorType));
                 
                 // Check empty tags (indices 3-6) - these should be just "-"
+                const emptyTags = ['HOOK', 'VO', 'MUSIC', 'DIM'];
                 for (let i = 3; i <= 6; i++) {
                     if (parts[i]) {
-                        structureChecks.push(checkStructure(`Tag ${i-2}`, parts[i], parts[i] === '-'));
+                        const tagName = emptyTags[i-3];
+                        structureChecks.push(checkStructure(`${tagName} tag`, parts[i], parts[i] === '-'));
                     }
                 }
                 
@@ -1632,8 +1640,10 @@
                 return { label: 'HOOK content', value: hookValue, isValid: true };
             } else if (hookValue.startsWith('text-') || hookValue.startsWith('ugc-')) {
                 return { label: 'HOOK content', value: hookValue, isValid: true };
+            } else if (hookValue === '-') {
+                return { label: 'HOOK content', value: 'empty (-)', isValid: true };
             } else if (hookValue.length > 0) {
-                // Any non-empty custom hook content is valid
+                // Accept any custom hook content (like 'comehere')
                 return { label: 'HOOK content', value: hookValue, isValid: true };
             } else {
                 return { label: 'HOOK content', value: hookValue, isValid: false };
@@ -1659,6 +1669,8 @@
             
             if (validMusic.includes(musicValue)) {
                 return { label: 'MUSIC content', value: musicValue, isValid: true };
+            } else if (musicValue === '-') {
+                return { label: 'MUSIC content', value: 'empty (-)', isValid: true };
             } else if (musicValue.length > 2) {
                 return { label: 'MUSIC content', value: musicValue, isValid: true }; // Custom music
             } else {
