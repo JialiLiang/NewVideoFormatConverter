@@ -382,8 +382,8 @@
                                         <button type="button" class="btn btn-outline-primary btn-sm feature-tag-btn active" data-value="AIBG" onclick="selectFeatureTag(this)">
                                             AIBG
                                         </button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="IGSTORY" onclick="selectFeatureTag(this)">
-                                            IGSTORY
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="STORY" onclick="selectFeatureTag(this)">
+                                            STORY
                                         </button>
                                         <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="LOGO" onclick="selectFeatureTag(this)">
                                             LOGO
@@ -821,13 +821,7 @@
                             <strong>✅ Valid Formats:</strong><br>
                             <code>10946_Jiali_internal_Stanley-1_HOOK-comehere_VO-tom_MUSIC-lofi_PO_ANIM_en_18092025</code><br><br>
                             <code>28022_Jiali_freelancer-Jeremy_RedBottle-1_HOOK-come_VO-tom_MUSIC-any_PO_AIBG_en_19092025</code><br><br>
-                            <code>11020_Kaja_internal-RedBottle_-_-_-_-_AIBG_EN_06092025</code><br><br>
-                            <strong>📋 Required Parts:</strong><br>
-                            • Creator type: internal_ or freelancer-xxx_ or ramdam-xxx_ or influencer-xxx_<br>
-                            • Creative name with optional number<br>
-                            • All 4 tags: HOOK-xxx, VO-xxx, MUSIC-xxx, DIM (or empty "-")<br>
-                            • Feature tag (AIBG, IGSTORY, LOGO, etc.)<br>
-                            • Language code (EN, FR, PT, etc. or lowercase)<br><br>
+                            <code>11020_Kaja_internal_RedBottle_-_-_-_-_AIBG_EN_06092025</code><br><br>
                             <strong>🔍 Optional Parts:</strong><br>
                             • ID number (for AdManage format)<br>
                             • Creator name (combined with type for non-internal)<br>
@@ -881,7 +875,7 @@
                         <div class="tag-core">AIBG</div>
                         <small class="text-muted d-block mb-2">AI background ads</small>
                         
-                        <div class="tag-core">IGSTORY</div>
+                        <div class="tag-core">STORY</div>
                         <small class="text-muted d-block mb-2">AI Instagram Story ads</small>
                         
                         <div class="tag-core">LOGO</div>
@@ -1444,7 +1438,7 @@
             const hasEmptyTags = parts.some(part => part === '-');
             
             const isAdManageFormat = hasId && hasDate && parts.length >= 9 && !hasEmptyTags;
-            const isAdManageCompactFormat = hasId && hasDate && parts.length >= 8 && hasEmptyTags;
+            const isAdManageCompactFormat = hasId && hasDate && parts.length === 11 && hasEmptyTags;
             const isBasicFormat = parts.length >= 7 && !hasId;
             
             let structureChecks = [];
@@ -1487,7 +1481,7 @@
                 
                 // Check feature tag (index 8)
                 const feature = parts[8];
-                const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
                 structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
                 
                 // Check language (index 9)
@@ -1505,9 +1499,9 @@
                 contentChecks.push(validateMusicContent(musicPart));
                 
             } else if (isAdManageCompactFormat) {
-                // AdManage compact format: [id]_[creator]_[creator-type-filename]_[empty]_[empty]_[empty]_[empty]_[feature]_[language]_[date]
+                // AdManage compact format: [id]_[creator]_[creator-type]_[filename]_[empty]_[empty]_[empty]_[empty]_[feature]_[language]_[date]
                 structureChecks.push(checkStructure('Format', 'AdManage compact format (with empty tags)', true));
-                structureChecks.push(checkStructure('Parts count', `${parts.length} parts (expected 8-10)`, parts.length >= 8 && parts.length <= 10));
+                structureChecks.push(checkStructure('Parts count', `${parts.length} parts (expected 11)`, parts.length === 11));
                 
                 // Check ID
                 structureChecks.push(checkStructure('ID', `ID: ${parts[0]}`, /^\d+$/.test(parts[0])));
@@ -1515,28 +1509,31 @@
                 // Check creator (index 1)
                 structureChecks.push(checkStructure('Creator', parts[1], parts[1].length > 0));
                 
-                // Check creator-type-filename combination (index 2)
-                const creatorTypeFilename = parts[2];
+                // Check creator type (index 2)
+                const creatorType = parts[2];
                 const validCreatorTypes = ['internal', 'freelancer', 'ramdam', 'influencer'];
-                const hasValidCreatorType = validCreatorTypes.some(type => creatorTypeFilename.startsWith(type + '-'));
-                structureChecks.push(checkStructure('Creator Type + Filename', creatorTypeFilename, hasValidCreatorType));
+                structureChecks.push(checkStructure('Creator Type', creatorType, validCreatorTypes.includes(creatorType)));
                 
-                // Check empty tags (indices 3-6) - these should be just "-"
+                // Check filename (index 3)
+                const filename = parts[3];
+                structureChecks.push(checkStructure('Filename', filename, /^[A-Za-z0-9-]+$/.test(filename)));
+                
+                // Check empty tags (indices 4-7) - these should be just "-"
                 const emptyTags = ['HOOK', 'VO', 'MUSIC', 'DIM'];
-                for (let i = 3; i <= 6; i++) {
+                for (let i = 4; i <= 7; i++) {
                     if (parts[i]) {
-                        const tagName = emptyTags[i-3];
+                        const tagName = emptyTags[i-4];
                         structureChecks.push(checkStructure(`${tagName} tag`, parts[i], parts[i] === '-'));
                     }
                 }
                 
-                // Check feature tag (index 7)
-                const feature = parts[7];
-                const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                // Check feature tag (index 8)
+                const feature = parts[8];
+                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
                 structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
                 
-                // Check language (index 8) - can be uppercase or lowercase
-                const language = parts[8];
+                // Check language (index 9) - can be uppercase or lowercase
+                const language = parts[9];
                 const validLanguages = ['EN', 'FR', 'PT', 'ES', 'JA', 'KO', 'AR', 'ZH', 'DE', 'HI', 'ID', 'IT', 'MS', 'NL', 'PL', 'TH', 'TL', 'TR', 'VI', 'en', 'fr', 'pt', 'es', 'ja', 'ko', 'ar', 'zh', 'de', 'hi', 'id', 'it', 'ms', 'nl', 'pl', 'th', 'tl', 'tr', 'vi'];
                 structureChecks.push(checkStructure('Language', language, validLanguages.includes(language)));
                 
@@ -1545,9 +1542,9 @@
                 structureChecks.push(checkStructure('Date', date, /^\d{8}$/.test(date)));
                 
                 // Content validation for compact format (tags are empty)
-                contentChecks.push({ label: 'HOOK content', value: 'empty (-)', isValid: true });
-                contentChecks.push({ label: 'VO content', value: 'empty (-)', isValid: true });
-                contentChecks.push({ label: 'MUSIC content', value: 'empty (-)', isValid: true });
+                contentChecks.push({ label: 'HOOK content', value: 'skipped (-)', isValid: true });
+                contentChecks.push({ label: 'VO content', value: 'skipped (-)', isValid: true });
+                contentChecks.push({ label: 'MUSIC content', value: 'skipped (-)', isValid: true });
                 
             } else if (isBasicFormat) {
                 // Basic format: [creator-type]_[filename]_[HOOK]_[VO]_[MUSIC]_[DIM]_[feature]_[language]
@@ -1576,7 +1573,7 @@
                 
                 // Check feature tag (index 6)
                 const feature = parts[6];
-                const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
                 structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
                 
                 // Check language (index 7)
@@ -1656,6 +1653,8 @@
             
             if (validVOs.includes(voValue)) {
                 return { label: 'VO content', value: voValue, isValid: true };
+            } else if (voValue === '-') {
+                return { label: 'VO content', value: 'skipped (-)', isValid: true };
             } else if (voValue.includes('-') || voValue.length > 2) {
                 return { label: 'VO content', value: voValue, isValid: true }; // Custom voice or with script
             } else {
