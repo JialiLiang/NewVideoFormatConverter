@@ -768,6 +768,77 @@
             </div>
         </div>
 
+        <!-- Name Validation Section -->
+        <div class="section">
+            <h3><i class="fas fa-check-circle"></i> ✅ Creative Name Validator</h3>
+            <p class="text-muted mb-4">
+                Paste any creative name to validate if it follows our naming convention. Works with both formats: with or without ID/creator/date.
+            </p>
+            
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="mb-3">
+                        <label for="nameToValidate" class="form-label">
+                            <i class="fas fa-clipboard-check"></i> Creative Name to Validate
+                        </label>
+                        <input type="text" class="form-control form-control-lg" id="nameToValidate" 
+                               placeholder="internal_BlueGhostMannequin-5_HOOK-text_VO-null_MUSIC-lofi_PO_RnD_en"
+                               onchange="validateCreativeName()" oninput="validateCreativeName()">
+                        <small class="text-muted">Paste any creative name to check if it's valid</small>
+                    </div>
+                    
+                    <!-- Validation Results -->
+                    <div id="validationResults" class="mt-3" style="display: none;">
+                        <div class="alert" id="validationAlert" style="border-radius: 15px; border: 2px solid;">
+                            <div class="d-flex align-items-center">
+                                <span id="validationIcon" style="font-size: 1.5em; margin-right: 15px;"></span>
+                                <div>
+                                    <h5 id="validationTitle" class="mb-1"></h5>
+                                    <p id="validationMessage" class="mb-0"></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Detailed Breakdown -->
+                        <div id="validationBreakdown" class="mt-3" style="display: none;">
+                            <h6><i class="fas fa-list-ul"></i> Validation Breakdown</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div id="structureValidation"></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div id="contentValidation"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="sticky-top" style="top: 20px;">
+                        <h5><i class="fas fa-info-circle"></i> Validation Rules</h5>
+                        <div class="preview-text" style="font-size: 0.85em; line-height: 1.6;">
+                            <strong>✅ Valid Formats:</strong><br>
+                            <code>10946_Jiali_internal_Stanley-1_HOOK-comehere_VO-tom_MUSIC-lofi_PO_ANIM_en_18092025</code><br><br>
+                            <code>28022_Jiali_freelancer-Jeremy_RedBottle-1_HOOK-come_VO-tom_MUSIC-any_PO_AIBG_en_19092025</code><br><br>
+                            <code>11020_Kaja_internal-RedBottle_-_-_-_-_AIBG_EN_06092025</code><br><br>
+                            <strong>📋 Required Parts:</strong><br>
+                            • Creator type: internal_ or freelancer-xxx_ or ramdam-xxx_ or influencer-xxx_<br>
+                            • Creative name with optional number<br>
+                            • All 4 tags: HOOK-xxx, VO-xxx, MUSIC-xxx, DIM (or empty "-")<br>
+                            • Feature tag (AIBG, STORY, LOGO, etc.)<br>
+                            • Language code (EN, FR, PT, etc. or lowercase)<br><br>
+                            <strong>🔍 Optional Parts:</strong><br>
+                            • ID number (for AdManage format)<br>
+                            • Creator name (combined with type for non-internal)<br>
+                            • Date (DDMMYYYY format)<br>
+                            • Empty tags "-" (for compact format)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Creative Naming Structure Section -->
         <div class="section">
             <h3><i class="fas fa-bolt"></i> 📌 Creative Naming Structure</h3>
@@ -1304,6 +1375,291 @@
                 helpSection.classList.remove('show');
             } else {
                 helpSection.classList.add('show');
+            }
+        }
+        
+        // Creative Name Validation Function
+        function validateCreativeName() {
+            const input = document.getElementById('nameToValidate');
+            const nameToValidate = input.value.trim();
+            const resultsDiv = document.getElementById('validationResults');
+            const breakdownDiv = document.getElementById('validationBreakdown');
+            const alertDiv = document.getElementById('validationAlert');
+            const iconSpan = document.getElementById('validationIcon');
+            const titleSpan = document.getElementById('validationTitle');
+            const messageSpan = document.getElementById('validationMessage');
+            const structureDiv = document.getElementById('structureValidation');
+            const contentDiv = document.getElementById('contentValidation');
+            
+            if (!nameToValidate) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+            
+            const validation = validateCreativeNameStructure(nameToValidate);
+            
+            // Show results
+            resultsDiv.style.display = 'block';
+            breakdownDiv.style.display = validation.isValid ? 'block' : 'block';
+            
+            // Update main alert
+            if (validation.isValid) {
+                alertDiv.className = 'alert alert-success';
+                iconSpan.textContent = '✅';
+                titleSpan.textContent = 'Valid Creative Name';
+                titleSpan.className = 'mb-1 text-success';
+                messageSpan.textContent = validation.message;
+                messageSpan.className = 'mb-0 text-success';
+            } else {
+                alertDiv.className = 'alert alert-danger';
+                iconSpan.textContent = '❌';
+                titleSpan.textContent = 'Invalid Creative Name';
+                titleSpan.className = 'mb-1 text-danger';
+                messageSpan.textContent = validation.message;
+                messageSpan.className = 'mb-0 text-danger';
+            }
+            
+            // Update breakdown
+            structureDiv.innerHTML = validation.structureBreakdown;
+            contentDiv.innerHTML = validation.contentBreakdown;
+        }
+        
+        // Comprehensive validation function
+        function validateCreativeNameStructure(name) {
+            const result = {
+                isValid: false,
+                message: '',
+                structureBreakdown: '',
+                contentBreakdown: ''
+            };
+            
+            // Split by underscores
+            const parts = name.split('_');
+            
+            // Check if it's AdManage format (with ID/creator/date) or basic format
+            const isAdManageFormat = parts.length >= 9 && /^\d+$/.test(parts[0]) && /^\d{8}$/.test(parts[parts.length - 1]);
+            const isAdManageCompactFormat = parts.length >= 8 && /^\d+$/.test(parts[0]) && /^\d{8}$/.test(parts[parts.length - 1]);
+            const isBasicFormat = parts.length >= 7;
+            
+            let structureChecks = [];
+            let contentChecks = [];
+            
+            if (isAdManageFormat) {
+                // AdManage format: [id]_[creator]_[creator-type]_[filename]_[HOOK]_[VO]_[MUSIC]_[DIM]_[feature]_[language]_[date]
+                structureChecks.push(checkStructure('Format', 'AdManage format (with ID/creator/date)', true));
+                structureChecks.push(checkStructure('Parts count', `${parts.length} parts (expected 9-11)`, parts.length >= 9 && parts.length <= 11));
+                
+                // Check ID
+                structureChecks.push(checkStructure('ID', `ID: ${parts[0]}`, /^\d+$/.test(parts[0])));
+                
+                // Check creator type and filename (index 2 and 3)
+                const creatorType = parts[2];
+                const filename = parts[3];
+                const validCreatorTypes = ['internal', 'freelancer', 'ramdam', 'influencer'];
+                
+                if (creatorType === 'internal') {
+                    // Internal format: internal_Stanley-1
+                    structureChecks.push(checkStructure('Creator Type', creatorType, validCreatorTypes.includes(creatorType)));
+                    structureChecks.push(checkStructure('Filename', filename, /^[A-Za-z0-9-]+$/.test(filename)));
+                } else {
+                    // Non-internal format: freelancer-Jeremy_RedBottle-1 (creator type + creator name in one part)
+                    const hasValidCreatorType = validCreatorTypes.some(type => creatorType.startsWith(type + '-'));
+                    structureChecks.push(checkStructure('Creator Type + Name', creatorType, hasValidCreatorType));
+                    structureChecks.push(checkStructure('Filename', filename, /^[A-Za-z0-9-]+$/.test(filename)));
+                }
+                
+                // Check tags (indices 4-7)
+                const hookPart = parts[4];
+                const voPart = parts[5];
+                const musicPart = parts[6];
+                const dimPart = parts[7];
+                
+                structureChecks.push(checkStructure('HOOK tag', hookPart, hookPart.startsWith('HOOK-')));
+                structureChecks.push(checkStructure('VO tag', voPart, voPart.startsWith('VO-')));
+                structureChecks.push(checkStructure('MUSIC tag', musicPart, musicPart.startsWith('MUSIC-')));
+                structureChecks.push(checkStructure('DIM tag', dimPart, ['PO', 'SQ', 'LS'].includes(dimPart)));
+                
+                // Check feature tag (index 8)
+                const feature = parts[8];
+                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
+                
+                // Check language (index 9)
+                const language = parts[9];
+                const validLanguages = ['EN', 'FR', 'PT', 'ES', 'JA', 'KO', 'AR', 'ZH', 'DE', 'HI', 'ID', 'IT', 'MS', 'NL', 'PL', 'TH', 'TL', 'TR', 'VI', 'en', 'fr', 'pt', 'es', 'ja', 'ko', 'ar', 'zh', 'de', 'hi', 'id', 'it', 'ms', 'nl', 'pl', 'th', 'tl', 'tr', 'vi'];
+                structureChecks.push(checkStructure('Language', language, validLanguages.includes(language)));
+                
+                // Check date (last part)
+                const date = parts[parts.length - 1];
+                structureChecks.push(checkStructure('Date', date, /^\d{8}$/.test(date)));
+                
+                // Content validation
+                contentChecks.push(validateHookContent(hookPart));
+                contentChecks.push(validateVoiceOverContent(voPart));
+                contentChecks.push(validateMusicContent(musicPart));
+                
+            } else if (isAdManageCompactFormat) {
+                // AdManage compact format: [id]_[creator]_[creator-type-filename]_[empty]_[empty]_[empty]_[empty]_[feature]_[language]_[date]
+                structureChecks.push(checkStructure('Format', 'AdManage compact format (with empty tags)', true));
+                structureChecks.push(checkStructure('Parts count', `${parts.length} parts (expected 8-10)`, parts.length >= 8 && parts.length <= 10));
+                
+                // Check ID
+                structureChecks.push(checkStructure('ID', `ID: ${parts[0]}`, /^\d+$/.test(parts[0])));
+                
+                // Check creator (index 1)
+                structureChecks.push(checkStructure('Creator', parts[1], parts[1].length > 0));
+                
+                // Check creator-type-filename combination (index 2)
+                const creatorTypeFilename = parts[2];
+                const validCreatorTypes = ['internal', 'freelancer', 'ramdam', 'influencer'];
+                const hasValidCreatorType = validCreatorTypes.some(type => creatorTypeFilename.startsWith(type + '-'));
+                structureChecks.push(checkStructure('Creator Type + Filename', creatorTypeFilename, hasValidCreatorType));
+                
+                // Check empty tags (indices 3-6) - these should be just "-"
+                for (let i = 3; i <= 6; i++) {
+                    if (parts[i]) {
+                        structureChecks.push(checkStructure(`Tag ${i-2}`, parts[i], parts[i] === '-'));
+                    }
+                }
+                
+                // Check feature tag (index 7)
+                const feature = parts[7];
+                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
+                
+                // Check language (index 8) - can be uppercase or lowercase
+                const language = parts[8];
+                const validLanguages = ['EN', 'FR', 'PT', 'ES', 'JA', 'KO', 'AR', 'ZH', 'DE', 'HI', 'ID', 'IT', 'MS', 'NL', 'PL', 'TH', 'TL', 'TR', 'VI', 'en', 'fr', 'pt', 'es', 'ja', 'ko', 'ar', 'zh', 'de', 'hi', 'id', 'it', 'ms', 'nl', 'pl', 'th', 'tl', 'tr', 'vi'];
+                structureChecks.push(checkStructure('Language', language, validLanguages.includes(language)));
+                
+                // Check date (last part)
+                const date = parts[parts.length - 1];
+                structureChecks.push(checkStructure('Date', date, /^\d{8}$/.test(date)));
+                
+                // Content validation for compact format (tags are empty)
+                contentChecks.push({ label: 'HOOK content', value: 'empty (-)', isValid: true });
+                contentChecks.push({ label: 'VO content', value: 'empty (-)', isValid: true });
+                contentChecks.push({ label: 'MUSIC content', value: 'empty (-)', isValid: true });
+                
+            } else if (isBasicFormat) {
+                // Basic format: [creator-type]_[filename]_[HOOK]_[VO]_[MUSIC]_[DIM]_[feature]_[language]
+                structureChecks.push(checkStructure('Format', 'Basic format (without ID/creator/date)', true));
+                structureChecks.push(checkStructure('Parts count', `${parts.length} parts (expected 7-9)`, parts.length >= 7 && parts.length <= 9));
+                
+                // Check creator type (index 0)
+                const creatorType = parts[0];
+                const validCreatorTypes = ['internal', 'freelancer', 'ramdam', 'influencer'];
+                structureChecks.push(checkStructure('Creator Type', creatorType, validCreatorTypes.includes(creatorType)));
+                
+                // Check filename (index 1)
+                const filename = parts[1];
+                structureChecks.push(checkStructure('Filename', filename, /^[A-Za-z0-9-]+$/.test(filename)));
+                
+                // Check tags (indices 2-5)
+                const hookPart = parts[2];
+                const voPart = parts[3];
+                const musicPart = parts[4];
+                const dimPart = parts[5];
+                
+                structureChecks.push(checkStructure('HOOK tag', hookPart, hookPart.startsWith('HOOK-')));
+                structureChecks.push(checkStructure('VO tag', voPart, voPart.startsWith('VO-')));
+                structureChecks.push(checkStructure('MUSIC tag', musicPart, musicPart.startsWith('MUSIC-')));
+                structureChecks.push(checkStructure('DIM tag', dimPart, ['PO', 'SQ', 'LS'].includes(dimPart)));
+                
+                // Check feature tag (index 6)
+                const feature = parts[6];
+                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
+                
+                // Check language (index 7)
+                const language = parts[7];
+                const validLanguages = ['EN', 'FR', 'PT', 'ES', 'JA', 'KO', 'AR', 'ZH', 'DE', 'HI', 'ID', 'IT', 'MS', 'NL', 'PL', 'TH', 'TL', 'TR', 'VI', 'en', 'fr', 'pt', 'es', 'ja', 'ko', 'ar', 'zh', 'de', 'hi', 'id', 'it', 'ms', 'nl', 'pl', 'th', 'tl', 'tr', 'vi'];
+                structureChecks.push(checkStructure('Language', language, validLanguages.includes(language)));
+                
+                // Content validation
+                contentChecks.push(validateHookContent(hookPart));
+                contentChecks.push(validateVoiceOverContent(voPart));
+                contentChecks.push(validateMusicContent(musicPart));
+                
+            } else {
+                result.message = 'Invalid format: Too few parts or unrecognized structure';
+                result.structureBreakdown = '<div class="text-danger"><i class="fas fa-times"></i> Invalid structure</div>';
+                result.contentBreakdown = '<div class="text-muted">Cannot validate content due to structure issues</div>';
+                return result;
+            }
+            
+            // Calculate overall validity
+            const structureValid = structureChecks.every(check => check.isValid);
+            const contentValid = contentChecks.every(check => check.isValid);
+            result.isValid = structureValid && contentValid;
+            
+            // Generate messages
+            if (result.isValid) {
+                result.message = 'This creative name follows all naming conventions perfectly!';
+            } else {
+                const issues = [];
+                if (!structureValid) issues.push('structure issues');
+                if (!contentValid) issues.push('content validation issues');
+                result.message = `Found ${issues.join(' and ')}. See breakdown below.`;
+            }
+            
+            // Generate breakdowns
+            result.structureBreakdown = structureChecks.map(check => 
+                `<div class="${check.isValid ? 'text-success' : 'text-danger'}">
+                    ${check.isValid ? '✅' : '❌'} ${check.label}: ${check.value}
+                </div>`
+            ).join('');
+            
+            result.contentBreakdown = contentChecks.map(check => 
+                `<div class="${check.isValid ? 'text-success' : 'text-danger'}">
+                    ${check.isValid ? '✅' : '❌'} ${check.label}: ${check.value}
+                </div>`
+            ).join('');
+            
+            return result;
+        }
+        
+        // Helper functions
+        function checkStructure(label, value, isValid) {
+            return { label, value, isValid };
+        }
+        
+        function validateHookContent(hookPart) {
+            const hookValue = hookPart.replace('HOOK-', '');
+            const validHooks = ['any', 'come', 'UGC', 'text', 'emoji', 'nonono', 'ASMR', 'AIUGC'];
+            
+            if (validHooks.includes(hookValue)) {
+                return { label: 'HOOK content', value: hookValue, isValid: true };
+            } else if (hookValue.startsWith('text-') || hookValue.startsWith('ugc-')) {
+                return { label: 'HOOK content', value: hookValue, isValid: true };
+            } else {
+                return { label: 'HOOK content', value: hookValue, isValid: false };
+            }
+        }
+        
+        function validateVoiceOverContent(voPart) {
+            const voValue = voPart.replace('VO-', '');
+            const validVOs = ['any', 'null', 'tom', 'doja', 'chris', 'human'];
+            
+            if (validVOs.includes(voValue)) {
+                return { label: 'VO content', value: voValue, isValid: true };
+            } else if (voValue.includes('-') || voValue.length > 2) {
+                return { label: 'VO content', value: voValue, isValid: true }; // Custom voice or with script
+            } else {
+                return { label: 'VO content', value: voValue, isValid: false };
+            }
+        }
+        
+        function validateMusicContent(musicPart) {
+            const musicValue = musicPart.replace('MUSIC-', '');
+            const validMusic = ['any', 'lofi', 'kpop', 'hiphop', '90s', 'trend'];
+            
+            if (validMusic.includes(musicValue)) {
+                return { label: 'MUSIC content', value: musicValue, isValid: true };
+            } else if (musicValue.length > 2) {
+                return { label: 'MUSIC content', value: musicValue, isValid: true }; // Custom music
+            } else {
+                return { label: 'MUSIC content', value: musicValue, isValid: false };
             }
         }
         
