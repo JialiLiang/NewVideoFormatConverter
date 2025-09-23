@@ -438,8 +438,9 @@
                                             <option value="UGC">UGC</option>
                                             <option value="text">text</option>
                                             <option value="emoji">emoji</option>
+                                            <option value="nonono">nonono</option>
                                             <option value="ASMR">ASMR</option>
-                                            <option value="AIAvatar">AIAvatar</option>
+                                            <option value="AIUGC">AIUGC</option>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
@@ -1084,7 +1085,7 @@
             const voiceOver = voiceOverEl.value;
             let voiceToUse = voiceOver === 'custom' ? voiceName : voiceOver;
             let voPart = `VO-${voiceToUse || '[voice]'}`;
-            if (voScript) {
+            if (voScript && voiceOver !== 'null') {
                 const formattedScript = formatToPascalCase(voScript);
                 voPart += `-${formattedScript}`;
             }
