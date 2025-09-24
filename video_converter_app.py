@@ -120,14 +120,14 @@ def detect_naming_convention_and_replace(original_filename, target_format):
     else:
         # Try to detect if it's a creative naming convention by looking for common patterns
         # Check if we have at least 3-4 parts and some contain typical creative naming elements
-        creative_indicators = ['HOOK-', 'VO-', 'MUSIC-', 'AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-', 'RnD']
+        creative_indicators = ['HOOK-', 'VO-', 'MUSIC-', 'AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'IMGT-CHANGE', 'IMGT-', 'RnD']
         has_creative_indicators = any(any(indicator in part for indicator in creative_indicators) for part in parts)
         
         if len(parts) >= 3 and has_creative_indicators:
             # This looks like a creative naming convention but missing dimension
             # Insert the dimension code before what looks like the feature tag
-            # Look for feature tags (AIBG, STORY, etc.)
-            feature_tags = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'RnD']
+            # Look for feature tags (AIBG, IGSTORY, etc.)
+            feature_tags = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'IMGT-CHANGE', 'RnD']
             feature_tags.extend([tag for tag in parts if tag.startswith('IMGT-')])
             
             feature_index = -1

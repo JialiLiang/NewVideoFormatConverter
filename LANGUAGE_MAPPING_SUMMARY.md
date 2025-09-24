@@ -65,7 +65,7 @@ Visit: `http://localhost:8000/language-mapping` (when app is running)
 ```
 internal_RedBottle_-_-_-_-_AIBG_en
 freelancer-artlina333_Kitchen_ANIM_fr  
-internal_Coffee-2_STORY_ja
+internal_Coffee-2_IGSTORY_ja
 ```
 
 ### Ad Localizer API (New Format)

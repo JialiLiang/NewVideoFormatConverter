@@ -382,8 +382,8 @@
                                         <button type="button" class="btn btn-outline-primary btn-sm feature-tag-btn active" data-value="AIBG" onclick="selectFeatureTag(this)">
                                             AIBG
                                         </button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="STORY" onclick="selectFeatureTag(this)">
-                                            STORY
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="IGSTORY" onclick="selectFeatureTag(this)">
+                                            IGSTORY
                                         </button>
                                         <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="LOGO" onclick="selectFeatureTag(this)">
                                             LOGO
@@ -400,8 +400,8 @@
                                         <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="RETOUCH" onclick="selectFeatureTag(this)">
                                             RETOUCH
                                         </button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="CHANGE" onclick="selectFeatureTag(this)">
-                                            CHANGE
+                                        <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="IMGT-CHANGE" onclick="selectFeatureTag(this)">
+                                            IMGT-CHANGE
                                         </button>
                                         <button type="button" class="btn btn-outline-secondary btn-sm feature-tag-btn" data-value="IMGT-MODEL" onclick="selectFeatureTag(this)">
                                             IMGT-MODEL
@@ -875,7 +875,7 @@
                         <div class="tag-core">AIBG</div>
                         <small class="text-muted d-block mb-2">AI background ads</small>
                         
-                        <div class="tag-core">STORY</div>
+                        <div class="tag-core">IGSTORY</div>
                         <small class="text-muted d-block mb-2">AI Instagram Story ads</small>
                         
                         <div class="tag-core">LOGO</div>
@@ -896,7 +896,7 @@
                         <div class="tag-tools">RETOUCH</div>
                         <small class="text-muted d-block mb-2">Photo retouching</small>
                         
-                        <div class="tag-tools">CHANGE</div>
+                        <div class="tag-tools">IMGT-CHANGE</div>
                         <small class="text-muted d-block mb-2">Describe a Change feature</small>
                         
                         <div class="tag-experimental">RnD</div>
@@ -1481,7 +1481,7 @@
                 
                 // Check feature tag (index 8)
                 const feature = parts[8];
-                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'IMGT-CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
                 structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
                 
                 // Check language (index 9)
@@ -1529,7 +1529,7 @@
                 
                 // Check feature tag (index 8)
                 const feature = parts[8];
-                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'IMGT-CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
                 structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
                 
                 // Check language (index 9) - can be uppercase or lowercase
@@ -1573,7 +1573,7 @@
                 
                 // Check feature tag (index 6)
                 const feature = parts[6];
-                const validFeatures = ['AIBG', 'STORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
+                const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'IMGT-CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
                 structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
                 
                 // Check language (index 7)
