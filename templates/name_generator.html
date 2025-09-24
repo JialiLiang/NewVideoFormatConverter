@@ -896,9 +896,6 @@
                         <div class="tag-tools">RETOUCH</div>
                         <small class="text-muted d-block mb-2">Photo retouching</small>
                         
-                        <div class="tag-tools">IMGT-CHANGE</div>
-                        <small class="text-muted d-block mb-2">Describe a Change feature</small>
-                        
                         <div class="tag-experimental">RnD</div>
                         <small class="text-muted d-block mb-2">🧪 Experimental new feature, not yet in existing tags</small>
                     </div>
@@ -912,6 +909,9 @@
                         
                         <div class="tag-imgt">IMGT-STAGE</div>
                         <small class="text-muted">Product staging •</small>
+                        
+                        <div class="tag-imgt">IMGT-CHANGE</div>
+                        <small class="text-muted">Describe a Change feature •</small>
                         
                         <div class="tag-imgt">IMGT-BEAUTIFY</div>
                         <small class="text-muted">Product beautifier</small>
@@ -1168,13 +1168,13 @@
             const tagsBlock = `${hookPart}_${voPart}_${musicPart}_${dimension}`;
             preview += `_${tagsBlock}`;
             
-            // Add feature tag if selected
+            // Add feature tag if selected (wrapped in square brackets)
             if (feature) {
-                preview += `_${feature}`;
+                preview += `_[${feature}]`;
             }
             
-            // Add language
-            preview += `_${language}`;
+            // Add language (wrapped in square brackets)
+            preview += `_[${language}]`;
             
             // Update live display
             liveNameEl.textContent = preview;
