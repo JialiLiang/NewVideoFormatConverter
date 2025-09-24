@@ -30,6 +30,13 @@ TOOLS_CONFIG = {
             "description": "Generate creative file names following naming conventions"
         },
         {
+            "name": "YouTube Playlist Extractor",
+            "icon": "fab fa-youtube",
+            "url": "/youtube-playlist",
+            "active": True,
+            "description": "Extract video IDs from YouTube playlists (public, unlisted, private)"
+        },
+        {
             "name": "Static Generator (WIP)",
             "icon": "fas fa-file-code",
             "url": "/static-generator",

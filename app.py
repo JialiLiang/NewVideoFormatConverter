@@ -250,6 +250,15 @@ def api_download_all_voiceovers():
     except ImportError:
         return jsonify({'error': 'AdLocalizer functionality not available'}), 500
 
+@app.route('/api/extract-playlist', methods=['POST'])
+def api_extract_playlist():
+    """Extract video IDs from YouTube playlist"""
+    try:
+        from youtube_playlist_app import process_playlist
+        return process_playlist()
+    except ImportError:
+        return jsonify({'error': 'YouTube playlist functionality not available'}), 500
+
 # Register video converter routes
 app.add_url_rule('/upload', 'upload_files', upload_files, methods=['POST'])
 app.add_url_rule('/status/<job_id>', 'get_job_status', get_job_status)
@@ -316,6 +325,15 @@ def language_mapping():
     from tools_config import TOOLS_CONFIG
     tools = get_active_tools()
     return render_template('language_mapping.html', 
+                         tools=tools, 
+                         tools_config=TOOLS_CONFIG)
+
+@app.route('/youtube-playlist')
+def youtube_playlist():
+    """YouTube Playlist Extractor tool"""
+    from tools_config import TOOLS_CONFIG
+    tools = get_active_tools()
+    return render_template('youtube_playlist.html', 
                          tools=tools, 
                          tools_config=TOOLS_CONFIG)
 

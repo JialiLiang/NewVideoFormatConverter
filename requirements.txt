@@ -15,6 +15,8 @@ python-dotenv>=1.0.0
 gunicorn>=21.0.0
 psutil>=5.9.0
 aiofiles>=23.0.0
+pytube>=15.0.0
+yt-dlp>=2024.1.0
 # AI Vocal removal dependencies removed to reduce deployment size
 # The following dependencies were removed (saved ~3-4GB):
 # demucs>=4.0.0

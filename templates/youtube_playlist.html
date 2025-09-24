@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}🎵 YouTube Playlist Extractor{% endblock %}
+
+{% set use_main_container = false %}
+{% set current_tool = "YouTube Playlist Extractor" %}
+
+{% block head %}
+<style>
+    /* Page-specific styles - design tokens handle most styling */
+    .container {
+        padding: var(--space-xl) 0;
+    }
+    .playlist-input-area {
+        border: 2px dashed var(--border-2);
+        border-radius: var(--radius-lg);
+        padding: var(--space-2xl);
+        text-align: center;
+        transition: all 0.3s ease;
+        background: var(--surface-2);
+        margin-bottom: var(--space-lg);
+    }
+    .playlist-input-area:hover {
+        border-color: var(--indigo-1);
+        background: rgba(102, 126, 234, 0.05);
+    }
+    .result-item {
+        background: var(--surface-2);
+        border-radius: var(--radius-md);
+        padding: var(--space-md);
+        margin-bottom: var(--space-md);
+        border-left: 4px solid var(--indigo-1);
+        transition: all 0.3s ease;
+    }
+    .result-item.new-result {
+        background: var(--success-2);
+        border-left-color: var(--success-1);
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+    }
+    .spinner-border {
+        color: var(--indigo-1);
+    }
+    .video-id-textarea {
+        font-family: var(--font-mono);
+        font-size: 0.9em;
+        background: var(--surface-3);
+        border: 1px solid var(--border-1);
+        border-radius: var(--radius-md);
+    }
+    .video-details-table {
+        background: var(--surface-1);
+        border-radius: var(--radius-md);
+    }
+    .video-details-table th {
+        background: var(--surface-2);
+        border-bottom: 2px solid var(--border-1);
+        font-weight: 600;
+        color: var(--ink-2);
+    }
+    .video-details-table td {
+        border-bottom: 1px solid var(--border-1);
+        vertical-align: middle;
+    }
+    .video-id-code {
+        font-family: var(--font-mono);
+        background: var(--surface-3);
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        font-size: 0.85em;
+    }
+    .btn-xs {
+        padding: 0.125rem 0.25rem;
+        font-size: 0.75rem;
+        line-height: 1.2;
+        border-radius: var(--radius-sm);
+    }
+</style>
+{% endblock %}
+
+{% block content_custom %}
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="mb-0">🎵 YouTube Playlist Extractor</h1>
+                <p class="mb-0 mt-2">Extract video IDs from YouTube playlists. Paste a playlist URL and get all video IDs in seconds! 🚀</p>
+            </div>
+            <div class="card-body p-4">
+                <!-- Input Section -->
+                <div class="mb-4">
+                    <h5 class="mb-3">📋 YouTube Playlist URL</h5>
+                    <div class="playlist-input-area" onclick="document.getElementById('playlistUrl').focus()">
+                        <i class="fab fa-youtube fa-3x mb-3 text-danger"></i>
+                        <p class="mb-3">Paste your YouTube playlist URL here</p>
+                        <input 
+                            type="url" 
+                            class="form-control" 
+                            id="playlistUrl" 
+                            placeholder="https://www.youtube.com/playlist?list=PL7VBorktZT7JDUt5lZyH5sWpIwtHnWbX2"
+                            required
+                            style="max-width: 600px; margin: 0 auto;"
+                        >
+                        <div class="form-text mt-2">
+                            <small class="text-muted">We'll extract all video IDs from the playlist</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mb-4">
+                    <button 
+                        type="button" 
+                        class="btn btn-primary btn-lg w-100" 
+                        id="extractBtn"
+                        onclick="extractPlaylist()"
+                    >
+                        <i class="fas fa-download"></i> 🚀 Extract Video IDs
+                    </button>
+                    <button 
+                        type="button" 
+                        class="btn btn-secondary btn-lg w-100 mt-2" 
+                        id="clearBtn"
+                        onclick="clearResults()"
+                        style="display: none;"
+                    >
+                        <i class="fas fa-trash"></i> Clear Results
+                    </button>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="loadingIndicator" class="text-center" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Extracting video IDs from playlist...</p>
+                </div>
+
+                <!-- Results Section -->
+                <div id="resultsSection" style="display: none;">
+                    <!-- Playlist Info -->
+                    <div class="mb-4">
+                        <div class="alert alert-info">
+                            <h5 class="alert-heading">
+                                <i class="fas fa-info-circle"></i>
+                                Playlist Information
+                            </h5>
+                            <div id="playlistInfo"></div>
+                        </div>
+                    </div>
+
+                    <!-- Video IDs Section -->
+                    <div class="mb-4">
+                        <h5 class="mb-3">📝 Video IDs</h5>
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-list"></i>
+                                    All Video IDs
+                                </h6>
+                                <button 
+                                    type="button" 
+                                    class="btn btn-sm btn-outline-primary" 
+                                    onclick="copyVideoIds()"
+                                >
+                                    <i class="fas fa-copy"></i>
+                                    Copy All IDs
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <textarea 
+                                    class="form-control video-id-textarea" 
+                                    id="videoIdsText" 
+                                    rows="8" 
+                                    readonly
+                                ></textarea>
+                                <div class="form-text">
+                                    Click "Copy All IDs" to copy all video IDs to clipboard
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Details Section -->
+                    <div class="mb-4">
+                        <h5 class="mb-3">🎬 Video Details</h5>
+                        <div class="card">
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover video-details-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Video ID</th>
+                                                <th>Title</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="videoDetailsTable">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Section -->
+                <div id="errorSection" class="alert alert-danger" style="display: none;">
+                    <h5 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Error
+                    </h5>
+                    <div id="errorMessage"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentResults = null;
+
+function extractPlaylist() {
+    const playlistUrl = document.getElementById('playlistUrl').value.trim();
+    
+    if (!playlistUrl) {
+        showError('Please enter a YouTube playlist URL');
+        return;
+    }
+
+    // Show loading indicator
+    showLoading(true);
+    hideError();
+    hideResults();
+
+    // Make API request
+    fetch('/api/extract-playlist', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            playlist_url: playlistUrl
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        showLoading(false);
+        
+        if (data.success) {
+            currentResults = data;
+            showResults(data);
+        } else {
+            showError(data.error || 'Failed to extract playlist');
+        }
+    })
+    .catch(error => {
+        showLoading(false);
+        showError('Network error: ' + error.message);
+    });
+}
+
+function showLoading(show) {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const extractBtn = document.getElementById('extractBtn');
+    
+    if (show) {
+        loadingIndicator.style.display = 'block';
+        extractBtn.disabled = true;
+        extractBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Extracting...';
+    } else {
+        loadingIndicator.style.display = 'none';
+        extractBtn.disabled = false;
+        extractBtn.innerHTML = '<i class="fas fa-download"></i> Extract Video IDs';
+    }
+}
+
+function showResults(data) {
+    const resultsSection = document.getElementById('resultsSection');
+    const clearBtn = document.getElementById('clearBtn');
+    
+    // Show playlist info
+    const playlistInfo = document.getElementById('playlistInfo');
+    playlistInfo.innerHTML = `
+        <p><strong>Playlist:</strong> ${data.playlist_title}</p>
+        <p><strong>Total Videos:</strong> ${data.total_videos}</p>
+        <p><strong>URL:</strong> <a href="${data.playlist_url}" target="_blank">${data.playlist_url}</a></p>
+    `;
+    
+    // Show video IDs
+    const videoIdsText = document.getElementById('videoIdsText');
+    videoIdsText.value = data.video_ids_text;
+    
+    // Show video details table
+    const videoDetailsTable = document.getElementById('videoDetailsTable');
+    videoDetailsTable.innerHTML = '';
+    
+    data.videos.forEach(video => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <div class="d-flex flex-column align-items-start">
+                    <span class="video-id-code mb-1">${video.video_id}</span>
+                    <button class="btn btn-xs btn-outline-secondary" onclick="copyVideoId('${video.video_id}')" title="Copy ${video.video_id}">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </td>
+            <td>${video.title}</td>
+            <td>
+                <a href="${video.url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="fab fa-youtube"></i> Watch
+                </a>
+            </td>
+        `;
+        videoDetailsTable.appendChild(row);
+    });
+    
+    resultsSection.style.display = 'block';
+    clearBtn.style.display = 'inline-block';
+}
+
+function showError(message) {
+    const errorSection = document.getElementById('errorSection');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    errorMessage.textContent = message;
+    errorSection.style.display = 'block';
+}
+
+function hideError() {
+    const errorSection = document.getElementById('errorSection');
+    errorSection.style.display = 'none';
+}
+
+function hideResults() {
+    const resultsSection = document.getElementById('resultsSection');
+    const clearBtn = document.getElementById('clearBtn');
+    
+    resultsSection.style.display = 'none';
+    clearBtn.style.display = 'none';
+}
+
+function clearResults() {
+    hideResults();
+    hideError();
+    document.getElementById('playlistUrl').value = '';
+    currentResults = null;
+}
+
+function copyVideoIds() {
+    const videoIdsText = document.getElementById('videoIdsText');
+    videoIdsText.select();
+    videoIdsText.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        document.execCommand('copy');
+        showToast('Video IDs copied to clipboard!', 'success');
+    } catch (err) {
+        showToast('Failed to copy to clipboard', 'error');
+    }
+}
+
+function copyVideoId(videoId) {
+    navigator.clipboard.writeText(videoId).then(() => {
+        showToast(`Video ID ${videoId} copied to clipboard!`, 'success');
+    }).catch(() => {
+        showToast('Failed to copy video ID', 'error');
+    });
+}
+
+
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    // Add to page
+    document.body.appendChild(toast);
+    
+    // Show toast
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    // Remove from DOM after hiding
+    toast.addEventListener('hidden.bs.toast', () => {
+        document.body.removeChild(toast);
+    });
+}
+
+// Handle Enter key in input field
+document.getElementById('playlistUrl').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        extractPlaylist();
+    }
+});
+</script>
+{% endblock %}
