@@ -441,6 +441,7 @@
                                             <option value="nonono">nonono</option>
                                             <option value="ASMR">ASMR</option>
                                             <option value="AIUGC">AIUGC</option>
+                                            <option value="custom">Custom hook name</option>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
@@ -448,6 +449,8 @@
                                                onchange="formatInputToCamelCase('hookTextInput')" oninput="formatInputToCamelCase('hookTextInput')" style="display: none;">
                                         <input type="text" class="form-control" id="hookUgcInput" placeholder="such as arline778(optional)" 
                                                onchange="updatePreview()" oninput="updatePreview()" style="display: none;">
+                                        <input type="text" class="form-control" id="hookCustomInput" placeholder="such as myCustomHook" 
+                                               onchange="formatInputToCamelCase('hookCustomInput')" oninput="formatInputToCamelCase('hookCustomInput')" style="display: none;">
                                     </div>
                                 </div>
                             </div>
@@ -646,7 +649,7 @@
                                 word-break: break-all;
                                 margin-bottom: 15px;
                                 line-height: 1.4;
-                            ">internal_[filename]_HOOK-any_VO-any_MUSIC-any_PO_AIBG_en</div>
+                            ">internal_[filename]_HOOK-any_VO-any_MUSIC-any_PO_[AIBG]_[en]</div>
                             <button class="copy-btn" id="liveCopyBtn" onclick="copyLiveName()" style="
                                 background: linear-gradient(135deg, #6bd0ff, #249dee);
                                 color: white;
@@ -689,7 +692,7 @@
                                 border-radius: 8px;
                                 line-height: 1.4;
                             " id="mockPreview">
-                                12345_John_internal_[filename]_HOOK-any_VO-any_MUSIC-any_PO_AIBG_en_19092025
+                                12345_John_internal_[filename]_HOOK-any_VO-any_MUSIC-any_PO_[AIBG]_[en]_19092025
                             </div>
                         </div>
                         
@@ -726,7 +729,7 @@
                             <i class="fas fa-file"></i> Original AdManage Filename
                         </label>
                         <input type="text" class="form-control form-control-lg" id="originalFilename" 
-                               placeholder="such as 12345_Jiali_internal_RedBottle_ANIM_en"
+                               placeholder="such as 10946_Jiali_internal_Stanley_HOOK-comehere_VO-tom_MUSIC-lofi_PO_[ANIM]_[en]_18092025"
                                onchange="generateIteration()" oninput="generateIteration()">
                         <small class="text-muted">Paste the complete filename from AdManage</small>
                     </div>
@@ -747,7 +750,7 @@
                         <h5><i class="fas fa-magic"></i> Generated Iteration</h5>
                         <div class="generated-name" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">
                             <div class="name-text" id="iterationResult" style="color: white;">
-                                12345_Jiali_internal_RedBottle-ITE-1_ANIM_en
+                                10946_Jiali_internal_Stanley-ITE-1_HOOK-comehere_VO-tom_MUSIC-lofi_PO_[ANIM]_[en]_18092025
                             </div>
                             <button class="copy-btn" id="iterationCopyBtn" onclick="copyIterationName()" style="background: rgba(255,255,255,0.2);">
                                 <i class="fas fa-copy"></i> Copy Iteration
@@ -760,7 +763,7 @@
                             </div>
                             <div class="preview-text" style="font-size: 0.85em;">
                                 Adds -ITE-X after the filename:<br>
-                                <code>MyBlueHoodie-1</code> → <code>MyBlueHoodie-1-ITE-1</code>
+                                <code>Stanley</code> → <code>Stanley-ITE-1</code>
                             </div>
                         </div>
                     </div>
@@ -819,9 +822,9 @@
                         <h5><i class="fas fa-info-circle"></i> Validation Rules</h5>
                         <div class="preview-text" style="font-size: 0.85em; line-height: 1.6;">
                             <strong>✅ Valid Formats:</strong><br>
-                            <code>10946_Jiali_internal_Stanley-1_HOOK-comehere_VO-tom_MUSIC-lofi_PO_ANIM_en_18092025</code><br><br>
-                            <code>28022_Jiali_freelancer-Jeremy_RedBottle-1_HOOK-come_VO-tom_MUSIC-any_PO_AIBG_en_19092025</code><br><br>
-                            <code>11020_Kaja_internal_RedBottle_-_-_-_-_AIBG_EN_06092025</code><br><br>
+                            <code>10946_Jiali_internal_Stanley-1_HOOK-comehere_VO-tom_MUSIC-lofi_PO_[ANIM]_[en]_18092025</code><br><br>
+                            <code>28022_Jiali_freelancer-Jeremy_RedBottle-1_HOOK-come_VO-tom_MUSIC-any_PO_[AIBG]_[en]_19092025</code><br><br>
+                            <code>11020_Kaja_internal_RedBottle_-_-_-_-_[AIBG]_[EN]_06092025</code><br><br>
                             <strong>🔍 Optional Parts:</strong><br>
                             • ID number (for AdManage format)<br>
                             • Creator name (combined with type for non-internal)<br>
@@ -838,7 +841,7 @@
             <h3><i class="fas fa-bolt"></i> 📌 Creative Naming Structure</h3>
             <div class="alert alert-info">
                 <div class="format-display">
-                    <strong>Format:</strong> [id]_[creator]_[creator-type]_[filename]_[extra 4 tags]_[feature]_[language]_[date]
+                    <strong>Format:</strong> id_creator_creator-type_filename_extra 4 tags_[feature]_[language]_date
                 </div>
                 <div class="row">
                     <div class="col-md-6">
@@ -853,10 +856,10 @@
                     <div class="col-md-6">
                         <strong>Examples:</strong><br>
                         <div class="tag-example">
-                            internal_RedBottle_HOOK-come-text_VO-tom_MUSIC-rapbeat_PO_AIBG_en
+                            internal_RedBottle_HOOK-come-text_VO-tom_MUSIC-rapbeat_PO_[AIBG]_[en]
                         </div>
                         <div class="tag-example">
-                            internal_RedBottle_HOOK-any_VO-any_MUSIC-any_PO_AIBG_en
+                            internal_RedBottle_HOOK-any_VO-any_MUSIC-any_PO_[AIBG]_[en]
                         </div>
                     </div>
                 </div>
@@ -1053,17 +1056,22 @@
             const hookSelect = document.getElementById('hook');
             const hookTextInput = document.getElementById('hookTextInput');
             const hookUgcInput = document.getElementById('hookUgcInput');
+            const hookCustomInput = document.getElementById('hookCustomInput');
             
-            // Hide both inputs first
+            // Hide all inputs first
             hookTextInput.style.display = 'none';
             hookUgcInput.style.display = 'none';
+            hookCustomInput.style.display = 'none';
             hookTextInput.value = '';
             hookUgcInput.value = '';
+            hookCustomInput.value = '';
             
             if (hookSelect.value === 'text') {
                 hookTextInput.style.display = 'block';
             } else if (hookSelect.value === 'UGC') {
                 hookUgcInput.style.display = 'block';
+            } else if (hookSelect.value === 'custom') {
+                hookCustomInput.style.display = 'block';
             }
         }
 
@@ -1138,12 +1146,16 @@
             
             // Build HOOK
             const hookUgcInput = hookUgcEl.value;
+            const hookCustomInput = document.getElementById('hookCustomInput').value;
             let hookPart = `HOOK-${hook}`;
             if (hook === 'text' && hookTextInput) {
                 const formattedText = formatToPascalCase(hookTextInput);
                 hookPart = `HOOK-text-${formattedText}`;
             } else if (hook === 'UGC' && hookUgcInput) {
                 hookPart = `HOOK-ugc-${hookUgcInput.trim()}`;
+            } else if (hook === 'custom' && hookCustomInput) {
+                const formattedCustom = formatToPascalCase(hookCustomInput);
+                hookPart = `HOOK-${formattedCustom}`;
             }
             
             // Build VO
@@ -1262,7 +1274,7 @@
             const resultElement = document.getElementById('iterationResult');
             
             if (!originalFilename) {
-                resultElement.textContent = '12345_Jiali_internal_RedBottle-ITE-1_ANIM_en';
+                resultElement.textContent = '10946_Jiali_internal_Stanley-ITE-1_HOOK-comehere_VO-tom_MUSIC-lofi_PO_[ANIM]_[en]_18092025';
                 return;
             }
             
@@ -1329,6 +1341,7 @@
             // Hide conditional inputs
             document.getElementById('hookTextInput').style.display = 'none';
             document.getElementById('hookUgcInput').style.display = 'none';
+            document.getElementById('hookCustomInput').style.display = 'none';
             document.getElementById('voiceName').style.display = 'none';
             document.getElementById('musicCustom').style.display = 'none';
             
@@ -1479,15 +1492,17 @@
                 structureChecks.push(checkStructure('MUSIC tag', musicPart, musicPart.startsWith('MUSIC-')));
                 structureChecks.push(checkStructure('DIM tag', dimPart, ['PO', 'SQ', 'LS'].includes(dimPart)));
                 
-                // Check feature tag (index 8)
+                // Check feature tag (index 8) - can be with or without brackets
                 const feature = parts[8];
+                const featureWithoutBrackets = feature.replace(/^\[|\]$/g, '');
                 const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'IMGT-CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
-                structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
+                structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(featureWithoutBrackets)));
                 
-                // Check language (index 9)
+                // Check language (index 9) - can be with or without brackets
                 const language = parts[9];
+                const languageWithoutBrackets = language.replace(/^\[|\]$/g, '');
                 const validLanguages = ['EN', 'FR', 'PT', 'ES', 'JA', 'KO', 'AR', 'ZH', 'DE', 'HI', 'ID', 'IT', 'MS', 'NL', 'PL', 'TH', 'TL', 'TR', 'VI', 'en', 'fr', 'pt', 'es', 'ja', 'ko', 'ar', 'zh', 'de', 'hi', 'id', 'it', 'ms', 'nl', 'pl', 'th', 'tl', 'tr', 'vi'];
-                structureChecks.push(checkStructure('Language', language, validLanguages.includes(language)));
+                structureChecks.push(checkStructure('Language', language, validLanguages.includes(languageWithoutBrackets)));
                 
                 // Check date (last part)
                 const date = parts[parts.length - 1];
@@ -1527,15 +1542,17 @@
                     }
                 }
                 
-                // Check feature tag (index 8)
+                // Check feature tag (index 8) - can be with or without brackets
                 const feature = parts[8];
+                const featureWithoutBrackets = feature.replace(/^\[|\]$/g, '');
                 const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'IMGT-CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
-                structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
+                structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(featureWithoutBrackets)));
                 
-                // Check language (index 9) - can be uppercase or lowercase
+                // Check language (index 9) - can be with or without brackets
                 const language = parts[9];
+                const languageWithoutBrackets = language.replace(/^\[|\]$/g, '');
                 const validLanguages = ['EN', 'FR', 'PT', 'ES', 'JA', 'KO', 'AR', 'ZH', 'DE', 'HI', 'ID', 'IT', 'MS', 'NL', 'PL', 'TH', 'TL', 'TR', 'VI', 'en', 'fr', 'pt', 'es', 'ja', 'ko', 'ar', 'zh', 'de', 'hi', 'id', 'it', 'ms', 'nl', 'pl', 'th', 'tl', 'tr', 'vi'];
-                structureChecks.push(checkStructure('Language', language, validLanguages.includes(language)));
+                structureChecks.push(checkStructure('Language', language, validLanguages.includes(languageWithoutBrackets)));
                 
                 // Check date (last part)
                 const date = parts[parts.length - 1];
@@ -1571,15 +1588,17 @@
                 structureChecks.push(checkStructure('MUSIC tag', musicPart, musicPart.startsWith('MUSIC-')));
                 structureChecks.push(checkStructure('DIM tag', dimPart, ['PO', 'SQ', 'LS'].includes(dimPart)));
                 
-                // Check feature tag (index 6)
+                // Check feature tag (index 6) - can be with or without brackets
                 const feature = parts[6];
+                const featureWithoutBrackets = feature.replace(/^\[|\]$/g, '');
                 const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'IMGT-CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
-                structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(feature)));
+                structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(featureWithoutBrackets)));
                 
-                // Check language (index 7)
+                // Check language (index 7) - can be with or without brackets
                 const language = parts[7];
+                const languageWithoutBrackets = language.replace(/^\[|\]$/g, '');
                 const validLanguages = ['EN', 'FR', 'PT', 'ES', 'JA', 'KO', 'AR', 'ZH', 'DE', 'HI', 'ID', 'IT', 'MS', 'NL', 'PL', 'TH', 'TL', 'TR', 'VI', 'en', 'fr', 'pt', 'es', 'ja', 'ko', 'ar', 'zh', 'de', 'hi', 'id', 'it', 'ms', 'nl', 'pl', 'th', 'tl', 'tr', 'vi'];
-                structureChecks.push(checkStructure('Language', language, validLanguages.includes(language)));
+                structureChecks.push(checkStructure('Language', language, validLanguages.includes(languageWithoutBrackets)));
                 
                 // Content validation
                 contentChecks.push(validateHookContent(hookPart));
