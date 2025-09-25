@@ -788,6 +788,26 @@
                                placeholder="Paste your creative name here..."
                                onchange="validateCreativeName()" oninput="validateCreativeName()">
                         <small class="text-muted">Paste any creative name to check if it's valid</small>
+                        
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                            <button id="correctBtn" type="button" class="btn btn-primary btn-sm" onclick="correctCreativeName()">
+                                <i class="fas fa-wand-magic-sparkles"></i> Correct
+                            </button>
+                            <span id="correctSpinner" class="text-muted" style="display:none;">
+                                <i class="fas fa-circle-notch fa-spin"></i> fixing…
+                            </span>
+                        </div>
+
+                        <!-- Corrected name card -->
+                        <div id="correctedWrap" class="generated-name" style="display:none;">
+                            <div class="name-text" id="correctedName"></div>
+                            <div style="font-size:.9em; text-align:left; color:#555;">
+                                <strong>Why:</strong> <span id="correctedWhy"></span>
+                            </div>
+                            <button class="copy-btn mt-2" onclick="navigator.clipboard.writeText(document.getElementById('correctedName').textContent)">
+                                <i class="fas fa-copy"></i> Copy Corrected
+                            </button>
+                        </div>
                     </div>
                     
                     <!-- Validation Results -->
@@ -1382,6 +1402,47 @@
                 helpSection.classList.remove('show');
             } else {
                 helpSection.classList.add('show');
+            }
+        }
+        
+        // Correct creative name using AI
+        async function correctCreativeName() {
+            const nameInput = document.getElementById('nameToValidate');
+            const btn = document.getElementById('correctBtn');
+            const spin = document.getElementById('correctSpinner');
+            const wrap = document.getElementById('correctedWrap');
+            const out = document.getElementById('correctedName');
+            const why = document.getElementById('correctedWhy');
+
+            const raw = (nameInput.value || '').trim();
+            if (!raw) {
+                alert('Paste a creative name first.');
+                return;
+            }
+
+            btn.disabled = true; 
+            spin.style.display = 'inline';
+
+            try {
+                const res = await fetch('/api/correct-creative-name', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name: raw })
+                });
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+
+                // Expecting shape: { corrected: "...", reasoning: "..." }
+                out.textContent = data.corrected || '(no suggestion)';
+                why.textContent = data.reasoning || 'Adjusted to match Photoroom naming rules.';
+                wrap.style.display = 'block';
+            } catch (e) {
+                console.error(e);
+                alert('Could not correct this name. Please try again.');
+            } finally {
+                btn.disabled = false; 
+                spin.style.display = 'none';
             }
         }
         

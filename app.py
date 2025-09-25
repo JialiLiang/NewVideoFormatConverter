@@ -16,8 +16,288 @@ import time
 import argparse
 from tools_config import get_active_tools
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not available, continue without it
+
+# OpenAI client for creative name correction
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
+# Simple post-check normalizer for creative names
+import re
+
+DEFAULT_CREATORS = ["Jiali", "Houda", "Kaja"]
+
+FEATURES = {"AIBG","IGSTORY","LOGO","ANIM","MIX","AIFILL","RETOUCH",
+            "IMGT-CHANGE","IMGT-MODEL","IMGT-STAGE","IMGT-BEAUTIFY","RnD"}
+DIMS = {"PO","SQ","LS"}
+
+def enforce_min_shape(s: str) -> str:
+    """Tiny post-check/normalizer as safety net"""
+    parts = s.split("_")
+
+    # Enforce brackets for feature & language (last 2 or 3 parts depending on date)
+    def wrap_if_needed(x: str) -> str:
+        return x if (x.startswith("[") and x.endswith("]")) else f"[{x}]"
+
+    # Identify AdManage vs Basic quickly
+    is_adm = bool(parts and parts[0].isdigit())
+
+    # Locate feature/lang indexes from the end (… _[feature]_[lang][_date?])
+    # Basic: 8 parts total; AdManage: 9/10/11
+    if is_adm:
+        # Date optional; feature = -3, lang = -2
+        if len(parts) >= 2:
+            parts[-2] = wrap_if_needed(parts[-2])  # lang
+        if len(parts) >= 3:
+            parts[-3] = wrap_if_needed(parts[-3])  # feature
+    else:
+        if len(parts) >= 2:
+            parts[-2] = wrap_if_needed(parts[-2])  # lang
+        if len(parts) >= 3:
+            parts[-3] = wrap_if_needed(parts[-3])  # feature
+    
+    # Also wrap any remaining unbracketed features or languages
+    for i in range(len(parts)):
+        if parts[i] in FEATURES and not (parts[i].startswith("[") and parts[i].endswith("]")):
+            parts[i] = f"[{parts[i]}]"
+        elif re.fullmatch(r"[a-z]{2}|[A-Z]{2}", parts[i]) and not (parts[i].startswith("[") and parts[i].endswith("]")):
+            parts[i] = f"[{parts[i]}]"
+
+    # Fix DIM to uppercase and default if missing/invalid
+    # DIM position: Basic index 5; AdManage with filename: index 7; AdManage 9-part (no filename): index 6
+    dim_idx = None
+    if not is_adm and len(parts) >= 6:
+        dim_idx = 5
+    elif is_adm:
+        if len(parts) in (10, 11):       # with filename
+            dim_idx = 7
+        elif len(parts) in (9,):         # compressed creator-type case
+            dim_idx = 6
+    if dim_idx is not None and 0 <= dim_idx < len(parts):
+        parts[dim_idx] = parts[dim_idx].upper()
+        if parts[dim_idx] not in DIMS:
+            parts[dim_idx] = "PO"
+
+    # Ensure the three tag prefixes exist; if not, set to any
+    def ensure_tag(p, prefix):
+        return p if p.startswith(prefix + "-") else f"{prefix}-any"
+    # Basic indices 2/3/4, AdManage-with-filename 4/5/6, AdManage-9part 3/4/5
+    if not is_adm and len(parts) >= 5:
+        parts[2] = ensure_tag(parts[2], "HOOK")
+        parts[3] = ensure_tag(parts[3], "VO")
+        parts[4] = ensure_tag(parts[4], "MUSIC")
+    elif is_adm:
+        if len(parts) in (10, 11):
+            parts[4] = ensure_tag(parts[4], "HOOK")
+            parts[5] = ensure_tag(parts[5], "VO")
+            parts[6] = ensure_tag(parts[6], "MUSIC")
+        elif len(parts) == 9:
+            parts[3] = ensure_tag(parts[3], "HOOK")
+            parts[4] = ensure_tag(parts[4], "VO")
+            parts[5] = ensure_tag(parts[5], "MUSIC")
+
+    return "_".join(parts)
+
+def extract_iteration_hint(raw: str):
+    """
+    Returns (base_num, iter_num).
+      ... _1_ITE_2 ...  -> (1, 2)
+      ... ITE_3 ...     -> (None, 3)
+      ... -ITE-4 ...    -> (None, 4)
+    """
+    # Look for pattern: _1_ITE_2 (base number before ITE, but not a date)
+    m = re.search(r"(?:^|_)(\d{1,3})_ITE_(\d+)(?:_|$)", raw, re.I)
+    if m:
+        base_num = int(m.group(1))
+        # Don't treat dates as base numbers (8 digits)
+        if base_num < 1000:  # Only small numbers are base variations
+            return base_num, int(m.group(2))
+    
+    # Look for pattern: ITE_3 or -ITE-3 (just iteration number)
+    m = re.search(r"(?:^|_|-)[Ii][Tt][Ee][-_]?(\d+)(?:_|$)", raw)
+    if m:
+        return None, int(m.group(1))
+    
+    return None, None
+
+def extract_lang_hint(raw: str):
+    # Prefer bracketed language if present
+    m = re.search(r"\[([a-z]{2})\]", raw, re.I)
+    if m:
+        return m.group(1).lower()
+    # Fallback: standalone 2‑letter token bounded by underscores/boundaries
+    m = re.search(r"(?:^|_)([a-z]{2})(?:_|$)", raw, re.I)
+    if m:
+        return m.group(1).lower()
+    return None
+
+def enforce_iteration_from_raw(raw: str, corrected: str) -> str:
+    """
+    1) If raw contains ITE info, put -ITE-<n> on the filename (or on creator-type-with-name in 9-part AdManage).
+       If there is a bare number near ITE (e.g. _1_ITE_2), treat that as base '-1' before '-ITE-2'.
+    2) Prevent 'ITE' turning into '[it]' unless INPUT explicitly asked for it.
+    3) After language, allow only an optional date (DDMMYYYY). Drop everything else.
+       Also strip any accidental '-ITE-<n>' suffix attached to the language token.
+    """
+    base_num, iter_num = extract_iteration_hint(raw)
+    parts = corrected.split("_")
+    if not parts:
+        return corrected
+
+    is_adm = bool(parts[0].isdigit())
+
+    # --- (1) Place iteration on the correct slot ---
+    if is_adm:
+        if len(parts) in (10, 11):
+            # AdManage with filename (no date: 10, with date: 11). Filename at index 3.
+            filename_idx = 3
+            filename = parts[filename_idx]
+            # Remove any trailing ITE; we'll re-apply cleanly
+            filename = re.sub(r"-ITE-\d+$", "", filename, flags=re.I)
+
+            # Add base num if present and not already there
+            if base_num is not None and not re.search(r"-\d+$", filename):
+                filename = f"{filename}-{base_num}"
+            elif base_num is None and iter_num is not None and not re.search(r"-\d+$", filename):
+                # If we have iteration but no base number, default to base 1
+                filename = f"{filename}-1"
+
+            # Append ITE if present
+            if iter_num is not None and not re.search(r"-ITE-\d+$", filename, flags=re.I):
+                filename = f"{filename}-ITE-{iter_num}"
+
+            parts[filename_idx] = filename
+
+        elif len(parts) == 9:
+            # Compressed non-internal case (no filename): slot 2 is "{type}-{CreatorName[-num]}"
+            field2 = parts[2]
+            # Check if iteration is already present
+            if iter_num is not None and re.search(rf"-ITE-{iter_num}$", field2, flags=re.I):
+                # Iteration already present, just clean up any stray suffixes
+                pass
+            else:
+                # Apply iteration logic
+                field2 = re.sub(r"-ITE-\d+$", "", field2, flags=re.I)
+                if base_num is not None and not re.search(r"-\d+$", field2):
+                    field2 = f"{field2}-{base_num}"
+                elif base_num is None and iter_num is not None and not re.search(r"-\d+$", field2):
+                    # If we have iteration but no base number, default to base 1
+                    field2 = f"{field2}-1"
+                if iter_num is not None and not re.search(r"-ITE-\d+$", field2, flags=re.I):
+                    field2 = f"{field2}-ITE-{iter_num}"
+            parts[2] = field2
+
+    # --- (2) If model hallucinated [it] from ITE, undo unless input explicitly set Italian ---
+    raw_lang = extract_lang_hint(raw)
+
+    # Find the last bracketed language token (may have ITE suffix)
+    lang_idx = None
+    for i in range(len(parts) - 1, -1, -1):
+        if re.match(r"\[[A-Za-z]{2}\]", parts[i]):
+            lang_idx = i
+            break
+
+    if lang_idx is not None:
+        if raw_lang != "it" and parts[lang_idx].lower() == "[it]":
+            parts[lang_idx] = f"[{raw_lang or 'en'}]"
+
+        # Remove any accidental '-ITE-<n>' suffix glued to the language token
+        parts[lang_idx] = re.sub(r"\]-ITE-\d+$", "]", parts[lang_idx], flags=re.I)
+
+    # --- (3) Nothing after language except optional date ---
+    last = len(parts) - 1
+    date_idx = last if re.fullmatch(r"\d{8}", parts[last] or "") else None
+
+    if lang_idx is not None:
+        if date_idx is not None and date_idx > lang_idx:
+            # Keep everything up to lang, plus the date (drop anything between)
+            parts = parts[:lang_idx + 1] + [parts[date_idx]]
+        else:
+            # No date → hard stop at language
+            parts = parts[:lang_idx + 1]
+
+    return "_".join(parts)
+
+
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB max file size (reduced for memory)
+
+# Shared rules fed to the model (kept crisp + deterministic)
+NAMING_RULES = """
+You are a strict formatter for Photoroom AdManage creative names.
+
+Accepted outputs:
+- AdManage (ID present at start):
+  • 11 parts if date present, else 10 parts, OR a 9‑part edge case below.
+  • With filename: [id]_[creator]_[creator-type]_[filename]_[HOOK-…]_[VO-…]_[MUSIC-…]_[DIM]_[feature]_[language][_date]
+  • Edge (non‑internal only, when filename is missing or ambiguous): omit filename and encode creator handle (and optional number)
+    inside creator-type as "{type}-{CreatorName[-num]}":
+    [id]_[creator]_[{type}-{CreatorName[-num]}]_[HOOK-…]_[VO-…]_[MUSIC-…]_[DIM]_[feature]_[language][_date]
+- Basic (no ID at start):
+  [creator-type]_[filename]_[HOOK-…]_[VO-…]_[MUSIC-…]_[DIM]_[feature]_[language]
+
+Rules:
+- "_" separates main fields; "-" separates details inside tags.
+- Creator types: internal | freelancer | ramdam | influencer.
+  • If non‑internal and filename is missing/ambiguous, compress into "{type}-{CreatorName[-num]}" and omit filename (9-part AdManage).
+  • If creator is missing in AdManage, choose one from {Jiali, Houda, Kaja} (prefer Jiali).
+  • If creator-type is missing/unclear, default to "internal".
+- Filename: PascalCase. If no reliable tokens, treat as missing (see non‑internal edge case).
+- Tags (always 4, in order): HOOK → VO → MUSIC → DIM
+  • DIM ∈ {PO, SQ, LS} (uppercase; default PO)
+  • If HOOK/VO/MUSIC missing → "any"
+  • Normalize common pseudo tokens:
+    - "noVO" or "novo" → VO-any
+- Feature & language MUST be bracketed: _[FEATURE]_[lang]
+  • FEATURE ∈ {AIBG, IGSTORY, LOGO, ANIM, MIX, AIFILL, RETOUCH, IMGT-CHANGE, IMGT-MODEL, IMGT-STAGE, IMGT-BEAUTIFY, RnD}
+  • lang = ISO 639-1 (lowercase preferred; uppercase allowed but still wrapped)
+- Date (AdManage only): include if a valid DDMMYYYY is present; otherwise omit.
+- Casing normalization:
+  • Creator & filename → PascalCase
+  • DIM → uppercase
+  • Known tag keywords → normalized
+- Iteration tokens:
+  • If the INPUT contains an "ITE" token with a number (e.g., _ITE_2, ITE-2), this denotes an **iteration**.
+  • Place the iteration on the **filename**, as a suffix: `<Filename>[-<baseNum>]-ITE-<iterNum>`.
+    - If a plain integer appears near ITE (e.g., "… _1_ITE_2 …"), treat the plain integer as a **base variation** and add `-1` before `-ITE-2`.
+    - If the filename already ends with `-<num>`, keep it and then append `-ITE-<iterNum>`.
+  • Never treat "ITE" or "ite" as a language code. Language must come from the dedicated language slot only.
+- Preservation & defaults:
+  • Preserve trustworthy info from input; fill minimal defaults as above.
+
+OUTPUT CONTRACT (STRICT):
+Return only a single JSON object:
+{"corrected":"<final_name>","reasoning":"<very short explanation>"}
+No prose outside JSON. Never output "-" placeholders. Always include _[FEATURE]_[lang].
+
+Examples (input → corrected):
+
+"10254_SideHussle_3_long_IMGT_MODEL_noVO"
+→ "10254_Jiali_internal_Sidehussle_HOOK-any_VO-any_MUSIC-any_PO_[IMGT-MODEL]_[en]"
+
+"11804_houda_Faustine_freelancer_IMGT_MODEL_21_EN"
+→ "11804_Houda_freelancer-Faustine-21_HOOK-any_VO-any_MUSIC-any_PO_[IMGT-MODEL]_[en]"
+
+"internal  blue   hoodie"
+→ "internal_BlueHoodie_HOOK-any_VO-any_MUSIC-any_PO_[AIBG]_[en]"
+
+"10946_Jiali_internal_Stanley-1_HOOK-comehere_VO-tom_MUSIC-lofi_PO_[ANIM]_[en]_18092025"
+→ "10946_Jiali_internal_Stanley-1_HOOK-comehere_VO-tom_MUSIC-lofi_PO_[ANIM]_[en]_18092025"
+
+"10853_houda_yellowshirt_dont_emoji_music_IMGT_MODEL_1_ITE_2"
+→ "10853_Houda_internal_Yellowshirt-1-ITE-2_HOOK-dont_VO-any_MUSIC-emoji_PO_[IMGT-MODEL]_[en]"
+
+"10946_Jiali_internal_Stanley_HOOK-comehere_VO-tom_MUSIC-lofi_PO_[ANIM]_[en]_18092025  (append ITE-1)"
+→ "10946_Jiali_internal_Stanley-1-ITE-1_HOOK-comehere_VO-tom_MUSIC-lofi_PO_[ANIM]_[en]_18092025"
+"""
 
 # Use a persistent directory for uploads instead of temp directory
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -91,6 +371,87 @@ def health_check():
 @app.route('/api/test')
 def api_test():
     return jsonify({'message': 'API routes are working', 'timestamp': datetime.now().isoformat()})
+
+@app.route("/api/correct-creative-name", methods=["POST"])
+def correct_creative_name():
+    """Correct creative names using OpenAI to match Photoroom naming conventions"""
+    if not OPENAI_AVAILABLE:
+        return jsonify({"error": "OpenAI functionality not available"}), 500
+    
+    # Get API key from environment (try different formats)
+    api_key = (
+        os.environ.get("OPENAI_API_KEY") or 
+        os.environ.get("openai_api_key") or 
+        os.environ.get("OPENAI_KEY")
+    )
+    
+    if not api_key:
+        return jsonify({"error": "OpenAI API key not configured"}), 500
+    
+    # Initialize client with the API key
+    try:
+        client = OpenAI(api_key=api_key)
+    except Exception as e:
+        app_logger.error(f"Failed to initialize OpenAI client: {e}")
+        return jsonify({"error": "OpenAI client initialization failed"}), 500
+    
+    data = request.get_json(silent=True) or {}
+    raw = (data.get("name") or "").strip()
+    if not raw:
+        return jsonify({"error": "Missing 'name'"}), 400
+
+    try:
+        # Use structured output for reliable JSON parsing
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": NAMING_RULES},
+                {"role": "user", "content": f"INPUT:\n```\n{raw}\n```\nOutput the JSON object per contract."}
+            ],
+            temperature=0,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "creative_name_correction",
+                    "schema": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "corrected": {"type": "string", "minLength": 5},
+                            "reasoning": {"type": "string", "minLength": 3}
+                        },
+                        "required": ["corrected", "reasoning"]
+                    }
+                }
+            }
+        )
+
+        # Extract the structured output
+        payload = response.choices[0].message.content
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+
+        corrected = payload.get("corrected") or ""
+        reasoning = payload.get("reasoning") or "Adjusted to match Photoroom naming rules."
+
+        if not corrected:
+            return jsonify({"error": "No suggestion produced"}), 422
+
+        # Apply post-processing to ensure brackets and order
+        corrected = enforce_min_shape(corrected)
+        
+        # Apply iteration enforcement from raw input
+        corrected = enforce_iteration_from_raw(raw, corrected)
+
+        return jsonify({"corrected": corrected, "reasoning": reasoning})
+
+    except json.JSONDecodeError as e:
+        app_logger.error(f"JSON decode error in correct_creative_name: {e}")
+        return jsonify({"error": "Invalid response format from AI"}), 500
+    except Exception as e:
+        app_logger.error(f"Error in correct_creative_name: {e}")
+        # Don't leak internals
+        return jsonify({"error": "Model call failed"}), 500
 
 # Import video converter routes
 from video_converter_app import (
