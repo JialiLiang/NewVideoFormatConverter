@@ -1298,7 +1298,7 @@
                 return;
             }
             
-            // Parse the AdManage filename format: [id]_[creator]_[creator-type]_[filename]_[HOOK-…_VO-…_MUSIC-…_DIM]_[feature]_[language]_[date]
+            // Parse the filename format
             const parts = originalFilename.split('_');
             
             if (parts.length < 4) {
@@ -1306,8 +1306,18 @@
                 return;
             }
             
-            // Find the filename part (4th part, index 3)
-            let filenameIndex = 3; // Filename is at index 3
+            // Determine format and filename index
+            const hasId = /^\d+$/.test(parts[0]);
+            let filenameIndex;
+            
+            if (hasId) {
+                // AdManage format: [id]_[creator]_[creator-type]_[filename]_[HOOK-…_VO-…_MUSIC-…_DIM]_[feature]_[language]_[date?]
+                filenameIndex = 3; // Filename is at index 3
+            } else {
+                // Basic format: [creator-type]_[filename]_[HOOK-…_VO-…_MUSIC-…_DIM]_[feature]_[language]
+                filenameIndex = 1; // Filename is at index 1
+            }
+            
             let filenamePart = parts[filenameIndex];
             
             // Check if the filename already has an iteration
@@ -1504,14 +1514,15 @@
             // Split by underscores
             const parts = name.split('_');
             
-            // Check if it's AdManage format (with ID/creator/date) or basic format
+            // Check if it's AdManage format (with ID/creator, optional date) or basic format
             const hasId = /^\d+$/.test(parts[0]);
             const hasDate = /^\d{8}$/.test(parts[parts.length - 1]);
             
             // Check if it's compact format (has empty tags represented by "-")
             const hasEmptyTags = parts.some(part => part === '-');
             
-            const isAdManageFormat = hasId && hasDate && parts.length >= 9 && !hasEmptyTags;
+            // AdManage format: with ID, optional date, 9-11 parts
+            const isAdManageFormat = hasId && parts.length >= 9 && parts.length <= 11 && !hasEmptyTags;
             const isAdManageCompactFormat = hasId && hasDate && parts.length === 11 && hasEmptyTags;
             const isBasicFormat = parts.length >= 7 && !hasId;
             
@@ -1519,8 +1530,8 @@
             let contentChecks = [];
             
             if (isAdManageFormat) {
-                // AdManage format: [id]_[creator]_[creator-type]_[filename]_[HOOK]_[VO]_[MUSIC]_[DIM]_[feature]_[language]_[date]
-                structureChecks.push(checkStructure('Format', 'AdManage format (with ID/creator/date)', true));
+                // AdManage format: [id]_[creator]_[creator-type]_[filename]_[HOOK]_[VO]_[MUSIC]_[DIM]_[feature]_[language]_[date?]
+                structureChecks.push(checkStructure('Format', 'AdManage format (with ID/creator, optional date)', true));
                 structureChecks.push(checkStructure('Parts count', `${parts.length} parts (expected 9-11)`, parts.length >= 9 && parts.length <= 11));
                 
                 // Check ID
@@ -1553,21 +1564,41 @@
                 structureChecks.push(checkStructure('MUSIC tag', musicPart, musicPart.startsWith('MUSIC-')));
                 structureChecks.push(checkStructure('DIM tag', dimPart, ['PO', 'SQ', 'LS'].includes(dimPart)));
                 
-                // Check feature tag (index 8) - can be with or without brackets
-                const feature = parts[8];
+                // Check feature and language tags - dynamic indices based on parts length
+                let featureIndex, languageIndex;
+                if (parts.length === 9) {
+                    // 9 parts: [id]_[creator]_[creator-type]_[filename]_[HOOK]_[VO]_[MUSIC]_[DIM]_[feature]_[language]
+                    featureIndex = 7;
+                    languageIndex = 8;
+                } else if (parts.length === 10) {
+                    // 10 parts: [id]_[creator]_[creator-type]_[filename]_[HOOK]_[VO]_[MUSIC]_[DIM]_[feature]_[language]_[date]
+                    featureIndex = 8;
+                    languageIndex = 9;
+                } else if (parts.length === 11) {
+                    // 11 parts: [id]_[creator]_[creator-type]_[filename]_[HOOK]_[VO]_[MUSIC]_[DIM]_[feature]_[language]_[date]
+                    featureIndex = 8;
+                    languageIndex = 9;
+                }
+                
+                // Check feature tag - can be with or without brackets
+                const feature = parts[featureIndex];
                 const featureWithoutBrackets = feature.replace(/^\[|\]$/g, '');
                 const validFeatures = ['AIBG', 'IGSTORY', 'LOGO', 'ANIM', 'MIX', 'AIFILL', 'RETOUCH', 'IMGT-CHANGE', 'IMGT-MODEL', 'IMGT-STAGE', 'IMGT-BEAUTIFY', 'RnD'];
                 structureChecks.push(checkStructure('Feature tag', feature, validFeatures.includes(featureWithoutBrackets)));
                 
-                // Check language (index 9) - can be with or without brackets
-                const language = parts[9];
+                // Check language - can be with or without brackets
+                const language = parts[languageIndex];
                 const languageWithoutBrackets = language.replace(/^\[|\]$/g, '');
                 const validLanguages = ['EN', 'FR', 'PT', 'ES', 'JA', 'KO', 'AR', 'ZH', 'DE', 'HI', 'ID', 'IT', 'MS', 'NL', 'PL', 'TH', 'TL', 'TR', 'VI', 'en', 'fr', 'pt', 'es', 'ja', 'ko', 'ar', 'zh', 'de', 'hi', 'id', 'it', 'ms', 'nl', 'pl', 'th', 'tl', 'tr', 'vi'];
                 structureChecks.push(checkStructure('Language', language, validLanguages.includes(languageWithoutBrackets)));
                 
-                // Check date (last part)
-                const date = parts[parts.length - 1];
-                structureChecks.push(checkStructure('Date', date, /^\d{8}$/.test(date)));
+                // Check date (last part) - optional for AdManage format
+                if (hasDate) {
+                    const date = parts[parts.length - 1];
+                    structureChecks.push(checkStructure('Date', date, /^\d{8}$/.test(date)));
+                } else {
+                    structureChecks.push(checkStructure('Date', 'No date (optional)', true));
+                }
                 
                 // Content validation
                 contentChecks.push(validateHookContent(hookPart));

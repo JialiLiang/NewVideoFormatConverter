@@ -194,6 +194,27 @@ def enforce_iteration_from_raw(raw: str, corrected: str) -> str:
                 if iter_num is not None and not re.search(r"-ITE-\d+$", field2, flags=re.I):
                     field2 = f"{field2}-ITE-{iter_num}"
             parts[2] = field2
+    else:
+        # Basic format: [creator-type]_[filename]_[HOOK]_[VO]_[MUSIC]_[DIM]_[feature]_[language]
+        # Filename is at index 1
+        if len(parts) >= 8:
+            filename_idx = 1
+            filename = parts[filename_idx]
+            # Remove any trailing ITE; we'll re-apply cleanly
+            filename = re.sub(r"-ITE-\d+$", "", filename, flags=re.I)
+
+            # Add base num if present and not already there
+            if base_num is not None and not re.search(r"-\d+$", filename):
+                filename = f"{filename}-{base_num}"
+            elif base_num is None and iter_num is not None and not re.search(r"-\d+$", filename):
+                # If we have iteration but no base number, default to base 1
+                filename = f"{filename}-1"
+
+            # Append ITE if present
+            if iter_num is not None and not re.search(r"-ITE-\d+$", filename, flags=re.I):
+                filename = f"{filename}-ITE-{iter_num}"
+
+            parts[filename_idx] = filename
 
     # --- (2) If model hallucinated [it] from ITE, undo unless input explicitly set Italian ---
     raw_lang = extract_lang_hint(raw)
