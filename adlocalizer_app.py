@@ -229,8 +229,8 @@ def generate_elevenlabs_voice(text, language_code, output_directory, english_ide
         text_identifier = re.sub(r'[^a-zA-Z0-9]+', '_', text_identifier.strip())
         text_identifier = text_identifier.strip('_')
         
-        # Create filename with text_identifier, voice_name, and language_code
-        safe_name = f"{text_identifier}_{voice_name}_{language_code}"
+        # Create filename with text_identifier, voice_name, and language_code (with brackets)
+        safe_name = f"{text_identifier}_{voice_name}_[{language_code}]"
         output_file = f"{output_directory}/{safe_name}.mp3"
         
         elevenlabs_api_key = get_secret("ELEVENLABS_API_KEY")
@@ -1100,14 +1100,17 @@ def mix_audio():
                 # Create output filename with smart language code replacement
                 base_name = video_filename.split('.')[0]
                 
-                # Check if the filename ends with _EN and replace it with the target language
+                # Check if the filename ends with _EN or [en] and replace it with the target language
                 # Handle case variations and ensure clean replacement
                 if base_name.upper().endswith('_EN'):
-                    # Replace _EN with the target language code
-                    base_name = re.sub(r'_EN$', f'_{lang_code}', base_name, flags=re.IGNORECASE)
+                    # Replace _EN with the target language code (with brackets)
+                    base_name = re.sub(r'_EN$', f'_[{lang_code}]', base_name, flags=re.IGNORECASE)
+                elif re.search(r'\[en\]$', base_name, re.IGNORECASE):
+                    # Replace [en] with the target language code (with brackets)
+                    base_name = re.sub(r'\[en\]$', f'[{lang_code}]', base_name, flags=re.IGNORECASE)
                 else:
-                    # If no _EN found, append the language code as before
-                    base_name = f"{base_name}_{lang_code}"
+                    # If no _EN or [en] found, append the language code as before (with brackets)
+                    base_name = f"{base_name}_[{lang_code}]"
                 
                 # Add appropriate suffix based on options
                 if use_custom_music:
