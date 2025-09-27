@@ -13,7 +13,12 @@
    ```
    This downloads ~300MB of AI models for vocal removal.
 
-3. **Start the application**:
+3. **Install subtitle fonts** (ensures CJK/RTL captions render correctly):
+   ```bash
+   python3 setup_fonts.py
+   ```
+
+4. **Start the application**:
    ```bash
    python3 app.py
    ```
@@ -42,14 +47,14 @@
      - type: web
        name: video-converter
        env: python
-       buildCommand: "pip install -r requirements.txt && python3 setup_models.py"
+       buildCommand: "pip install -r requirements.txt && python3 setup_models.py && python3 setup_fonts.py"
        startCommand: "python3 app.py"
    ```
 
 ### Heroku Setup
 Add to `Procfile`:
 ```
-release: python3 setup_models.py
+release: python3 setup_models.py && python3 setup_fonts.py
 web: python3 app.py
 ```
 

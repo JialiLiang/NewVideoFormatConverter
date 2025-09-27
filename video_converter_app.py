@@ -194,6 +194,33 @@ def log_memory_usage(context=""):
     memory_mb = get_memory_usage()
     app_logger.info(f"Memory usage {context}: {memory_mb:.1f}MB")
 
+
+def format_duration(seconds):
+    """Convert seconds into a compact human-readable string"""
+    if seconds is None:
+        return None
+
+    total_seconds = max(0, int(round(seconds)))
+    minutes, secs = divmod(total_seconds, 60)
+
+    if minutes == 0:
+        return f"{secs}s"
+
+    hours, minutes = divmod(minutes, 60)
+    if hours == 0:
+        return f"{minutes}m {secs}s"
+
+    days, hours = divmod(hours, 24)
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes:
+        parts.append(f"{minutes}m")
+
+    return ' '.join(parts) if parts else f"{secs}s"
+
 # Routes are registered in app.py - these functions are imported there
 
 def upload_files():
@@ -244,7 +271,15 @@ def upload_files():
             'completed_tasks': 0,
             'results': [],
             'errors': [],
-            'created_at': datetime.now().isoformat()
+            'created_at': datetime.now().isoformat(),
+            'last_updated': datetime.now().isoformat(),
+            'started_at': None,
+            'elapsed_time_seconds': 0,
+            'elapsed_time_human': None,
+            'estimated_time_remaining_seconds': None,
+            'estimated_time_remaining_human': None,
+            'average_task_duration_seconds': None,
+            '_start_time_perf': None
         }
     
     # Start processing in background
@@ -264,12 +299,13 @@ def upload_files():
 
 def process_videos_background(job_id, input_files, formats, job_dir):
     """Process videos in background thread"""
-    
+    job_start_perf = None
+
     def should_cancel():
         """Check if processing should be cancelled"""
         with job_lock:
             return job_id not in processing_jobs or processing_jobs[job_id].get('cancel_requested', False)
-    
+
     def print_terminal_progress(progress, task_name="Processing"):
         """Print progress in terminal with single line update"""
         bar_length = 30
@@ -278,14 +314,54 @@ def process_videos_background(job_id, input_files, formats, job_dir):
         print(f'\r🎥 {task_name}: |{bar}| {progress:.1f}% ', end='', flush=True)
         if progress >= 100:
             print()  # New line when complete
+
+    def refresh_job_metrics_locked():
+        """Recompute timing estimates; expects caller to hold job_lock"""
+        nonlocal job_start_perf
+
+        job = processing_jobs.get(job_id)
+        if not job:
+            return
+
+        start_perf = job.get('_start_time_perf')
+        if start_perf is None:
+            start_perf = time.perf_counter()
+            job['_start_time_perf'] = start_perf
+            job['started_at'] = datetime.now().isoformat()
+            job_start_perf = start_perf
+
+        elapsed = max(0.0, time.perf_counter() - start_perf)
+        job['elapsed_time_seconds'] = elapsed
+        job['elapsed_time_human'] = format_duration(elapsed)
+
+        completed = job.get('completed_tasks', 0)
+        total = job.get('total_tasks', 0) or 0
+        remaining = max(total - completed, 0)
+
+        if completed > 0 and total > 0:
+            average = elapsed / completed if completed else None
+            eta_seconds = average * remaining if average is not None else None
+            job['average_task_duration_seconds'] = average
+            job['estimated_time_remaining_seconds'] = 0 if remaining == 0 else eta_seconds
+            job['estimated_time_remaining_human'] = format_duration(eta_seconds if eta_seconds is not None else 0)
+        else:
+            job['average_task_duration_seconds'] = None
+            job['estimated_time_remaining_seconds'] = None
+            job['estimated_time_remaining_human'] = None
+
+        job['last_updated'] = datetime.now().isoformat()
     
     try:
         with job_lock:
             processing_jobs[job_id]['status'] = 'processing'
-        
+            processing_jobs[job_id]['started_at'] = datetime.now().isoformat()
+            processing_jobs[job_id]['last_updated'] = datetime.now().isoformat()
+            job_start_perf = time.perf_counter()
+            processing_jobs[job_id]['_start_time_perf'] = job_start_perf
+
         print(f"🎬 Starting video conversion job: {job_id}")
         print_terminal_progress(0, "Initializing")
-        
+
         output_dir = os.path.join(job_dir, 'outputs')
         os.makedirs(output_dir, exist_ok=True)
         
@@ -356,6 +432,7 @@ def process_videos_background(job_id, input_files, formats, job_dir):
                             processing_jobs[job_id]['completed_tasks'] += 1
                             progress = (processing_jobs[job_id]['completed_tasks'] / processing_jobs[job_id]['total_tasks']) * 100
                             processing_jobs[job_id]['progress'] = progress
+                            refresh_job_metrics_locked()
                             
                             # Update terminal progress
                             print_terminal_progress(progress, f"Converting {video_name}")
@@ -380,7 +457,10 @@ def process_videos_background(job_id, input_files, formats, job_dir):
                     except Exception as e:
                         with job_lock:
                             processing_jobs[job_id]['completed_tasks'] += 1
+                            progress = (processing_jobs[job_id]['completed_tasks'] / processing_jobs[job_id]['total_tasks']) * 100
+                            processing_jobs[job_id]['progress'] = progress
                             processing_jobs[job_id]['errors'].append(f"Error processing {original_name} to {format_name}: {str(e)}")
+                            refresh_job_metrics_locked()
                         app_logger.error(f"Error in video processing: {str(e)}")
             
             app_logger.info(f"Completed processing video: {video_name}")
@@ -393,7 +473,11 @@ def process_videos_background(job_id, input_files, formats, job_dir):
         with job_lock:
             processing_jobs[job_id]['status'] = 'completed'
             processing_jobs[job_id]['progress'] = 100
-            
+            refresh_job_metrics_locked()
+            processing_jobs[job_id]['estimated_time_remaining_seconds'] = 0
+            processing_jobs[job_id]['estimated_time_remaining_human'] = format_duration(0)
+            processing_jobs[job_id].pop('_start_time_perf', None)
+
         print_terminal_progress(100, "Completed")
         print(f"✅ Job {job_id} completed successfully!")
             
@@ -401,6 +485,10 @@ def process_videos_background(job_id, input_files, formats, job_dir):
         with job_lock:
             processing_jobs[job_id]['status'] = 'error'
             processing_jobs[job_id]['errors'].append(f"Processing failed: {str(e)}")
+            refresh_job_metrics_locked()
+            processing_jobs[job_id]['estimated_time_remaining_seconds'] = None
+            processing_jobs[job_id]['estimated_time_remaining_human'] = None
+            processing_jobs[job_id].pop('_start_time_perf', None)
         app_logger.error(f"Background processing error: {str(e)}")
         print(f"\n❌ Job {job_id} failed: {str(e)}")
     finally:
@@ -414,15 +502,21 @@ def get_job_status(job_id):
         if job_id not in processing_jobs:
             return jsonify({'error': 'Job not found'}), 404
         
-        job_data = processing_jobs[job_id].copy()
-        # Don't send file paths to client for security, but keep them in the original data
-        if 'results' in job_data:
-            job_data['results'] = []
-            for result in processing_jobs[job_id]['results']:
-                safe_result = result.copy()
-                safe_result.pop('path', None)  # Remove path from the copy only
-                job_data['results'].append(safe_result)
-        
+        job_data = {}
+
+        for key, value in processing_jobs[job_id].items():
+            if key.startswith('_'):
+                continue
+
+            if key == 'results':
+                job_data['results'] = []
+                for result in value:
+                    safe_result = result.copy()
+                    safe_result.pop('path', None)
+                    job_data['results'].append(safe_result)
+            else:
+                job_data[key] = value
+
         return jsonify(job_data)
 
 def download_file(job_id, filename):
@@ -721,6 +815,10 @@ def cancel_job(job_id):
             if current_status == 'processing':
                 processing_jobs[job_id]['cancel_requested'] = True
                 processing_jobs[job_id]['status'] = 'cancelled'
+                processing_jobs[job_id]['estimated_time_remaining_seconds'] = None
+                processing_jobs[job_id]['estimated_time_remaining_human'] = None
+                processing_jobs[job_id]['last_updated'] = datetime.now().isoformat()
+                processing_jobs[job_id].pop('_start_time_perf', None)
                 print(f"🛑 Job {job_id} cancelled by user request")
                 return jsonify({'message': 'Job cancellation requested'})
             elif current_status in ['completed', 'error', 'cancelled']:
@@ -730,6 +828,10 @@ def cancel_job(job_id):
                 # Job is queued, mark as cancelled
                 processing_jobs[job_id]['cancel_requested'] = True
                 processing_jobs[job_id]['status'] = 'cancelled'
+                processing_jobs[job_id]['estimated_time_remaining_seconds'] = None
+                processing_jobs[job_id]['estimated_time_remaining_human'] = None
+                processing_jobs[job_id]['last_updated'] = datetime.now().isoformat()
+                processing_jobs[job_id].pop('_start_time_perf', None)
                 return jsonify({'message': 'Job cancelled before processing started'})
         else:
             return jsonify({'error': 'Job not found'}), 404

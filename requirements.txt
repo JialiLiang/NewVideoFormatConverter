@@ -17,6 +17,8 @@ psutil>=5.9.0
 aiofiles>=23.0.0
 pytube>=15.0.0
 yt-dlp>=2024.1.0
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
 # AI Vocal removal dependencies removed to reduce deployment size
 # The following dependencies were removed (saved ~3-4GB):
 # demucs>=4.0.0

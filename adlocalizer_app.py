@@ -23,6 +23,12 @@ from vocal_models_config import (
     validate_model_id
 )
 
+from subtitle_utils import (
+    burn_subtitles_onto_video,
+    generate_srt_file,
+    get_available_subtitle_styles,
+)
+
 # Load environment variables (for local development)
 load_dotenv()
 
@@ -149,6 +155,101 @@ from language_config import (
 # For external API compatibility when needed
 LEGACY_LANGUAGES = get_legacy_language_dict()
 
+SUBTITLE_STATE_KEY = 'subtitle_state'
+DEFAULT_SUBTITLE_STYLE = 'default'
+
+FILENAME_LANG_RE = re.compile(r'\[[^\]]+\](?!.*\[[^\]]+\])')
+FILENAME_MUSIC_FIELD_RE = re.compile(r'MUSIC-([^_]+)', re.IGNORECASE)
+FILENAME_TRAILING_MUSIC_RE = re.compile(r'_music-([^_]+)', re.IGNORECASE)
+FILENAME_HOOK_RE = re.compile(r'HOOK-[^_]+', re.IGNORECASE)
+
+
+def _sanitize_music_token(value):
+    token = re.sub(r'[^A-Za-z0-9\-]+', '', (value or '').strip())
+    return token or 'any'
+
+
+def _sanitize_language_token(value):
+    token = re.sub(r'[^A-Za-z0-9\-]+', '', (value or '').strip())
+    return token.lower() or 'en'
+
+
+def _derive_music_token(base_name: str, override: str | None = None) -> str:
+    if override:
+        return _sanitize_music_token(override)
+    match = FILENAME_TRAILING_MUSIC_RE.search(base_name)
+    if match:
+        return _sanitize_music_token(match.group(1))
+    match = FILENAME_MUSIC_FIELD_RE.search(base_name)
+    if match:
+        return _sanitize_music_token(match.group(1))
+    return 'any'
+
+
+def _apply_naming_updates(base_name: str, lang_iso: str, music_token: str, hook_override: str | None = None, ensure_sub_suffix: bool = False) -> str:
+    updated = base_name
+    sanitized_music = _sanitize_music_token(music_token)
+    sanitized_lang = _sanitize_language_token(lang_iso)
+
+    if FILENAME_MUSIC_FIELD_RE.search(updated):
+        updated = FILENAME_MUSIC_FIELD_RE.sub(f'MUSIC-{sanitized_music}', updated, count=1)
+    else:
+        updated = f'{updated}_MUSIC-{sanitized_music}'
+
+    if FILENAME_TRAILING_MUSIC_RE.search(updated):
+        updated = FILENAME_TRAILING_MUSIC_RE.sub(f'_music-{sanitized_music}', updated)
+    elif sanitized_music and sanitized_music != 'any':
+        updated = f'{updated}_music-{sanitized_music}'
+
+    if hook_override:
+        if FILENAME_HOOK_RE.search(updated):
+            updated = FILENAME_HOOK_RE.sub(hook_override, updated, count=1)
+        else:
+            updated = f'{hook_override}_{updated}'
+
+    if FILENAME_LANG_RE.search(updated):
+        updated = FILENAME_LANG_RE.sub(f'[{sanitized_lang}]', updated, count=1)
+    else:
+        updated = f'{updated}_[{sanitized_lang}]'
+
+    updated = re.sub(r'__+', '_', updated)
+    if ensure_sub_suffix and not updated.endswith('_subs'):
+        updated = f'{updated}_subs'
+    return updated
+
+
+def _init_subtitle_state(enabled=False, default_style=DEFAULT_SUBTITLE_STYLE, subtitles_dir=None):
+    state = {
+        'enabled': bool(enabled),
+        'default_style': default_style,
+        'subtitles_dir': subtitles_dir,
+        'languages': {},
+        'updated_at': datetime.now().isoformat(),
+    }
+    session[SUBTITLE_STATE_KEY] = state
+    return state
+
+
+def _get_subtitle_state():
+    return session.get(SUBTITLE_STATE_KEY)
+
+
+def _update_subtitle_state(state):
+    state['updated_at'] = datetime.now().isoformat()
+    session[SUBTITLE_STATE_KEY] = state
+
+
+def _update_subtitle_language_entry(lang_code, updates):
+    state = session.get(SUBTITLE_STATE_KEY)
+    if not state:
+        state = _init_subtitle_state()
+    languages = state.setdefault('languages', {})
+    entry = languages.get(lang_code.upper(), {})
+    entry.update(updates)
+    languages[lang_code.upper()] = entry
+    _update_subtitle_state(state)
+    return entry
+
 def get_enhanced_system_message(target_language, mode="faithful"):
     """Get enhanced system message for more localized translations"""
     if mode == "faithful":
@@ -202,7 +303,7 @@ def translate_text(text, target_language, translation_mode="faithful"):
         logging.error(f"Error translating to {target_language}: {str(e)}")
         return None
 
-def generate_elevenlabs_voice(text, language_code, output_directory, english_identifier, voice_id):
+def generate_elevenlabs_voice(text, language_code, output_directory, english_identifier, voice_id, model_id="eleven_multilingual_v2"):
     """Generate voice using ElevenLabs API"""
     if not eleven_labs_client:
         return None
@@ -246,7 +347,7 @@ def generate_elevenlabs_voice(text, language_code, output_directory, english_ide
         
         data = {
             "text": text,
-            "model_id": "eleven_multilingual_v2",
+            "model_id": model_id,
             "voice_settings": {
                 "stability": 0.5,
                 "similarity_boost": 0.75
@@ -541,6 +642,10 @@ def generate_voice():
         data = request.get_json()
         translations = data.get('translations', {})
         voice_id = data.get('voice_id')
+        voice_model = data.get('voice_model', 'eleven_multilingual_v2')
+        allowed_voice_models = {'eleven_multilingual_v2', 'eleven_v3'}
+        if voice_model not in allowed_voice_models:
+            voice_model = 'eleven_multilingual_v2'
         
         if not translations or not voice_id:
             return jsonify({'error': 'Translations and voice_id are required'}), 400
@@ -567,7 +672,12 @@ def generate_voice():
         
         for lang_code, translation in translations.items():
             output_file = generate_elevenlabs_voice(
-                translation, lang_code, str(audio_dir), english_identifier, voice_id
+                translation,
+                lang_code,
+                str(audio_dir),
+                english_identifier,
+                voice_id,
+                model_id=voice_model,
             )
             if output_file:
                 audio_files[lang_code] = output_file
@@ -1036,100 +1146,207 @@ def remove_vocals():
 
 def mix_audio():
     try:
-        data = request.get_json()
-        original_volume = data.get('original_volume', 0.8)
-        voiceover_volume = data.get('voiceover_volume', 1.3)
-        use_vocal_removal = data.get('use_vocal_removal', False)
-        use_custom_music = data.get('use_custom_music', False)
-        
+        data = request.get_json() or {}
+        original_volume = float(data.get('original_volume', 0.8))
+        voiceover_volume = float(data.get('voiceover_volume', 1.3))
+        use_vocal_removal = bool(data.get('use_vocal_removal', False))
+        use_custom_music = bool(data.get('use_custom_music', False))
+        add_subtitles = bool(data.get('add_subtitles', False))
+        subtitle_style = data.get('subtitle_style', DEFAULT_SUBTITLE_STYLE) or DEFAULT_SUBTITLE_STYLE
+
         audio_files = session.get('audio_files', {})
         video_path = session.get('video_path')
-        
-        # For custom music, we don't need audio files - we can just replace the video's audio
-        if use_custom_music:
-            if not video_path:
-                return jsonify({'error': 'Video path is required'}), 400
-        else:
-            if not audio_files or not video_path:
-                return jsonify({'error': 'Audio files and video path are required'}), 400
-        
-        # Handle custom music option
+
+        if not video_path:
+            return jsonify({'error': 'Video path is required'}), 400
+
+        if not use_custom_music and not audio_files:
+            return jsonify({'error': 'Audio files and video path are required'}), 400
+
         custom_music_path = None
         if use_custom_music:
             custom_music_path = session.get('custom_music_path')
-            if not custom_music_path or not os.path.exists(custom_music_path):
+            if use_custom_music and not custom_music_path:
                 return jsonify({'error': 'Custom music not available. Please upload a music file first.'}), 400
-        
-        # Use instrumental video if vocal removal was requested and is available (not used with custom music)
+
         elif use_vocal_removal:
             instrumental_video_path = session.get('instrumental_video_path')
             if instrumental_video_path and os.path.exists(instrumental_video_path):
                 video_path = instrumental_video_path
             else:
                 return jsonify({'error': 'Instrumental video not available. Please run vocal removal first.'}), 400
-        
-        # Create export directory
-        session_id = session.get('session_id')
+
+        available_styles = get_available_subtitle_styles()
+        style_ids = {style['id'] for style in available_styles}
+        if subtitle_style not in style_ids:
+            subtitle_style = DEFAULT_SUBTITLE_STYLE
+
+        session_id = session.get('session_id', str(uuid.uuid4()))
+        session['session_id'] = session_id
+
         base_dir = Path(f"temp_files/{session_id}")
         export_dir = base_dir / "export"
         export_dir.mkdir(parents=True, exist_ok=True)
-        
+        subtitles_dir = base_dir / "subtitles"
+
+        if add_subtitles:
+            _init_subtitle_state(True, subtitle_style, str(subtitles_dir))
+        else:
+            _init_subtitle_state(False, subtitle_style, None)
+
         mixed_videos = {}
+        subtitle_summary = {}
         video_filename = Path(video_path).name
-        
-        # Handle custom music without voiceovers
+
         if use_custom_music and not audio_files:
-            # Create a single output with just custom music (no voiceover)
             music_name = session.get('custom_music_name', 'custom_music')
-            
-            # Apply the same naming logic for consistency
             base_name = video_filename.split('.')[0]
             if base_name.upper().endswith('_EN'):
-                # Replace _EN with music suffix for custom music files
                 base_name = re.sub(r'_EN$', '', base_name, flags=re.IGNORECASE)
-            
-            # Format music name as music-{name}
-            suffix = f"_music-{music_name}"
-            output_file = export_dir / f"{base_name}{suffix}.mp4"
-            # Use None as audio_file to indicate no voiceover
+            output_file = export_dir / f"{base_name}_music-{music_name}.mp4"
             if mix_audio_with_video(None, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal, custom_music_path):
                 mixed_videos['custom_music'] = str(output_file)
+            if add_subtitles:
+                subtitle_summary['custom_music'] = {
+                    'status': 'skipped',
+                    'error': 'Subtitles require generated voiceovers',
+                }
         else:
-            # Normal case: loop through audio files (voiceovers)
             for lang_code, audio_file in audio_files.items():
-                # Create output filename with smart language code replacement
+                lang_key = lang_code.upper()
+
+                if not os.path.exists(audio_file):
+                    if add_subtitles:
+                        subtitle_summary[lang_key] = {
+                            'status': 'error',
+                            'error': 'Voiceover file missing',
+                        }
+                    continue
+
                 base_name = video_filename.split('.')[0]
-                
-                # Check if the filename ends with _EN or [en] and replace it with the target language
-                # Handle case variations and ensure clean replacement
                 if base_name.upper().endswith('_EN'):
-                    # Replace _EN with the target language code (with brackets)
                     base_name = re.sub(r'_EN$', f'_[{lang_code}]', base_name, flags=re.IGNORECASE)
                 elif re.search(r'\[en\]$', base_name, re.IGNORECASE):
-                    # Replace [en] with the target language code (with brackets)
                     base_name = re.sub(r'\[en\]$', f'[{lang_code}]', base_name, flags=re.IGNORECASE)
                 else:
-                    # If no _EN or [en] found, append the language code as before (with brackets)
                     base_name = f"{base_name}_[{lang_code}]"
-                
-                # Add appropriate suffix based on options
+
+                music_override = None
                 if use_custom_music:
-                    music_name = session.get('custom_music_name', 'custom_music')
-                    # Format music name as music-{name} instead of _{name}
-                    suffix = f"_music-{music_name}"
+                    music_override = session.get('custom_music_name', 'custom_music')
                 elif use_vocal_removal:
-                    suffix = "_instrumental"  
-                else:
-                    suffix = ""
-                    
-                output_file = export_dir / f"{base_name}{suffix}.mp4"
-                if mix_audio_with_video(audio_file, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal, custom_music_path):
-                    mixed_videos[lang_code] = str(output_file)
-        
+                    music_override = 'instrumental'
+
+                music_token = _derive_music_token(base_name, music_override)
+                clean_base = _apply_naming_updates(base_name, lang_code, music_token)
+                subtitle_base = _apply_naming_updates(base_name, lang_code, music_token, hook_override='HOOK-sub', ensure_sub_suffix=True)
+
+                output_file = export_dir / f"{clean_base}.mp4"
+                success = mix_audio_with_video(audio_file, video_path, str(output_file), original_volume, voiceover_volume, use_vocal_removal, custom_music_path)
+                if not success:
+                    if add_subtitles:
+                        subtitle_summary[lang_key] = {
+                            'status': 'error',
+                            'error': 'Failed to mix audio with video',
+                        }
+                    continue
+
+                mixed_videos[lang_key] = {'clean': str(output_file)}
+                summary_entry = {
+                    'status': 'ready',
+                    'clean_filename': Path(output_file).name,
+                    'clean_basename': clean_base,
+                }
+                if add_subtitles:
+                    summary_entry['subtitle_basename'] = subtitle_base
+
+                if add_subtitles:
+                    srt_result = generate_srt_file(audio_file, lang_key, subtitle_base, subtitles_dir, openai_client)
+                    if not srt_result.get('success'):
+                        error_message = srt_result.get('error', 'Subtitle transcription failed')
+                        summary_entry.update({'status': 'transcription_failed', 'error': error_message})
+                        _update_subtitle_language_entry(lang_key, {
+                            'status': 'transcription_failed',
+                            'error': error_message,
+                            'clean_video': str(output_file),
+                            'base_name': clean_base,
+                            'subtitle_basename': subtitle_base,
+                        })
+                    else:
+                        subtitle_output = export_dir / f"{subtitle_base}.mp4"
+                        fallback_note = 'Subtitle timing estimated (fallback)'
+                        if srt_result.get('fallback_used'):
+                            summary_entry.setdefault('notes', [])
+                            if fallback_note not in summary_entry['notes']:
+                                summary_entry['notes'].append(fallback_note)
+                        burn_result = burn_subtitles_onto_video(
+                            str(output_file),
+                            srt_result['srt_path'],
+                            str(subtitle_output),
+                            lang_key,
+                            subtitle_style,
+                            segments=srt_result.get('segments'),
+                        )
+                        if not burn_result.get('success'):
+                            error_message = burn_result.get('error', 'Failed to burn subtitles')
+                            summary_entry.update({'status': 'burn_failed', 'error': error_message})
+                            _update_subtitle_language_entry(lang_key, {
+                                'status': 'burn_failed',
+                                'error': error_message,
+                                'srt_path': srt_result['srt_path'],
+                                'srt_filename': srt_result['srt_filename'],
+                                'clean_video': str(output_file),
+                                'base_name': clean_base,
+                                'subtitle_basename': subtitle_base,
+                                'transcript_path': srt_result.get('transcript_path'),
+                            })
+                        else:
+                            mixed_videos[lang_key]['subtitled'] = burn_result['output_path']
+                            if burn_result.get('fallback_generated'):
+                                summary_entry.setdefault('notes', [])
+                                if fallback_note not in summary_entry['notes']:
+                                    summary_entry['notes'].append(fallback_note)
+                            summary_entry.update({
+                                'status': 'completed',
+                                'srt_filename': srt_result['srt_filename'],
+                                'subtitle_filename': Path(burn_result['output_path']).name,
+                                'style': subtitle_style,
+                                'fallback_used': srt_result.get('fallback_used', False),
+                                'fallback_generated': burn_result.get('fallback_generated', False),
+                                'transcript_path': srt_result.get('transcript_path'),
+                                'subtitle_basename': subtitle_base,
+                            })
+                            _update_subtitle_language_entry(lang_key, {
+                                'status': 'completed',
+                                'srt_path': srt_result['srt_path'],
+                                'srt_filename': srt_result['srt_filename'],
+                                'subtitle_video': burn_result['output_path'],
+                                'clean_video': str(output_file),
+                                'style': subtitle_style,
+                                'base_name': clean_base,
+                                'subtitle_basename': subtitle_base,
+                                'fallback_used': srt_result.get('fallback_used', False),
+                                'fallback_generated': burn_result.get('fallback_generated', False),
+                                'segments': burn_result.get('segments', srt_result.get('segments', [])),
+                                'notes': summary_entry.get('notes', []),
+                                'transcript_path': srt_result.get('transcript_path'),
+                            })
+
+                if add_subtitles:
+                    subtitle_summary[lang_key] = summary_entry
+
         session['mixed_videos'] = mixed_videos
         session['used_vocal_removal'] = use_vocal_removal
         session['used_custom_music'] = use_custom_music
-        return jsonify({'mixed_videos': mixed_videos})
+
+        response = {
+            'mixed_videos': mixed_videos,
+            'subtitles_enabled': add_subtitles,
+            'subtitle_data': subtitle_summary,
+            'subtitle_styles': available_styles,
+            'default_subtitle_style': subtitle_style,
+        }
+        return jsonify(response)
     except Exception as e:
         logging.error(f"Audio mixing error: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -1336,6 +1553,244 @@ def download_adlocalizer_file(filename):
         logging.error(f"Download error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+
+def download_subtitle_file(filename):
+    try:
+        session_id = session.get('session_id')
+        if not session_id:
+            return jsonify({'error': 'No session found'}), 404
+
+        state = _get_subtitle_state()
+        if not state or not state.get('subtitles_dir'):
+            return jsonify({'error': 'No subtitles available for download'}), 404
+
+        safe_name = Path(filename).name
+        subtitles_dir = Path(state['subtitles_dir'])
+        file_path = subtitles_dir / safe_name
+
+        if not file_path.exists():
+            return jsonify({'error': 'Subtitle file not found'}), 404
+
+        return send_file(
+            str(file_path),
+            as_attachment=True,
+            download_name=safe_name,
+            mimetype='text/plain',
+        )
+    except Exception as e:
+        logging.error(f"Subtitle download error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+def reburn_subtitles():
+    try:
+        data = request.get_json() or {}
+        lang_code = (data.get('language') or '').upper()
+        requested_style = data.get('style') or DEFAULT_SUBTITLE_STYLE
+
+        if not lang_code:
+            return jsonify({'error': 'Language code is required'}), 400
+
+        available_styles = {style['id'] for style in get_available_subtitle_styles()}
+        if requested_style not in available_styles:
+            requested_style = DEFAULT_SUBTITLE_STYLE
+
+        state = _get_subtitle_state()
+        if not state or not state.get('languages'):
+            return jsonify({'error': 'No subtitle data available'}), 404
+
+        entry = state['languages'].get(lang_code)
+        if not entry:
+            return jsonify({'error': f'No subtitles found for {lang_code}'}), 404
+
+        srt_path = entry.get('srt_path')
+        clean_video = entry.get('clean_video')
+        base_name = entry.get('base_name') or (Path(clean_video).stem if clean_video else None)
+        subtitle_base = entry.get('subtitle_basename') or (f"{base_name}_subs" if base_name else None)
+
+        if not srt_path or not clean_video or not base_name or not subtitle_base:
+            return jsonify({'error': 'Subtitle data is incomplete for this language'}), 400
+
+        subtitle_output = entry.get('subtitle_video')
+        if not subtitle_output:
+            subtitle_output = str(Path(clean_video).with_name(f"{subtitle_base}.mp4"))
+
+        burn_result = burn_subtitles_onto_video(
+            clean_video,
+            srt_path,
+            subtitle_output,
+            lang_code,
+            requested_style,
+        )
+
+        if not burn_result.get('success'):
+            return jsonify({'error': burn_result.get('error', 'Failed to burn subtitles')}), 500
+
+        notes = list(entry.get('notes', []))
+        if burn_result.get('fallback_generated'):
+            note_text = 'Subtitle timing estimated (fallback)'
+            if note_text not in notes:
+                notes = notes + [note_text]
+
+        _update_subtitle_language_entry(lang_code, {
+            'status': 'completed',
+            'subtitle_video': burn_result['output_path'],
+            'subtitle_filename': Path(burn_result['output_path']).name,
+            'style': requested_style,
+            'fallback_used': entry.get('fallback_used', False),
+            'fallback_generated': burn_result.get('fallback_generated', False),
+            'segments': burn_result.get('segments', entry.get('segments', [])),
+            'notes': notes,
+            'transcript_path': entry.get('transcript_path'),
+            'base_name': base_name,
+            'subtitle_basename': subtitle_base,
+        })
+
+        mixed_videos = session.get('mixed_videos', {})
+        current_entry = mixed_videos.get(lang_code)
+        if isinstance(current_entry, dict):
+            current_entry['subtitled'] = burn_result['output_path']
+        elif isinstance(current_entry, str):
+            mixed_videos[lang_code] = {
+                'clean': current_entry,
+                'subtitled': burn_result['output_path'],
+            }
+        else:
+            mixed_videos[lang_code] = {
+                'clean': clean_video,
+                'subtitled': burn_result['output_path'],
+            }
+        session['mixed_videos'] = mixed_videos
+
+        payload = {
+            'language': lang_code,
+            'status': 'completed',
+            'style': requested_style,
+            'subtitle_filename': Path(burn_result['output_path']).name,
+            'srt_filename': Path(srt_path).name,
+            'fallback_used': entry.get('fallback_used', False),
+            'fallback_generated': burn_result.get('fallback_generated', False),
+            'notes': notes,
+            'transcript_path': entry.get('transcript_path'),
+        }
+
+        return jsonify({'success': True, 'subtitle': payload, 'mixed_videos': {lang_code: mixed_videos[lang_code]}})
+    except Exception as e:
+        logging.error(f"Re-burn subtitles error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+def retry_subtitles():
+    try:
+        data = request.get_json() or {}
+        lang_code = (data.get('language') or '').upper()
+        requested_style = data.get('style') or DEFAULT_SUBTITLE_STYLE
+
+        if not lang_code:
+            return jsonify({'error': 'Language code is required'}), 400
+
+        available_styles = {style['id'] for style in get_available_subtitle_styles()}
+        if requested_style not in available_styles:
+            requested_style = DEFAULT_SUBTITLE_STYLE
+
+        state = _get_subtitle_state()
+        if not state:
+            return jsonify({'error': 'No subtitle data available'}), 404
+
+        entry = (state.get('languages') or {}).get(lang_code)
+        if not entry:
+            return jsonify({'error': f'No subtitles found for {lang_code}'}), 404
+
+        audio_files = session.get('audio_files', {})
+        audio_file = audio_files.get(lang_code)
+        if not audio_file or not os.path.exists(audio_file):
+            return jsonify({'error': 'Voiceover audio missing for retry'}), 404
+
+        clean_video = entry.get('clean_video')
+        base_name = entry.get('base_name') or (Path(clean_video).stem if clean_video else None)
+        subtitle_base = entry.get('subtitle_basename') or (f"{base_name}_subs" if base_name else None)
+        if not clean_video or not base_name or not subtitle_base:
+            return jsonify({'error': 'Subtitle data is incomplete for this language'}), 400
+
+        session_id = session.get('session_id')
+        if not session_id:
+            return jsonify({'error': 'No active session'}), 404
+
+        base_dir = Path(f"temp_files/{session_id}")
+        subtitles_dir = Path(state.get('subtitles_dir') or (base_dir / 'subtitles'))
+
+        srt_result = generate_srt_file(audio_file, lang_code, subtitle_base, subtitles_dir, openai_client)
+        if not srt_result.get('success'):
+            return jsonify({'error': srt_result.get('error', 'Subtitle transcription failed')}), 500
+
+        subtitle_output = entry.get('subtitle_video') or str(Path(clean_video).with_name(f"{subtitle_base}.mp4"))
+        fallback_notes = list(entry.get('notes', []))
+        note_text = 'Subtitle timing estimated (fallback)'
+        if srt_result.get('fallback_used') and note_text not in fallback_notes:
+            fallback_notes = fallback_notes + [note_text]
+        burn_result = burn_subtitles_onto_video(
+            clean_video,
+            srt_result['srt_path'],
+            subtitle_output,
+            lang_code,
+            requested_style,
+            segments=srt_result.get('segments'),
+        )
+
+        if not burn_result.get('success'):
+            return jsonify({'error': burn_result.get('error', 'Failed to burn subtitles')}), 500
+
+        if burn_result.get('fallback_generated') and note_text not in fallback_notes:
+            fallback_notes = fallback_notes + [note_text]
+
+        _update_subtitle_language_entry(lang_code, {
+            'status': 'completed',
+            'srt_path': srt_result['srt_path'],
+            'srt_filename': srt_result['srt_filename'],
+            'subtitle_video': burn_result['output_path'],
+            'subtitle_filename': Path(burn_result['output_path']).name,
+            'style': requested_style,
+            'base_name': base_name,
+            'subtitle_basename': subtitle_base,
+            'fallback_used': srt_result.get('fallback_used', False),
+            'fallback_generated': burn_result.get('fallback_generated', False),
+            'segments': burn_result.get('segments', srt_result.get('segments', [])),
+            'notes': fallback_notes,
+            'transcript_path': srt_result.get('transcript_path'),
+        })
+
+        mixed_videos = session.get('mixed_videos', {})
+        if isinstance(mixed_videos.get(lang_code), dict):
+            mixed_videos[lang_code]['subtitled'] = burn_result['output_path']
+        elif isinstance(mixed_videos.get(lang_code), str):
+            mixed_videos[lang_code] = {
+                'clean': mixed_videos[lang_code],
+                'subtitled': burn_result['output_path'],
+            }
+        else:
+            mixed_videos[lang_code] = {
+                'clean': clean_video,
+                'subtitled': burn_result['output_path'],
+            }
+        session['mixed_videos'] = mixed_videos
+
+        payload = {
+            'language': lang_code,
+            'status': 'completed',
+            'style': requested_style,
+            'srt_filename': srt_result['srt_filename'],
+            'subtitle_filename': Path(burn_result['output_path']).name,
+            'fallback_used': srt_result.get('fallback_used', False),
+            'fallback_generated': burn_result.get('fallback_generated', False),
+            'notes': fallback_notes,
+            'transcript_path': srt_result.get('transcript_path'),
+        }
+
+        return jsonify({'success': True, 'subtitle': payload, 'mixed_videos': {lang_code: mixed_videos[lang_code]}})
+    except Exception as e:
+        logging.error(f"Retry subtitles error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 def create_streaming_download_response(file_path, filename):
     """Create optimized streaming response for large file downloads"""
     import os
@@ -1444,9 +1899,13 @@ def download_all_adlocalizer():
         
         # Get valid files for ZIP
         valid_files = []
-        for lang_code, video_path in mixed_videos.items():
-            if os.path.exists(video_path):
-                valid_files.append((video_path, os.path.basename(video_path)))
+        for lang_code, video_entry in mixed_videos.items():
+            if isinstance(video_entry, dict):
+                for variant_path in video_entry.values():
+                    if variant_path and os.path.exists(variant_path):
+                        valid_files.append((variant_path, os.path.basename(variant_path)))
+            elif isinstance(video_entry, str) and os.path.exists(video_entry):
+                valid_files.append((video_entry, os.path.basename(video_entry)))
         
         if not valid_files:
             return jsonify({'error': 'No valid videos found'}), 404

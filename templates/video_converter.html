@@ -146,16 +146,22 @@
                             <div class="alert alert-info">
                                 <i class="fas fa-spinner fa-spin"></i> <span id="statusText">Processing your videos...</span>
                             </div>
-                            <div class="progress mb-3">
-                                <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%">
-                                    <span id="progressText">0%</span>
-                                </div>
+                        <div class="progress mb-3">
+                            <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%">
+                                <span id="progressText">0%</span>
                             </div>
-                            <div class="text-center">
-                                <button type="button" class="btn btn-outline-danger" id="cancelBtn" onclick="cancelProcessing()">
-                                    <i class="fas fa-stop"></i> Cancel Processing
-                                </button>
-                            </div>
+                        </div>
+                        <div class="text-center text-muted mb-3" id="etaContainer" style="display: none;">
+                            <small>
+                                <i class="fas fa-hourglass-half me-1"></i>
+                                Estimated time remaining: <span id="etaText">--</span>
+                            </small>
+                        </div>
+                        <div class="text-center">
+                            <button type="button" class="btn btn-outline-danger" id="cancelBtn" onclick="cancelProcessing()">
+                                <i class="fas fa-stop"></i> Cancel Processing
+                            </button>
+                        </div>
                         </div>
 
                                 <!-- Progressive Results Section -->
@@ -213,6 +219,8 @@
         const uploadArea = document.getElementById('uploadArea');
         const fileList = document.getElementById('fileList');
         const convertBtn = document.getElementById('convertBtn');
+        const etaContainer = document.getElementById('etaContainer');
+        const etaText = document.getElementById('etaText');
 
         fileInput.addEventListener('change', handleFiles);
         uploadArea.addEventListener('click', () => fileInput.click());
@@ -412,10 +420,14 @@
             document.getElementById('statusText').textContent = text;
             document.getElementById('statusCard').style.display = 'block';
             document.getElementById('resultsSection').style.display = 'none';
+            etaContainer.style.display = 'none';
+            etaText.textContent = '--';
         }
 
         function hideStatus() {
             document.getElementById('statusCard').style.display = 'none';
+            etaContainer.style.display = 'none';
+            etaText.textContent = '--';
         }
 
         function updateProgress(progress) {
@@ -423,6 +435,71 @@
             const progressText = document.getElementById('progressText');
             progressBar.style.width = progress + '%';
             progressText.textContent = Math.round(progress) + '%';
+        }
+
+        function formatSeconds(seconds) {
+            if (seconds === null || seconds === undefined || Number.isNaN(seconds)) {
+                return null;
+            }
+
+            const totalSeconds = Math.max(0, Math.round(seconds));
+            const minutes = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
+
+            if (minutes === 0) {
+                return `${secs}s`;
+            }
+
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+
+            if (hours === 0) {
+                return `${mins}m ${secs}s`;
+            }
+
+            const days = Math.floor(hours / 24);
+            const hrs = hours % 24;
+            const parts = [];
+
+            if (days > 0) {
+                parts.push(`${days}d`);
+            }
+            if (hrs > 0) {
+                parts.push(`${hrs}h`);
+            }
+            if (mins > 0) {
+                parts.push(`${mins}m`);
+            }
+
+            return parts.length > 0 ? parts.join(' ') : `${secs}s`;
+        }
+
+        function updateEta(status) {
+            if (!status) {
+                etaContainer.style.display = 'none';
+                etaText.textContent = '--';
+                return;
+            }
+
+            if (status.status === 'processing') {
+                const etaHuman = status.estimated_time_remaining_human;
+                const etaSeconds = status.estimated_time_remaining_seconds;
+                const formatted = etaHuman || formatSeconds(etaSeconds);
+
+                if (formatted) {
+                    etaContainer.style.display = 'block';
+                    etaText.textContent = formatted;
+                } else {
+                    etaContainer.style.display = 'block';
+                    etaText.textContent = 'Calculating...';
+                }
+            } else if (status.status === 'completed') {
+                etaContainer.style.display = 'block';
+                etaText.textContent = '0s';
+            } else {
+                etaContainer.style.display = 'none';
+                etaText.textContent = '--';
+            }
         }
 
         function startStatusPolling() {
@@ -448,6 +525,7 @@
                     if (status.status === 'processing') {
                         showStatus('Processing videos...');
                         updateProgress(status.progress);
+                        updateEta(status);
                         
                         // Show progressive results
                         if (status.results && status.results.length > 0) {
@@ -455,6 +533,7 @@
                         }
                     } else if (status.status === 'completed') {
                         clearInterval(statusInterval);
+                        updateEta(status);
                         showProgressiveCompleted(status);
                     } else if (status.status === 'error') {
                         clearInterval(statusInterval);

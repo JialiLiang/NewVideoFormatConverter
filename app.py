@@ -425,6 +425,33 @@ def api_download_all_voiceovers():
     except ImportError:
         return jsonify({'error': 'AdLocalizer functionality not available'}), 500
 
+
+@app.route('/adlocalizer/subtitles/<path:filename>')
+def api_download_subtitle(filename):
+    try:
+        from adlocalizer_app import download_subtitle_file
+        return download_subtitle_file(filename)
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
+
+
+@app.route('/api/subtitles/reburn', methods=['POST'])
+def api_reburn_subtitles():
+    try:
+        from adlocalizer_app import reburn_subtitles
+        return reburn_subtitles()
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
+
+
+@app.route('/api/subtitles/retry', methods=['POST'])
+def api_retry_subtitles():
+    try:
+        from adlocalizer_app import retry_subtitles
+        return retry_subtitles()
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
+
 @app.route('/api/extract-playlist', methods=['POST'])
 def api_extract_playlist():
     """Extract video IDs from YouTube playlist"""
