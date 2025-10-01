@@ -213,6 +213,7 @@
         let statusInterval = null;
         let knownResults = new Set(); // Track which results we've already shown
         let allowNavigation = false; // Flag to allow navigation during downloads
+        let jobNotFoundNotified = false; // Prevent repeat alerts when a job disappears
 
         // File input handling
         const fileInput = document.getElementById('fileInput');
@@ -404,6 +405,7 @@
 
                 const result = await response.json();
                 currentJobId = result.job_id;
+                jobNotFoundNotified = false;
                 
                 // Start polling for status
                 startStatusPolling();
@@ -481,7 +483,10 @@
                 return;
             }
 
-            if (status.status === 'processing') {
+            const statusValue = status.status;
+            const isCompleted = ['completed', 'completed_with_errors'].includes(statusValue);
+
+            if (statusValue === 'processing') {
                 const etaHuman = status.estimated_time_remaining_human;
                 const etaSeconds = status.estimated_time_remaining_seconds;
                 const formatted = etaHuman || formatSeconds(etaSeconds);
@@ -493,7 +498,7 @@
                     etaContainer.style.display = 'block';
                     etaText.textContent = 'Calculating...';
                 }
-            } else if (status.status === 'completed') {
+            } else if (isCompleted) {
                 etaContainer.style.display = 'block';
                 etaText.textContent = '0s';
             } else {
@@ -516,30 +521,54 @@
             statusInterval = setInterval(async () => {
                 try {
                     const response = await fetch(`/status/${currentJobId}`);
+                    if (response.status === 404) {
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                        currentJobId = null;
+                        convertBtn.disabled = false;
+                        hideStatus();
+                        updateProgress(0);
+                        if (!jobNotFoundNotified) {
+                            alert('This conversion job is no longer available. Please upload the videos again.');
+                            jobNotFoundNotified = true;
+                        }
+                        return;
+                    }
+
                     if (!response.ok) {
-                        throw new Error('Failed to get status');
+                        throw new Error(`Failed to get status (HTTP ${response.status})`);
                     }
 
                     const status = await response.json();
+                    const statusValue = status.status;
+                    const isCompleted = ['completed', 'completed_with_errors'].includes(statusValue);
                     
-                    if (status.status === 'processing') {
-                        showStatus('Processing videos...');
-                        updateProgress(status.progress);
+                    if (statusValue === 'processing' || statusValue === 'queued') {
+                        showStatus(statusValue === 'queued' ? 'Job queued...' : 'Processing videos...');
+                        updateProgress(status.progress || 0);
                         updateEta(status);
                         
                         // Show progressive results
                         if (status.results && status.results.length > 0) {
                             updateProgressiveResults(status);
                         }
-                    } else if (status.status === 'completed') {
+                    } else if (isCompleted) {
                         clearInterval(statusInterval);
+                        statusInterval = null;
                         updateEta(status);
                         showProgressiveCompleted(status);
                     } else if (status.status === 'error') {
                         clearInterval(statusInterval);
+                        statusInterval = null;
                         alert('Processing failed: ' + (status.errors?.[0] || 'Unknown error'));
                         convertBtn.disabled = false;
                         hideStatus();
+                    } else if (status.status === 'cancelled') {
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                        convertBtn.disabled = false;
+                        hideStatus();
+                        alert('Processing was cancelled.');
                     }
                 } catch (error) {
                     console.error('Status polling error:', error);
@@ -553,7 +582,7 @@
             // Add new results that we haven't shown yet
             if (status.results) {
                 status.results.forEach(result => {
-                    const resultKey = `${result.filename}`;
+                    const resultKey = result.task_id || result.filename;
                     if (!knownResults.has(resultKey)) {
                         knownResults.add(resultKey);
                         
@@ -593,6 +622,7 @@
         function showProgressiveCompleted(status) {
             hideStatus();
             convertBtn.disabled = false;
+            updateProgress(100);
             
             // Show completion summary
             document.getElementById('completionSummary').style.display = 'block';
