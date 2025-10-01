@@ -10,6 +10,8 @@ A comprehensive video processing toolkit with multiple tools for video conversio
 - High-quality output with optimized settings
 - Progressive results display
 - Background processing with real-time progress
+- Streamed uploads keep memory usage flat even for large batches
+- Resilient task queue with parallel conversions, retries, and per-file error handling
 
 ### AdLocalizer (AI-Powered Video Localization)
 - **Fixed**: Drag and drop video upload functionality
@@ -81,11 +83,31 @@ pip install -r requirements.txt
 OPENAI_API_KEY=your_openai_api_key
 ELEVENLABS_API_KEY=your_elevenlabs_api_key
 SECRET_KEY=your_secret_key
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:5000/api/auth/google/callback
+FRONTEND_URL=http://localhost:5173
+FRONTEND_APP_PATH=/app
+FRONTEND_LOGIN_PATH=/login
+SESSION_COOKIE_SECURE=false
+SESSION_LIFETIME_DAYS=7
+# Optional video converter tuning
+VIDEO_UPLOAD_MAX_MB=0             # 0 disables Flask's request cap, fallback 2048
+VIDEO_UPLOAD_CHUNK_MB=8           # Chunks used when persisting uploads
+VIDEO_PROCESS_MAX_WORKERS=0       # 0 uses min(4, CPU cores)
+VIDEO_PROCESS_MAX_RETRIES=1       # Retries per failed task
 ```
 
 4. Run the application:
 ```bash
 python3 app.py --port 8000
+```
+
+5. Start the React shell (new UI, optional during migration):
+```bash
+cd web
+npm install
+npm run dev
 ```
 
 ## 🌐 Usage
@@ -94,8 +116,8 @@ python3 app.py --port 8000
 1. Visit `http://localhost:8000/video-converter`
 2. Drag and drop or select video files
 3. Choose output formats (square, landscape, vertical)
-4. Click "Convert Videos" and wait for processing
-5. Download individual files or all as ZIP
+4. Click "Convert Videos" and monitor per-file progress (queued → running → success/fail)
+5. Download individual files or all as ZIP; completed jobs with failures still expose the successful renders
 
 ### AdLocalizer
 1. Visit `http://localhost:8000/adlocalizer`
@@ -106,6 +128,25 @@ python3 app.py --port 8000
 6. Generate voiceovers
 7. Upload video for mixing
 8. Download localized videos
+
+### AdLocalizer (React)
+1. Start the React shell, log in, and open `http://localhost:5173/app/adlocalizer`
+2. Upload media to transcribe, or paste copy manually
+3. Select languages, translation tone, and generate localized voiceovers
+4. Upload the base video, optionally add custom/default music, and run the mix step
+5. Download localized renders or the voiceover bundle directly from the React console
+
+### Name Generator (React)
+1. Start the React shell and sign in via `/login`
+2. Open `http://localhost:5173/app/name-generator`
+3. Fill in creative metadata and copy the generated filename or iteration helper output
+4. Use the validator section to confirm legacy names and trigger AI correction if needed
+
+### Video Converter (React)
+1. Open `http://localhost:5173/app/video-converter`
+2. Drop MP4/MOV assets (≤100 MB each) and choose target formats (square, vertical, landscape)
+3. Launch the queue and monitor progress from the React dashboard
+4. Download individual renders or the combined ZIP directly from the results panel
 
 ## 🔧 Configuration
 
@@ -121,6 +162,16 @@ Edit `video_converter.py` to:
 - Modify output formats
 - Adjust quality settings
 - Change processing parameters
+
+#### Backend job tuning
+The converter now exposes additional environment overrides:
+
+- `VIDEO_UPLOAD_MAX_MB` – Total request cap; set to `0` to accept chunked uploads of any size (default 2048 MB).
+- `VIDEO_UPLOAD_CHUNK_MB` – Chunk size used when streaming uploads to disk (minimum 0.25 MB).
+- `VIDEO_PROCESS_MAX_WORKERS` – Hard limit on concurrent ffmpeg jobs; defaults to `min(4, CPU cores)`.
+- `VIDEO_PROCESS_MAX_RETRIES` – Automatic retry attempts per failed conversion task.
+
+These controls let you balance throughput and resource usage per deployment tier.
 
 ## 🐛 Troubleshooting
 
@@ -148,10 +199,10 @@ Edit `video_converter.py` to:
 ## 📝 API Endpoints
 
 ### Video Converter
-- `POST /upload` - Upload videos for conversion
-- `GET /status/<job_id>` - Get conversion status
+- `POST /upload` - Upload videos for conversion (streamed writes, returns `job_id`)
+- `GET /status/<job_id>` - Get conversion status (includes overall metrics plus per-task state, attempts, errors)
 - `GET /download/<job_id>/<filename>` - Download converted file
-- `GET /download_zip/<job_id>` - Download all files as ZIP
+- `GET /download_zip/<job_id>` - Download all successful files as ZIP
 
 ### AdLocalizer
 - `POST /api/transcribe` - Transcribe video audio

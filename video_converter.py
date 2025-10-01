@@ -97,6 +97,8 @@ def process_video(input_path, output_path, format_type, progress_callback=None):
             create_landscape_video(input_path, output_path)
         elif format_type == "vertical":
             create_vertical_blur_video(input_path, output_path)
+        else:
+            raise ValueError(f"Unsupported format type: {format_type}")
         
         if progress_callback:
             progress_callback()
@@ -105,13 +107,14 @@ def process_video(input_path, output_path, format_type, progress_callback=None):
         gc.collect()
         
         logging.info(f"Successfully converted to {format_type}: {os.path.basename(output_path)}")
-        return True
+        return True, None
     except Exception as e:
-        logging.error(f"Error processing video {os.path.basename(input_path)}: {str(e)}")
+        error_message = str(e)
+        logging.error(f"Error processing video {os.path.basename(input_path)}: {error_message}")
         # Force cleanup on error
         import gc
         gc.collect()
-        return False
+        return False, error_message
 
 # Patch moviepy's resize function to use the correct Pillow constant
 def patched_resize(clip, newsize=None, height=None, width=None, apply_to_mask=True):

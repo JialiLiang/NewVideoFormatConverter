@@ -17,6 +17,7 @@ import argparse
 import gc
 import io
 import glob
+from collections import deque
 try:
     import psutil
     PSUTIL_AVAILABLE = True
@@ -35,7 +36,43 @@ from video_converter import (
 )
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB max file size (reduced for memory)
+
+# Resolve upload limits & streaming settings from environment for large batches
+try:
+    _configured_max_upload_mb = int(os.environ.get('VIDEO_UPLOAD_MAX_MB', '2048'))
+except (TypeError, ValueError):
+    _configured_max_upload_mb = 2048  # Fallback to 2GB total payload
+
+if _configured_max_upload_mb and _configured_max_upload_mb > 0:
+    app.config['MAX_CONTENT_LENGTH'] = _configured_max_upload_mb * 1024 * 1024
+else:
+    # None removes Flask's request limit so chunked uploads can flow through
+    app.config.pop('MAX_CONTENT_LENGTH', None)
+
+try:
+    _configured_chunk_mb = int(os.environ.get('VIDEO_UPLOAD_CHUNK_MB', '8'))
+except (TypeError, ValueError):
+    _configured_chunk_mb = 8
+
+UPLOAD_CHUNK_BYTES = max(256 * 1024, _configured_chunk_mb * 1024 * 1024)
+
+# Concurrency controls for background conversion jobs
+_cpu_count = os.cpu_count() or 2
+try:
+    _configured_workers = int(os.environ.get('VIDEO_PROCESS_MAX_WORKERS', '0'))
+except (TypeError, ValueError):
+    _configured_workers = 0
+
+if _configured_workers > 0:
+    MAX_CONCURRENT_TASKS = max(1, _configured_workers)
+else:
+    # Default to a balanced number of workers to avoid overloading shared hosts
+    MAX_CONCURRENT_TASKS = max(1, min(4, _cpu_count))
+
+try:
+    MAX_TASK_RETRIES = max(0, int(os.environ.get('VIDEO_PROCESS_MAX_RETRIES', '1')))
+except (TypeError, ValueError):
+    MAX_TASK_RETRIES = 1
 
 # Use a persistent directory for uploads instead of temp directory
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -70,6 +107,28 @@ ALLOWED_EXTENSIONS = {'mp4', 'mov'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def stream_save_file(file_storage, destination_path, chunk_size=UPLOAD_CHUNK_BYTES):
+    """Persist an uploaded file to disk without loading the full payload into memory."""
+    os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+
+    file_stream = getattr(file_storage, 'stream', None)
+    if file_stream and hasattr(file_stream, 'seek'):
+        try:
+            file_stream.seek(0)
+        except (OSError, io.UnsupportedOperation):
+            pass
+
+    bytes_written = 0
+    with open(destination_path, 'wb') as output_file:
+        while True:
+            chunk = file_storage.stream.read(chunk_size)
+            if not chunk:
+                break
+            output_file.write(chunk)
+            bytes_written += len(chunk)
+
+    return bytes_written
 
 def detect_naming_convention_and_replace(original_filename, target_format):
     """
@@ -233,8 +292,6 @@ def upload_files():
     if not files or not formats:
         return jsonify({'error': 'No files or formats selected'}), 400
     
-    # No file count limit - processing is sequential anyway
-    
     # Validate files
     valid_files = []
     for file in files:
@@ -251,15 +308,22 @@ def upload_files():
     job_dir = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
     os.makedirs(job_dir, exist_ok=True)
     
-    # Save uploaded files
+    # Save uploaded files using streaming writes to avoid memory spikes
     input_files = []
     for i, file in enumerate(valid_files):
         filename = secure_filename(file.filename)
         input_path = os.path.join(job_dir, f"input_{i}_{filename}")
-        file.save(input_path)
+        try:
+            bytes_written = stream_save_file(file, input_path)
+        except Exception as exc:
+            app_logger.error(f"Failed to persist upload {filename}: {exc}")
+            shutil.rmtree(job_dir, ignore_errors=True)
+            return jsonify({'error': f'Could not save {filename}. Please try again.'}), 500
+
         input_files.append({
             'path': input_path,
-            'original_name': filename
+            'original_name': filename,
+            'size_bytes': bytes_written
         })
     
     # Initialize job status
@@ -269,6 +333,7 @@ def upload_files():
             'progress': 0,
             'total_tasks': len(input_files) * len(formats),
             'completed_tasks': 0,
+            'failed_tasks': 0,
             'results': [],
             'errors': [],
             'created_at': datetime.now().isoformat(),
@@ -279,7 +344,12 @@ def upload_files():
             'estimated_time_remaining_seconds': None,
             'estimated_time_remaining_human': None,
             'average_task_duration_seconds': None,
-            '_start_time_perf': None
+            'status_message': 'Queued for processing',
+            '_start_time_perf': None,
+            'tasks': {},
+            'task_order': [],
+            'requested_formats': formats,
+            'max_retries': MAX_TASK_RETRIES
         }
     
     # Start processing in background
@@ -298,204 +368,350 @@ def upload_files():
     return jsonify({'job_id': job_id})
 
 def process_videos_background(job_id, input_files, formats, job_dir):
-    """Process videos in background thread"""
+    """Process videos in a background worker with limited concurrency and retries."""
     job_start_perf = None
 
     def should_cancel():
-        """Check if processing should be cancelled"""
+        """Check if processing should be cancelled."""
         with job_lock:
-            return job_id not in processing_jobs or processing_jobs[job_id].get('cancel_requested', False)
+            job = processing_jobs.get(job_id)
+            return job is None or job.get('cancel_requested', False)
 
     def print_terminal_progress(progress, task_name="Processing"):
-        """Print progress in terminal with single line update"""
+        """Print progress in terminal with single line update."""
         bar_length = 30
-        filled_length = int(bar_length * progress // 100)
+        filled_length = int(bar_length * progress // 100) if progress is not None else 0
         bar = '█' * filled_length + '-' * (bar_length - filled_length)
-        print(f'\r🎥 {task_name}: |{bar}| {progress:.1f}% ', end='', flush=True)
-        if progress >= 100:
-            print()  # New line when complete
+        progress_display = f"{progress:.1f}%" if progress is not None else "--"
+        print(f'\r🎥 {task_name}: |{bar}| {progress_display} ', end='', flush=True)
+        if progress is not None and progress >= 100:
+            print()
 
     def refresh_job_metrics_locked():
-        """Recompute timing estimates; expects caller to hold job_lock"""
+        """Recompute timing and progress metrics; caller must hold job_lock."""
         nonlocal job_start_perf
 
         job = processing_jobs.get(job_id)
         if not job:
             return
 
-        start_perf = job.get('_start_time_perf')
-        if start_perf is None:
+        total = max(job.get('total_tasks', 0) or 0, 0)
+        completed = max(job.get('completed_tasks', 0), 0)
+        failed = max(job.get('failed_tasks', 0), 0)
+        success_count = max(completed - failed, 0)
+        remaining = max(total - completed, 0)
+
+        # Drive overall progress from counters rather than scattered updates
+        if total > 0:
+            job['progress'] = min(100.0, (completed / total) * 100)
+        else:
+            job['progress'] = 100.0 if completed else 0.0
+
+        if job.get('_start_time_perf') is None:
             start_perf = time.perf_counter()
             job['_start_time_perf'] = start_perf
-            job['started_at'] = datetime.now().isoformat()
             job_start_perf = start_perf
+            job['started_at'] = datetime.now().isoformat()
+        else:
+            start_perf = job['_start_time_perf']
 
         elapsed = max(0.0, time.perf_counter() - start_perf)
         job['elapsed_time_seconds'] = elapsed
         job['elapsed_time_human'] = format_duration(elapsed)
 
-        completed = job.get('completed_tasks', 0)
-        total = job.get('total_tasks', 0) or 0
-        remaining = max(total - completed, 0)
-
-        if completed > 0 and total > 0:
-            average = elapsed / completed if completed else None
-            eta_seconds = average * remaining if average is not None else None
+        if completed > 0:
+            average = elapsed / completed
             job['average_task_duration_seconds'] = average
-            job['estimated_time_remaining_seconds'] = 0 if remaining == 0 else eta_seconds
-            job['estimated_time_remaining_human'] = format_duration(eta_seconds if eta_seconds is not None else 0)
+            eta_seconds = average * remaining if remaining > 0 else 0
+            job['estimated_time_remaining_seconds'] = eta_seconds if remaining > 0 else 0
+            job['estimated_time_remaining_human'] = format_duration(eta_seconds)
         else:
             job['average_task_duration_seconds'] = None
             job['estimated_time_remaining_seconds'] = None
             job['estimated_time_remaining_human'] = None
 
+        if remaining > 0:
+            job['status_message'] = f"Processing {success_count}/{total} conversions"
+        elif failed:
+            job['status_message'] = f"Completed with {failed} error(s)"
+        else:
+            job['status_message'] = f"Completed {success_count} conversion(s)"
+
         job['last_updated'] = datetime.now().isoformat()
-    
-    try:
-        with job_lock:
-            processing_jobs[job_id]['status'] = 'processing'
-            processing_jobs[job_id]['started_at'] = datetime.now().isoformat()
-            processing_jobs[job_id]['last_updated'] = datetime.now().isoformat()
-            job_start_perf = time.perf_counter()
-            processing_jobs[job_id]['_start_time_perf'] = job_start_perf
 
-        print(f"🎬 Starting video conversion job: {job_id}")
-        print_terminal_progress(0, "Initializing")
-
+    def prepare_tasks():
         output_dir = os.path.join(job_dir, 'outputs')
         os.makedirs(output_dir, exist_ok=True)
-        
-        # Prepare conversion tasks
-        conversion_tasks = []
-        for input_file in input_files:
+
+        prepared_tasks = []
+
+        for input_index, input_file in enumerate(input_files):
             base_name = os.path.splitext(input_file['original_name'])[0]
-            
+
             for format_type in formats:
-                # Use smart naming convention detection
                 output_filename_base, format_name = detect_naming_convention_and_replace(base_name, format_type)
                 output_filename = f"{output_filename_base}.mp4"
-                
                 output_path = os.path.join(output_dir, output_filename)
-                conversion_tasks.append((
-                    input_file['path'],
-                    output_path,
-                    format_type,
-                    output_filename,
-                    input_file['original_name'],
-                    format_name
-                ))
-        
-        # Process videos one at a time (all formats for each video in parallel)
-        # This is more robust and prevents resource overload
-        
-        # Group tasks by input video
-        tasks_by_video = {}
-        for task in conversion_tasks:
-            input_path, output_path, format_type, output_filename, original_name, format_name = task
-            if input_path not in tasks_by_video:
-                tasks_by_video[input_path] = []
-            tasks_by_video[input_path].append(task)
-        
-        # Process each video sequentially, but all formats for that video in parallel
-        for video_idx, (video_path, video_tasks) in enumerate(tasks_by_video.items()):
-            # Check for cancellation
-            if should_cancel():
-                print(f"\n❌ Processing cancelled for job: {job_id}")
-                return
-                
-            video_name = os.path.basename(video_path)
-            app_logger.info(f"Processing video: {video_name} ({len(video_tasks)} formats)")
-            
-            # Check memory usage before processing each video
-            log_memory_usage(f"before processing {video_name}")
-            check_memory_and_cleanup()
-            
-            # Process all formats for this video in parallel (max 1 concurrent to save memory on Render)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                futures = []
-                for task in video_tasks:
-                    input_path, output_path, format_type, output_filename, original_name, format_name = task
-                    future = executor.submit(process_video, input_path, output_path, format_type)
-                    futures.append((future, output_filename, output_path, original_name, format_name))
-                
-                # Wait for all formats of this video to complete
-                for future, output_filename, output_path, original_name, format_name in futures:
-                    # Check for cancellation
-                    if should_cancel():
-                        print(f"\n❌ Processing cancelled for job: {job_id}")
-                        return
-                        
-                    try:
-                        success = future.result()
-                        
-                        with job_lock:
-                            processing_jobs[job_id]['completed_tasks'] += 1
-                            progress = (processing_jobs[job_id]['completed_tasks'] / processing_jobs[job_id]['total_tasks']) * 100
-                            processing_jobs[job_id]['progress'] = progress
-                            refresh_job_metrics_locked()
-                            
-                            # Update terminal progress
-                            print_terminal_progress(progress, f"Converting {video_name}")
-                            
-                            if success and os.path.exists(output_path):
-                                # Get video metadata
-                                try:
-                                    metadata = get_video_metadata(output_path)
-                                except:
-                                    metadata = {}
-                                
-                                processing_jobs[job_id]['results'].append({
-                                    'filename': output_filename,
-                                    'path': output_path,
-                                    'original_name': original_name,
-                                    'format_name': format_name,
-                                    'metadata': metadata
-                                })
-                            else:
-                                processing_jobs[job_id]['errors'].append(f"Failed to process {original_name} to {format_name}")
-                                
-                    except Exception as e:
-                        with job_lock:
-                            processing_jobs[job_id]['completed_tasks'] += 1
-                            progress = (processing_jobs[job_id]['completed_tasks'] / processing_jobs[job_id]['total_tasks']) * 100
-                            processing_jobs[job_id]['progress'] = progress
-                            processing_jobs[job_id]['errors'].append(f"Error processing {original_name} to {format_name}: {str(e)}")
-                            refresh_job_metrics_locked()
-                        app_logger.error(f"Error in video processing: {str(e)}")
-            
-            app_logger.info(f"Completed processing video: {video_name}")
-            
-            # Force memory cleanup after each video
-            gc.collect()
-            log_memory_usage(f"after processing {video_name}")
-        
-        # Mark job as completed
-        with job_lock:
-            processing_jobs[job_id]['status'] = 'completed'
-            processing_jobs[job_id]['progress'] = 100
-            refresh_job_metrics_locked()
-            processing_jobs[job_id]['estimated_time_remaining_seconds'] = 0
-            processing_jobs[job_id]['estimated_time_remaining_human'] = format_duration(0)
-            processing_jobs[job_id].pop('_start_time_perf', None)
+                task_id = f"{input_index}-{format_type}-{uuid.uuid4().hex[:8]}"
 
-        print_terminal_progress(100, "Completed")
-        print(f"✅ Job {job_id} completed successfully!")
+                prepared_tasks.append({
+                    'task_id': task_id,
+                    'input_path': input_file['path'],
+                    'output_path': output_path,
+                    'format_type': format_type,
+                    'output_filename': output_filename,
+                    'original_name': input_file['original_name'],
+                    'format_name': format_name,
+                    'status': 'queued',
+                    'attempts': 0,
+                    'error': None,
+                    'started_at': None,
+                    'completed_at': None,
+                    'duration_seconds': None,
+                    '_start_perf': None,
+                    'input_size_bytes': input_file.get('size_bytes')
+                })
+
+        return prepared_tasks
+
+    def run_single_task(task_snapshot):
+        """Execute conversion for a single format."""
+        # Ensure previous attempt artifacts are cleared
+        try:
+            if os.path.exists(task_snapshot['output_path']):
+                os.remove(task_snapshot['output_path'])
+        except OSError:
+            pass
+
+        success, error_message = process_video(
+            task_snapshot['input_path'],
+            task_snapshot['output_path'],
+            task_snapshot['format_type']
+        )
+
+        return {
+            'success': success,
+            'error': error_message
+        }
+
+    def handle_task_completion(task_id, task_result):
+        """Apply task result to job state. Returns (should_retry, progress, label)."""
+        success = bool(task_result.get('success'))
+        error_message = task_result.get('error')
+
+        with job_lock:
+            job = processing_jobs.get(job_id)
+            if not job:
+                return False, None, ""
+            task = job['tasks'].get(task_id)
+            if not task:
+                return False, job.get('progress'), ""
+
+            output_path = task['output_path']
+            original_name = task['original_name']
+            format_name = task['format_name']
+
+        metadata = {}
+        if success and os.path.exists(output_path):
+            try:
+                metadata = get_video_metadata(output_path)
+            except Exception:
+                metadata = {}
+
+        with job_lock:
+            job = processing_jobs.get(job_id)
+            if not job:
+                return False, None, ""
+            task = job['tasks'].get(task_id)
+            if not task:
+                return False, job.get('progress'), ""
+
+            start_perf = task.pop('_start_perf', None)
+            if start_perf is not None:
+                task['duration_seconds'] = max(0.0, time.perf_counter() - start_perf)
+
+            label = f"{task['original_name']} ({task['format_name']})"
+
+            if success:
+                task['status'] = 'success'
+                task['error'] = None
+                task['completed_at'] = datetime.now().isoformat()
+                job['results'].append({
+                    'task_id': task_id,
+                    'filename': task['output_filename'],
+                    'path': task['output_path'],
+                    'original_name': task['original_name'],
+                    'format_name': task['format_name'],
+                    'metadata': metadata
+                })
+                job['completed_tasks'] += 1
+            else:
+                task['error'] = error_message or 'Unknown error'
+
+                if task['attempts'] <= MAX_TASK_RETRIES and not job.get('cancel_requested', False):
+                    task['status'] = 'queued'
+                    task['completed_at'] = None
+                    job['status_message'] = f"Retrying {label}"
+                    refresh_job_metrics_locked()
+                    return True, job.get('progress'), label
+
+                task['status'] = 'failed'
+                task['completed_at'] = datetime.now().isoformat()
+                job['failed_tasks'] += 1
+                job['errors'].append(f"{task['original_name']} → {task['format_name']}: {task['error']}")
+                job['completed_tasks'] += 1
+
+            refresh_job_metrics_locked()
+            progress = job.get('progress', 0)
+            return False, progress, label
+
+    try:
+        prepared_tasks = prepare_tasks()
+
+        if not prepared_tasks:
+            with job_lock:
+                job = processing_jobs.get(job_id)
+                if job:
+                    job['status'] = 'error'
+                    job['status_message'] = 'No conversion tasks generated'
+                    job['errors'].append('No conversion formats were requested.')
+                    refresh_job_metrics_locked()
+            return
+
+        with job_lock:
+            job = processing_jobs.get(job_id)
+            if not job:
+                return
+
+            job['status'] = 'processing'
+            job['started_at'] = datetime.now().isoformat()
+            job['last_updated'] = datetime.now().isoformat()
+            job_start_perf = time.perf_counter()
+            job['_start_time_perf'] = job_start_perf
+            job['task_order'] = [task['task_id'] for task in prepared_tasks]
+            job['tasks'] = {task['task_id']: task for task in prepared_tasks}
+            job['total_tasks'] = len(prepared_tasks)
+            job['status_message'] = f"Processing 0/{len(prepared_tasks)} conversions"
+
+        print(f"🎬 Starting video conversion job: {job_id}")
+        print_terminal_progress(0.0, "Initializing")
+
+        log_memory_usage("before processing job")
+
+        tasks_queue = deque([task['task_id'] for task in prepared_tasks])
+        futures = {}
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TASKS) as executor:
+            while (tasks_queue or futures) and not should_cancel():
+                # Launch new tasks while capacity is available
+                while tasks_queue and len(futures) < MAX_CONCURRENT_TASKS and not should_cancel():
+                    task_id = tasks_queue.popleft()
+
+                    with job_lock:
+                        job = processing_jobs.get(job_id)
+                        if not job:
+                            break
+                        task = job['tasks'].get(task_id)
+                        if not task:
+                            continue
+                        task['status'] = 'running'
+                        task['attempts'] += 1
+                        task['started_at'] = datetime.now().isoformat()
+                        task['_start_perf'] = time.perf_counter()
+                        job['status_message'] = f"Processing {task['original_name']} ({task['format_name']})"
+
+                        task_snapshot = {
+                            'input_path': task['input_path'],
+                            'output_path': task['output_path'],
+                            'format_type': task['format_type']
+                        }
+
+                    future = executor.submit(run_single_task, task_snapshot)
+                    futures[future] = task_id
+
+                if not futures:
+                    # No active futures and no tasks left to queue
+                    break
+
+                done, _ = concurrent.futures.wait(
+                    futures.keys(),
+                    timeout=1.0,
+                    return_when=concurrent.futures.FIRST_COMPLETED
+                )
+
+                if not done:
+                    continue
+
+                for future in done:
+                    task_id = futures.pop(future)
+
+                    try:
+                        result = future.result()
+                    except Exception as exc:
+                        app_logger.error(f"Exception while converting task {task_id}: {exc}")
+                        result = {'success': False, 'error': str(exc)}
+
+                    retry, progress, label = handle_task_completion(task_id, result)
+
+                    if retry:
+                        tasks_queue.append(task_id)
+                        app_logger.warning(f"Retrying task {task_id} ({label})")
+                        continue
+
+                    print_terminal_progress(progress, f"Converting {label}")
+
+                    # Opportunistic cleanup and GC to avoid memory bloat for long jobs
+                    if check_memory_and_cleanup():
+                        app_logger.info("Triggered memory cleanup during processing loop")
+
+            if should_cancel():
+                executor.shutdown(wait=False, cancel_futures=True)
+
+        gc.collect()
+        log_memory_usage("after processing job")
+
+        cancelled = should_cancel()
+
+        with job_lock:
+            job = processing_jobs.get(job_id)
+            if job:
+                if cancelled:
+                    job['status'] = 'cancelled'
+                    job['status_message'] = 'Job cancelled by user'
+                elif job.get('failed_tasks'):
+                    job['status'] = 'completed_with_errors'
+                    job['status_message'] = f"Completed with {job['failed_tasks']} error(s)"
+                else:
+                    job['status'] = 'completed'
+                    job['status_message'] = 'Completed successfully'
+
+                job['progress'] = 100.0 if job.get('total_tasks') else job.get('progress', 100.0)
+                job['estimated_time_remaining_seconds'] = 0
+                job['estimated_time_remaining_human'] = format_duration(0)
+                job.pop('_start_time_perf', None)
+                refresh_job_metrics_locked()
+
+        if not cancelled:
+            print_terminal_progress(100.0, "Completed")
+            print(f"✅ Job {job_id} completed (errors: {processing_jobs.get(job_id, {}).get('failed_tasks', 0)})")
+        else:
+            print(f"\n❌ Job {job_id} cancelled")
             
     except Exception as e:
         with job_lock:
-            processing_jobs[job_id]['status'] = 'error'
-            processing_jobs[job_id]['errors'].append(f"Processing failed: {str(e)}")
-            refresh_job_metrics_locked()
-            processing_jobs[job_id]['estimated_time_remaining_seconds'] = None
-            processing_jobs[job_id]['estimated_time_remaining_human'] = None
-            processing_jobs[job_id].pop('_start_time_perf', None)
-        app_logger.error(f"Background processing error: {str(e)}")
+            job = processing_jobs.get(job_id)
+            if job:
+                job['status'] = 'error'
+                job['status_message'] = 'Processing failed'
+                job['errors'].append(f"Processing failed: {str(e)}")
+                job.pop('_start_time_perf', None)
+                refresh_job_metrics_locked()
+        app_logger.exception(f"Background processing error for job {job_id}: {e}")
         print(f"\n❌ Job {job_id} failed: {str(e)}")
     finally:
         # Clean up thread reference
         with thread_lock:
-            if job_id in active_processing_threads:
-                del active_processing_threads[job_id]
+            active_processing_threads.pop(job_id, None)
 
 def get_job_status(job_id):
     with job_lock:
@@ -504,7 +720,9 @@ def get_job_status(job_id):
         
         job_data = {}
 
-        for key, value in processing_jobs[job_id].items():
+        job = processing_jobs[job_id]
+
+        for key, value in job.items():
             if key.startswith('_'):
                 continue
 
@@ -514,6 +732,28 @@ def get_job_status(job_id):
                     safe_result = result.copy()
                     safe_result.pop('path', None)
                     job_data['results'].append(safe_result)
+            elif key == 'tasks':
+                # Return task data in client-friendly order without exposing file paths
+                task_list = []
+                ordering = job.get('task_order') or list(value.keys())
+                for task_id in ordering:
+                    task = value.get(task_id)
+                    if not task:
+                        continue
+                    task_list.append({
+                        'task_id': task_id,
+                        'original_name': task.get('original_name'),
+                        'format_name': task.get('format_name'),
+                        'format_type': task.get('format_type'),
+                        'status': task.get('status'),
+                        'attempts': task.get('attempts'),
+                        'error': task.get('error'),
+                        'started_at': task.get('started_at'),
+                        'completed_at': task.get('completed_at'),
+                        'duration_seconds': task.get('duration_seconds'),
+                        'input_size_bytes': task.get('input_size_bytes')
+                    })
+                job_data['tasks'] = task_list
             else:
                 job_data[key] = value
 
@@ -559,7 +799,7 @@ def download_zip(job_id):
             
             job = processing_jobs[job_id]
             
-            if job['status'] != 'completed' or not job['results']:
+            if job['status'] not in ('completed', 'completed_with_errors') or not job['results']:
                 app_logger.warning(f"ZIP download attempted for incomplete job {job_id}: status={job['status']}, results_count={len(job.get('results', []))}")
                 return jsonify({'error': 'No files ready for download'}), 400
             
@@ -760,6 +1000,7 @@ def cleanup_job(job_id):
             # Mark job for cancellation if still processing
             if processing_jobs[job_id]['status'] == 'processing':
                 processing_jobs[job_id]['cancel_requested'] = True
+                processing_jobs[job_id]['status_message'] = 'Cleanup requested while processing'
                 print(f"🛑 Cancellation requested for job: {job_id}")
             
             # Clean up job directory and any ZIP files
@@ -815,6 +1056,7 @@ def cancel_job(job_id):
             if current_status == 'processing':
                 processing_jobs[job_id]['cancel_requested'] = True
                 processing_jobs[job_id]['status'] = 'cancelled'
+                processing_jobs[job_id]['status_message'] = 'Job cancellation requested'
                 processing_jobs[job_id]['estimated_time_remaining_seconds'] = None
                 processing_jobs[job_id]['estimated_time_remaining_human'] = None
                 processing_jobs[job_id]['last_updated'] = datetime.now().isoformat()
@@ -828,6 +1070,7 @@ def cancel_job(job_id):
                 # Job is queued, mark as cancelled
                 processing_jobs[job_id]['cancel_requested'] = True
                 processing_jobs[job_id]['status'] = 'cancelled'
+                processing_jobs[job_id]['status_message'] = 'Job cancelled before processing started'
                 processing_jobs[job_id]['estimated_time_remaining_seconds'] = None
                 processing_jobs[job_id]['estimated_time_remaining_human'] = None
                 processing_jobs[job_id]['last_updated'] = datetime.now().isoformat()
