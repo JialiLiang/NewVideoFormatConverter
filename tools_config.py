@@ -37,6 +37,20 @@ TOOLS_CONFIG = {
             "description": "Extract video IDs from YouTube playlists (public, unlisted, private)"
         },
         {
+            "name": "YouTube Playlist Batch Creator",
+            "icon": "fab fa-youtube",
+            "url": "/youtube-playlist-batch",
+            "active": True,
+            "description": "Create standardized unlisted playlists in bulk"
+        },
+        {
+            "name": "YouTube Bulk Uploader",
+            "icon": "fab fa-youtube",
+            "url": "/youtube-uploader",
+            "active": True,
+            "description": "Upload videos and attach them to playlists in bulk"
+        },
+        {
             "name": "Static Generator (WIP)",
             "icon": "fas fa-file-code",
             "url": "/static-generator",

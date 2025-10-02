@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 import requests
 import subprocess
 import ffmpeg
+from elevenlabs.client import ElevenLabs
+from elevenlabs import VoiceSettings
 
 # Import vocal models configuration
 from vocal_models_config import (
@@ -96,6 +98,7 @@ def get_secret(key):
 # Initialize API clients (only if keys are available)
 openai_client = None
 eleven_labs_client = None
+ELEVENLABS_API_KEY = None
 
 logging.info("🚀 Initializing API clients...")
 
@@ -109,14 +112,15 @@ try:
         logging.info("✅ OpenAI client initialized successfully")
     else:
         logging.warning("⚠️  OpenAI client not initialized - missing API key")
-        
+
     if elevenlabs_api_key:
         logging.info("🎙️  Initializing ElevenLabs client...")
-        from elevenlabs.client import ElevenLabs
         eleven_labs_client = ElevenLabs(api_key=elevenlabs_api_key)
+        ELEVENLABS_API_KEY = elevenlabs_api_key
         logging.info("✅ ElevenLabs client initialized successfully")
     else:
         logging.warning("⚠️  ElevenLabs client not initialized - missing API key")
+        ELEVENLABS_API_KEY = None
         
 except Exception as e:
     logging.error(f"❌ Error initializing API clients: {e}")
@@ -135,12 +139,79 @@ elif openai_client and eleven_labs_client:
 else:
     logging.info("⚡ PARTIAL API CLIENTS READY - Some AdLocalizer features available")
 
-# Voice options for AdLocalizer
+# Voice options for AdLocalizer (legacy fallback for Jinja templates)
 VOICES = {
     "1": {"name": "Tom Cruise", "id": "g60FwKJuhCJqbDCeuXjm"},
     "2": {"name": "Doja Cat", "id": "E1c1pVuZVvPrme6B9ryw"},
     "3": {"name": "Chris", "id": "iP95p4xoKVk53GoZ742B"}
 }
+
+VOICE_CACHE_TTL_SECONDS = 300
+_voice_catalog_cache: list[dict] = []
+_voice_catalog_cached_at: float = 0.0
+
+
+def fetch_elevenlabs_voices(api_key: str):
+    """Fetch available ElevenLabs voices via REST API."""
+    if not api_key:
+        return []
+
+    try:
+        response = requests.get(
+            "https://api.elevenlabs.io/v1/voices",
+            headers={
+                "xi-api-key": api_key,
+                "Accept": "application/json",
+            },
+            timeout=15,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        mapped = []
+        for voice in payload.get('voices', []):
+            voice_id = voice.get('voice_id')
+            name = voice.get('name') or voice_id
+            if not voice_id or not name:
+                continue
+            mapped.append({
+                'id': voice_id,
+                'name': name,
+                'preview_url': voice.get('preview_url'),
+                'labels': voice.get('labels', {}),
+            })
+        return mapped
+    except Exception as exc:
+        logging.error(f"Failed to fetch ElevenLabs voices: {exc}")
+        return []
+
+
+def get_elevenlabs_voice_catalog(force_refresh: bool = False):
+    """Return cached ElevenLabs voices, refreshing when necessary."""
+    global _voice_catalog_cache, _voice_catalog_cached_at
+
+    if not ELEVENLABS_API_KEY:
+        return []
+
+    cache_expired = time.time() - _voice_catalog_cached_at > VOICE_CACHE_TTL_SECONDS
+    if force_refresh or cache_expired or not _voice_catalog_cache:
+        voices = fetch_elevenlabs_voices(ELEVENLABS_API_KEY)
+        if voices:
+            _voice_catalog_cache = voices
+            _voice_catalog_cached_at = time.time()
+    return _voice_catalog_cache
+
+
+def resolve_voice_name(voice_id: str) -> str:
+    """Best-effort resolution from voice_id to a human-readable name."""
+    for voice in get_elevenlabs_voice_catalog():
+        if voice.get('id') == voice_id:
+            return voice.get('name', voice_id)
+
+    for voice in VOICES.values():
+        if voice.get('id') == voice_id:
+            return voice.get('name', voice_id)
+
+    return voice_id
 
 # Import centralized language configuration
 from language_config import (
@@ -309,9 +380,12 @@ def generate_elevenlabs_voice(text, language_code, output_directory, english_ide
         return None
         
     try:
-        # Get voice name
-        voice_name = next((v["name"] for v in VOICES.values() if v["id"] == voice_id), "Unknown")
-        voice_name = voice_name.replace(" ", "_")
+        # Warm cache so subsequent requests return metadata quickly
+        if ELEVENLABS_API_KEY:
+            get_elevenlabs_voice_catalog()
+
+        # Get voice name from dynamic catalog (falls back to legacy mapping)
+        voice_name = resolve_voice_name(voice_id).replace(" ", "_")
         
         # Create a clean identifier from the text (max 30 chars)
         # First, split into words and take first few words
@@ -337,35 +411,105 @@ def generate_elevenlabs_voice(text, language_code, output_directory, english_ide
         elevenlabs_api_key = get_secret("ELEVENLABS_API_KEY")
         if not elevenlabs_api_key:
             return None
-            
-        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-        headers = {
-            "Accept": "audio/mpeg",
-            "Content-Type": "application/json",
-            "xi-api-key": elevenlabs_api_key
-        }
-        
-        data = {
-            "text": text,
-            "model_id": model_id,
-            "voice_settings": {
-                "stability": 0.5,
-                "similarity_boost": 0.75
+
+        voice_settings_payload = VoiceSettings(
+            stability=0.5,
+            similarity_boost=0.75,
+            style=0.0,
+            use_speaker_boost=True,
+        )
+
+        audio_bytes = b''
+
+        # Preferred path: official ElevenLabs client with streaming
+        try:
+            stream = eleven_labs_client.text_to_speech.convert(
+                voice_id=voice_id,
+                text=text,
+                model_id=model_id,
+                optimize_streaming_latency=None if model_id == 'eleven_v3' else '0',
+                output_format='mp3_44100_128',
+                voice_settings=voice_settings_payload,
+            )
+            audio_bytes = b''.join(stream)
+            logging.info(
+                "ElevenLabs streaming response: %s bytes (lang=%s, model=%s)",
+                len(audio_bytes),
+                language_code,
+                model_id,
+            )
+        except Exception as stream_error:
+            logging.warning(f"ElevenLabs streaming convert failed: {stream_error}")
+
+        if not audio_bytes:
+            # Fallback to direct REST call (legacy behaviour)
+            url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+            headers = {
+                "Accept": "audio/mpeg",
+                "Content-Type": "application/json",
+                "xi-api-key": elevenlabs_api_key
             }
-        }
-        
-        response = requests.post(url, json=data, headers=headers)
-        
-        if response.status_code == 200:
-            with open(output_file, "wb") as f:
-                f.write(response.content)
-            return output_file
-        else:
-            logging.error(f"Error from ElevenLabs API: {response.status_code} - {response.text}")
-            return None
+
+            data = {
+                "text": text,
+                "model_id": model_id,
+                "voice_settings": {
+                    "stability": voice_settings_payload.stability,
+                    "similarity_boost": voice_settings_payload.similarity_boost,
+                    "style": voice_settings_payload.style,
+                    "use_speaker_boost": voice_settings_payload.use_speaker_boost,
+                }
+            }
+
+            response = requests.post(url, json=data, headers=headers, timeout=60)
+            logging.info(
+                "ElevenLabs REST response: status=%s, content-type=%s, length=%s",
+                response.status_code,
+                response.headers.get('Content-Type'),
+                response.headers.get('Content-Length'),
+            )
+
+            if response.status_code == 200:
+                audio_bytes = response.content
+                content_type = (response.headers.get('Content-Type') or '').lower()
+                if not content_type.startswith('audio/'):
+                    logging.error(
+                        "Unexpected ElevenLabs response content-type: %s", content_type or 'unknown'
+                    )
+                    raise RuntimeError(f"Unexpected response content type: {content_type or 'unknown'}")
+
+            else:
+                error_detail = response.text
+                try:
+                    payload = response.json()
+                    if isinstance(payload, dict):
+                        error_detail = payload.get('detail') or payload.get('error') or payload.get('message') or error_detail
+                except ValueError:
+                    pass
+
+                logging.error(f"Error from ElevenLabs API: {response.status_code} - {error_detail}")
+                raise RuntimeError(f"ElevenLabs request failed ({response.status_code}): {error_detail}")
+
+        if len(audio_bytes) < 1024:
+            logging.error(
+                "ElevenLabs audio payload too small (%s bytes) for lang=%s, model=%s",
+                len(audio_bytes),
+                language_code,
+                model_id,
+            )
+            raise RuntimeError("Received incomplete audio from ElevenLabs")
+
+        signature = audio_bytes[:3]
+        if not (signature.startswith(b'ID3') or audio_bytes[:2] in {b'\xff\xfb', b'\xff\xf3', b'\xff\xf2'}):
+            logging.error("ElevenLabs audio signature invalid: %s", signature)
+            raise RuntimeError("Received invalid audio data from ElevenLabs")
+
+        with open(output_file, "wb") as f:
+            f.write(audio_bytes)
+        return output_file
     except Exception as e:
         logging.error(f"Error generating voice: {str(e)}")
-        return None
+        raise
 
 def extract_audio_from_video(video_path, output_audio_path):
     """Extract audio from video using ffmpeg"""
@@ -584,6 +728,28 @@ def mix_audio_with_video(audio_file, video_file, output_file, original_volume=0.
 
 # ===== ADLOCALIZER ROUTES =====
 
+def list_voices():
+    try:
+        if not ELEVENLABS_API_KEY:
+            return jsonify({
+                'error': 'ElevenLabs API key not configured. Please set ELEVENLABS_API_KEY.',
+                'voices': [],
+            }), 503
+
+        refresh = request.args.get('refresh') in {'1', 'true', 'True', 'yes'}
+        voices = get_elevenlabs_voice_catalog(force_refresh=refresh)
+        response_payload = {
+            'voices': voices,
+            'count': len(voices),
+            'cached': not refresh and bool(_voice_catalog_cache),
+            'default_voice_id': voices[0]['id'] if voices else None,
+            'message': 'Voices loaded from ElevenLabs' if voices else 'No voices returned from ElevenLabs.',
+        }
+        return jsonify(response_payload)
+    except Exception as exc:
+        logging.error(f"Failed to list ElevenLabs voices: {exc}")
+        return jsonify({'error': 'Unable to load ElevenLabs voices'}), 500
+
 def translate():
     try:
         # Debug logging
@@ -663,6 +829,7 @@ def generate_voice():
         audio_dir.mkdir(parents=True, exist_ok=True)
         
         audio_files = {}
+        voice_errors = {}
         # Create a clean identifier from the first translation (max 20 chars)
         raw_text = list(translations.values())[0][:20]
         # Replace sequences of non-alphanumeric characters with single underscore
@@ -671,22 +838,47 @@ def generate_voice():
         english_identifier = english_identifier.strip('_')
         
         for lang_code, translation in translations.items():
-            output_file = generate_elevenlabs_voice(
-                translation,
-                lang_code,
-                str(audio_dir),
-                english_identifier,
-                voice_id,
-                model_id=voice_model,
-            )
-            if output_file:
-                audio_files[lang_code] = output_file
-        
+            try:
+                safe_translation = (translation or '').strip()
+                if not safe_translation:
+                    logging.warning(f"Skipping voice generation for {lang_code}: translation text missing")
+                    voice_errors[lang_code] = 'No translated text available'
+                    continue
+
+                logging.info(
+                    "Generating voice for %s (%d bytes) | sample: %s",
+                    lang_code,
+                    len(safe_translation.encode('utf-8')),
+                    safe_translation[:80]
+                )
+                output_file = generate_elevenlabs_voice(
+                    safe_translation,
+                    lang_code,
+                    str(audio_dir),
+                    english_identifier,
+                    voice_id,
+                    model_id=voice_model,
+                )
+                if output_file:
+                    audio_files[lang_code] = output_file
+            except Exception as exc:
+                logging.error(f"Voice generation failed for {lang_code}: {exc}")
+                voice_errors[lang_code] = str(exc)
+
         if not audio_files:
-            return jsonify({'error': 'No audio files were generated. Please check your ElevenLabs API key.'}), 500
-        
+            status_code = 502 if voice_errors else 500
+            return jsonify({
+                'error': 'No audio files were generated. Please check your ElevenLabs API key or selected voice.',
+                'details': voice_errors,
+            }), status_code
+
         session['audio_files'] = audio_files
-        return jsonify({'audio_files': audio_files})
+
+        response_payload = {'audio_files': audio_files}
+        if voice_errors:
+            response_payload['warnings'] = voice_errors
+
+        return jsonify(response_payload)
     except Exception as e:
         logging.error(f"Voice generation error: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -1149,7 +1341,10 @@ def mix_audio():
         data = request.get_json() or {}
         original_volume = float(data.get('original_volume', 0.8))
         voiceover_volume = float(data.get('voiceover_volume', 1.3))
-        use_vocal_removal = bool(data.get('use_vocal_removal', False))
+        use_vocal_removal_requested = bool(data.get('use_vocal_removal', False))
+        use_vocal_removal = False
+        if use_vocal_removal_requested:
+            logging.info("Ignoring use_vocal_removal=True because the feature is disabled in this deployment")
         use_custom_music = bool(data.get('use_custom_music', False))
         add_subtitles = bool(data.get('add_subtitles', False))
         subtitle_style = data.get('subtitle_style', DEFAULT_SUBTITLE_STYLE) or DEFAULT_SUBTITLE_STYLE

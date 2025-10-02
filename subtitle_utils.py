@@ -93,28 +93,34 @@ SUBTITLE_STYLES: Dict[str, Dict[str, object]] = {
         "description": "Rounded white capsule with bold black text",
         "text_color": "#111111",
         "background_color": "#FFFFFFFF",
-        "padding": (40, 24),
+        "padding": (48, 28),
         "border_radius": 28,
-        "font_size": 60,
+        "font_size": 88,
         "stroke_width": 0,
         "stroke_fill": "#00000000",
         "vertical_position": 0.72,
         "max_width_ratio": 0.92,
-        "base_video_height": 1920,
+        "base_video_height": 1080,
+        "base_video_width": 1080,
+        "min_scale": 0.85,
+        "max_scale": 1.2,
     },
     "tiktok": {
         "name": "TikTok Native",
         "description": "White text with subtle black stroke",
         "text_color": "#FFFFFF",
         "background_color": "#00000000",
-        "padding": (32, 18),
-        "border_radius": 12,
-        "font_size": 60,
+        "padding": (40, 22),
+        "border_radius": 16,
+        "font_size": 84,
         "stroke_width": 2,
         "stroke_fill": "#000000FF",
         "vertical_position": 0.78,
         "max_width_ratio": 0.92,
-        "base_video_height": 1920,
+        "base_video_height": 1080,
+        "base_video_width": 1080,
+        "min_scale": 0.85,
+        "max_scale": 1.2,
     },
     "contrast": {
         "name": "High Contrast",
@@ -277,7 +283,13 @@ def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int, old_code
 def _create_text_clip(text: str, style_key: str, old_code: str, video_width: int, video_height: int) -> ImageClip:
     config = SUBTITLE_STYLES.get(style_key, SUBTITLE_STYLES["default"])
     base_height = float(config.get("base_video_height", 1920)) or 1920
-    scale = max(0.55, min(1.5, video_height / base_height))
+    base_width = float(config.get("base_video_width", base_height)) or base_height
+    raw_scale_height = video_height / base_height if base_height else 1.0
+    raw_scale_width = video_width / base_width if base_width else raw_scale_height
+    raw_scale = max(raw_scale_height, raw_scale_width)
+    min_scale = float(config.get("min_scale", 0.55))
+    max_scale = float(config.get("max_scale", 1.5))
+    scale = max(min_scale, min(max_scale, raw_scale))
 
     font_size = int(config.get("font_size", 54) * scale)
     font = _load_font(old_code, font_size)

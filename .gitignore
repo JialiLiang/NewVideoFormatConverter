@@ -60,3 +60,7 @@ test_output/
 
 # Model files (too large for git)
 vocal_models/ 
+# Frontend artifacts
+web/node_modules/
+web/dist/
+web/.env

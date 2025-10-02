@@ -14,35 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Available vocal removal models (simplified to best options)
-VOCAL_REMOVAL_MODELS = {
-    "htdemucs_ft": {
-        "name": "DEMUCS v4 (High Quality)",
-        "description": "Latest DEMUCS with transformers - excellent quality",
-        "quality": "Excellent",
-        "speed": "Medium",
-        "engine": "demucs",
-        "model_name": "htdemucs_ft",
-        "recommended": True,
-        "params": {
-            "--two-stems": "vocals",
-            "--mp3": True,
-            "--mp3-bitrate": "320"
-        }
-    },
-    "replicate_all_in_one": {
-        "name": "Replicate All-in-One Audio (Best)",
-        "description": "AI Music Structure Analyzer + Stem Splitter using Demucs & Mdx-Net",
-        "quality": "Outstanding",
-        "speed": "Fast",
-        "engine": "replicate",
-        "model_name": "erickluis00/all-in-one-audio",
-        "recommended": True,
-        "params": {
-            "model": "harmonix-all",
-            "audioSeparatorModel": "Kim_Vocal_2.onnx"
-        }
-    }
-}
+VOCAL_REMOVAL_MODELS: dict[str, dict] = {}
 
 def get_model_config(model_id):
     """Get configuration for a specific model"""
@@ -56,8 +28,7 @@ def get_recommended_models():
 
 def get_default_model():
     """Get the default model (recommended and fast)"""
-    # Return htdemucs_ft as it's better quality and still reliable
-    return "htdemucs_ft"
+    return None
 
 def validate_model_id(model_id):
     """Validate if model ID exists"""
@@ -91,7 +62,5 @@ def check_replicate_available():
     return False
 
 def get_available_models():
-    """Get list of all available models (VOCAL REMOVAL DISABLED)"""
-    # Vocal removal feature has been disabled to reduce deployment size
-    # All models are unavailable because dependencies were removed
+    """Return available vocal removal models (feature disabled)."""
     return {}

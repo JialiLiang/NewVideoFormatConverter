@@ -13,4 +13,22 @@ services:
         value: production
       - key: PYTHONWARNINGS
         value: ignore
+      - key: SECRET_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://your-backend.example.com/api/auth/google/callback
+      - key: FRONTEND_URL
+        value: https://your-frontend.example.com
+      - key: FRONTEND_APP_PATH
+        value: /app
+      - key: FRONTEND_LOGIN_PATH
+        value: /login
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SESSION_LIFETIME_DAYS
+        value: "7"
     autoDeploy: true

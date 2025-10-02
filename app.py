@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file, make_response, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file, make_response
 import os
 import sys
 import tempfile
@@ -9,12 +9,16 @@ from werkzeug.utils import secure_filename
 import logging
 from pathlib import Path
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import concurrent.futures
 import threading
 import time
 import argparse
 from tools_config import get_active_tools
+from youtube_upload import build_plan, FEATURE_ALIASES, LANGUAGE_CODES, LANGUAGE_MAP
+from youtube_upload.runner import process_plans, write_results_csv
+from youtube_upload.uploader import YoutubeUploadClient, CredentialSetupError
+from auth import init_auth
 
 # Load environment variables from .env file
 try:
@@ -43,6 +47,26 @@ DIMS = {"PO","SQ","LS"}
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB max file size (reduced for memory)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_NAME'] = os.environ.get('SESSION_COOKIE_NAME', 'pr_session')
+
+session_secure_flag = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() in {'1', 'true', 'yes', 'on'}
+app.config['SESSION_COOKIE_SECURE'] = session_secure_flag
+
+try:
+    session_days = int(os.environ.get('SESSION_LIFETIME_DAYS', '7'))
+except (TypeError, ValueError):
+    session_days = 7
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=max(session_days, 1))
+
+app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID')
+app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET')
+app.config['GOOGLE_REDIRECT_URI'] = os.environ.get('GOOGLE_REDIRECT_URI')
+app.config['FRONTEND_URL'] = os.environ.get('FRONTEND_URL')
+app.config['FRONTEND_APP_PATH'] = os.environ.get('FRONTEND_APP_PATH', '/app')
+app.config['FRONTEND_LOGIN_PATH'] = os.environ.get('FRONTEND_LOGIN_PATH', '/login')
+app.config['BACKEND_URL'] = os.environ.get('BACKEND_URL')
 
 # Shared rules fed to the model (kept crisp + deterministic)
 NAMING_RULES = """
@@ -127,9 +151,54 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 
+init_auth(app)
+
 # Disable Flask's default request logging for cleaner output
 import logging as flask_logging
 flask_logging.getLogger('werkzeug').setLevel(flask_logging.ERROR)
+
+
+_CORS_PREFIXES = ('/api/', '/upload', '/status', '/download', '/cancel')
+
+
+@app.before_request
+def handle_preflight_requests():
+    if request.method != 'OPTIONS':
+        return None
+
+    if not request.path.startswith(_CORS_PREFIXES):
+        return None
+
+    response = make_response('', 204)
+    origin = request.headers.get('Origin')
+    frontend_origin = app.config.get('FRONTEND_URL')
+    if origin and frontend_origin and origin.rstrip('/') == frontend_origin.rstrip('/'):
+        response.headers['Access-Control-Allow-Origin'] = frontend_origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = request.headers.get(
+            'Access-Control-Request-Headers', 'Content-Type'
+        )
+        response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
+        response.headers.add('Vary', 'Origin')
+    return response
+
+
+@app.after_request
+def apply_cors_headers(response):
+    origin = request.headers.get('Origin')
+    frontend_origin = app.config.get('FRONTEND_URL')
+    if (
+        origin
+        and frontend_origin
+        and origin.rstrip('/') == frontend_origin.rstrip('/')
+        and request.path.startswith(_CORS_PREFIXES)
+    ):
+        response.headers['Access-Control-Allow-Origin'] = frontend_origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers.setdefault('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+        response.headers.setdefault('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Vary', 'Origin')
+    return response
 
 # Set up logging - reduce verbosity for production
 logging.basicConfig(
@@ -326,40 +395,22 @@ def api_remove_vocals():
 
 @app.route('/api/vocal-models', methods=['GET'])
 def api_get_vocal_models():
-    """Get available vocal removal models"""
+    """Vocal removal is currently disabled; return an empty payload."""
+    return jsonify({
+        'success': True,
+        'models': {},
+        'default_model': None,
+        'message': 'Vocal removal is disabled in this deployment.',
+    })
+
+
+@app.route('/api/voices', methods=['GET'])
+def api_get_voices():
     try:
-        print("=== VOCAL MODELS API ENDPOINT CALLED ===")
-        
-        # Force clear any cached imports and reload
-        import sys
-        if 'vocal_models_config' in sys.modules:
-            del sys.modules['vocal_models_config']
-        
-        import vocal_models_config
-        from vocal_models_config import get_available_models, get_default_model, check_replicate_available, VOCAL_REMOVAL_MODELS
-        
-        print(f"DEBUG: All defined models: {list(VOCAL_REMOVAL_MODELS.keys())}")
-        print(f"DEBUG: Replicate available: {check_replicate_available()}")
-        
-        models = get_available_models()
-        default_model = get_default_model()
-        
-        print(f"DEBUG: Available models returned: {list(models.keys())}")
-        print(f"DEBUG: Default model: {default_model}")
-        
-        return jsonify({
-            'success': True,
-            'models': models,
-            'default_model': default_model
-        })
-    except ImportError as e:
-        print(f"Import error: {e}")
-        return jsonify({'error': 'Vocal models configuration not available'}), 500
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        from adlocalizer_app import list_voices
+        return list_voices()
+    except ImportError:
+        return jsonify({'error': 'AdLocalizer functionality not available'}), 500
 
 @app.route('/api/mix-audio', methods=['POST'])
 def api_mix_audio():
@@ -461,6 +512,169 @@ def api_extract_playlist():
     except ImportError:
         return jsonify({'error': 'YouTube playlist functionality not available'}), 500
 
+
+@app.route('/api/youtube-playlists/create', methods=['POST'])
+def api_create_youtube_playlists():
+    try:
+        from youtube_playlist_app import create_playlists
+        return create_playlists()
+    except ImportError:
+        return jsonify({'error': 'YouTube playlist functionality not available'}), 500
+
+
+@app.route('/api/youtube-uploads', methods=['POST'])
+def api_youtube_uploads():
+    files = request.files.getlist('files')
+    if not files:
+        return jsonify({'success': False, 'error': 'No files uploaded'}), 400
+
+    upload_temp_dir = Path(tempfile.mkdtemp(prefix='youtube_upload_', dir=app.config['UPLOAD_FOLDER']))
+    rows = []
+    saved_paths = []
+
+    try:
+        overrides_raw = request.form.get('overrides')
+        overrides = {}
+        if overrides_raw:
+            try:
+                overrides = json.loads(overrides_raw)
+            except json.JSONDecodeError:
+                return jsonify({'success': False, 'error': 'Invalid overrides payload'}), 400
+
+        for idx, file in enumerate(files, start=1):
+            original_name = file.filename or f'upload_{idx}.mp4'
+            safe_name = secure_filename(original_name)
+            if not safe_name:
+                safe_name = f'upload_{idx}.mp4'
+
+            saved_path = upload_temp_dir / safe_name
+            file.save(saved_path)
+            saved_paths.append(saved_path)
+
+            hint = Path(original_name).stem
+            rows.append({'file_path': str(saved_path), 'playlist_hint': hint, 'original_name': original_name})
+
+        plans = build_plan(rows, csv_dir=upload_temp_dir)
+
+        try:
+            uploader = YoutubeUploadClient()
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({'success': False, 'error': f'Failed to initialize YouTube client: {exc}'}), 500
+
+        normalized_overrides = {}
+        for key, value in overrides.items():
+            if not isinstance(key, str) or not isinstance(value, str):
+                continue
+            parts = key.split('|')
+            if len(parts) != 2:
+                continue
+            normalized_overrides[f"{parts[0].upper()}|{parts[1].lower()}"] = value
+
+        results = process_plans(plans, uploader=uploader, temp_dir=upload_temp_dir, overrides=normalized_overrides)
+
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        report_dir = Path(app.config['UPLOAD_FOLDER']) / 'youtube_reports'
+        report_path = report_dir / f'youtube_upload_results_{timestamp}.csv'
+        write_results_csv(results, report_path)
+
+        response_results = []
+        for result in results:
+            response_results.append({
+                'index': result.index,
+                'source': result.source,
+                'status': result.status,
+                'message': result.message,
+                'playlist_name': result.playlist_name,
+                'playlist_id': result.playlist_id,
+                'video_id': result.video_id,
+            })
+
+        return jsonify({
+            'success': True,
+            'results': response_results,
+            'report_url': f"/youtube-uploads/report/{report_path.name}",
+        })
+    finally:
+        for path in saved_paths:
+            try:
+                path.unlink(missing_ok=True)
+            except TypeError:
+                if path.exists():
+                    path.unlink()
+        shutil.rmtree(upload_temp_dir, ignore_errors=True)
+
+
+@app.route('/youtube-uploads/report/<path:filename>')
+def download_youtube_upload_report(filename):
+    report_dir = Path(app.config['UPLOAD_FOLDER']) / 'youtube_reports'
+    target = report_dir / filename
+    if not target.exists():
+        return jsonify({'error': 'Report not found'}), 404
+    return send_file(target, as_attachment=True)
+
+
+@app.route('/api/youtube-playlists/suggest', methods=['POST'])
+def api_youtube_playlist_suggest():
+    data = request.get_json(silent=True) or {}
+    items = data.get('items')
+    if not isinstance(items, list) or not items:
+        return jsonify({'success': False, 'error': 'No items provided'}), 400
+
+    try:
+        uploader = YoutubeUploadClient(allow_browser=False)
+    except CredentialSetupError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 401
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({'success': False, 'error': f'Failed to initialize YouTube client: {exc}'}), 500
+
+    uploader.refresh_playlist_cache()
+
+    suggestions = []
+    for item in items:
+        base_tag = (item.get('base_tag') or '').upper()
+        language = (item.get('language') or '').lower()
+        date_code = (item.get('date') or '').strip()
+
+        if not base_tag or not language:
+            suggestions.append({
+                'base_tag': base_tag,
+                'language': language,
+                'target_date': date_code,
+                'planned_name': None,
+                'suggested_name': None,
+                'delta_days': None,
+                'use_existing': False,
+                'error': 'Missing base tag or language',
+            })
+            continue
+
+        if not date_code or not date_code.isdigit() or len(date_code) != 8:
+            date_code = datetime.utcnow().strftime('%d%m%Y')
+
+        planned_name = f"[{base_tag}]_[{language}]_{date_code}"
+        suggestion = uploader.find_closest_playlist(base_tag, language, date_code)
+
+        entry = {
+            'base_tag': base_tag,
+            'language': language,
+            'target_date': date_code,
+            'planned_name': planned_name,
+            'suggested_name': None,
+            'suggested_date': None,
+            'delta_days': None,
+            'use_existing': False,
+        }
+
+        if suggestion:
+            entry['suggested_name'] = suggestion['name']
+            entry['suggested_date'] = suggestion['date']
+            entry['delta_days'] = suggestion['delta_days']
+            entry['use_existing'] = suggestion['name'] != planned_name
+
+        suggestions.append(entry)
+
+    return jsonify({'success': True, 'items': suggestions})
+
 # Register video converter routes
 app.add_url_rule('/upload', 'upload_files', upload_files, methods=['POST'])
 app.add_url_rule('/status/<job_id>', 'get_job_status', get_job_status)
@@ -534,10 +748,53 @@ def language_mapping():
 def youtube_playlist():
     """YouTube Playlist Extractor tool"""
     from tools_config import TOOLS_CONFIG
+
     tools = get_active_tools()
-    return render_template('youtube_playlist.html', 
-                         tools=tools, 
-                         tools_config=TOOLS_CONFIG)
+    return render_template(
+        'youtube_playlist.html',
+        tools=tools,
+        tools_config=TOOLS_CONFIG,
+    )
+
+
+@app.route('/youtube-playlist-batch')
+def youtube_playlist_batch():
+    """YouTube Playlist Batch Creator tool"""
+    from tools_config import TOOLS_CONFIG
+    from make_playlists import DEFAULT_LANGUAGES
+    from language_config import LANGUAGES
+
+    base_tag_options = ["AIBG", "ANIM", "IMGT-MODEL", "RND"]
+    tools = get_active_tools()
+    language_options = []
+    for code in DEFAULT_LANGUAGES:
+        meta = LANGUAGES.get(code, {})
+        label = meta.get('name') or code.upper()
+        language_options.append({'code': code, 'label': label})
+
+    return render_template(
+        'youtube_playlist_batch.html',
+        tools=tools,
+        tools_config=TOOLS_CONFIG,
+        language_options=language_options,
+        default_language_codes=list(DEFAULT_LANGUAGES),
+        base_tag_options=base_tag_options,
+    )
+
+
+@app.route('/youtube-uploader')
+def youtube_uploader_page():
+    from tools_config import TOOLS_CONFIG
+
+    tools = get_active_tools()
+    return render_template(
+        'youtube_uploader.html',
+        tools=tools,
+        tools_config=TOOLS_CONFIG,
+        language_codes=sorted(LANGUAGE_CODES),
+        language_map={k: v for k, v in LANGUAGE_MAP.items()},
+        feature_aliases=FEATURE_ALIASES,
+    )
 
 if __name__ == '__main__':
     # For Railway deployment, use PORT environment variable

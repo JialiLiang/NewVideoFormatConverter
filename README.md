@@ -173,6 +173,118 @@ The converter now exposes additional environment overrides:
 
 These controls let you balance throughput and resource usage per deployment tier.
 
+## 🎼 YouTube Playlist Batch Creator
+
+The legacy playlist utility batch-creates unlisted YouTube playlists using the YouTube Data API v3. It is handy when you need standardized naming across multiple locales, for example:
+
+```
+[AIBG]_[fr]_01102025
+[AIBG]_[ja]_01102025
+[AIBG]_[de]_01102025
+...
+```
+
+### ✨ Features
+- Batch creation of unlisted playlists in one run
+- Customizable naming pattern `[BASE_TAG]_[LANGUAGE]_[DATE]`
+- Supports multiple base tags in a single batch
+- Supports any number of languages (defaults to 18 common locales)
+- One-time OAuth 2.0 login (opens a browser the first time)
+- Token caching via `token.json` so you authenticate only once
+- Graceful retry logic for API rate limits
+- Preview and confirmation step before playlist creation in the web UI
+
+### 🚀 Quick Start
+
+1. **Prerequisites**
+   - Python 3.9 or newer
+   - Install dependencies:
+
+```bash
+pip install google-auth-oauthlib google-api-python-client
+```
+
+   - Enable the YouTube Data API v3 in Google Cloud Console
+   - Create an OAuth client ID (Desktop App) and copy the downloaded JSON as `client_secret.json` into the project folder
+
+2. **Run the batch creator**
+
+   ```bash
+   python make_playlists.py
+   ```
+
+   - The first run opens a browser where you choose the YouTube account to manage
+   - When prompted for base tags, enter a comma-separated list to generate multiple tags in one run (e.g. `AIBG,ANIM`)
+   - When prompted for languages, press Enter to use the default list or type a custom comma-separated list (e.g. `fr` for a single test playlist)
+   - After authentication the playlists are created automatically
+   - Prefer the legacy web tools? Use `/youtube-playlist` for ID extraction and `/youtube-playlist-batch` for the batch creator UI once the Flask app is running
+
+### 📂 Example Output
+
+With the base tag `AIBG`, date `01102025`, and the default language list (`fr`, `ja`, `en`, ...), the tool generates:
+
+```
+[AIBG]_[fr]_01102025
+[AIBG]_[ja]_01102025
+[AIBG]_[en]_01102025
+...
+```
+
+All playlists default to the unlisted privacy setting.
+
+### 🛠️ Roadmap
+
+- **v1 — MVP (current)**
+  - Batch creation from a predefined language list
+  - Simple `[TAG]_[LANG]_[DATE]` format
+  - Unlisted privacy by default
+  - Retry on rate limits
+- **v2 — Configurable Inputs**
+  - CLI arguments such as `--tag AIBG --date 01102025 --langs fr,ja,en`
+  - Config file (`config.json` or `.env`) to define language sets and base naming
+- **v3 — Enhanced Usability**
+  - Read playlist names from a CSV file
+  - Export playlist ID plus name to CSV for tracking
+  - Optional per-playlist descriptions
+- **v4 — Web App Integration**
+  - Convert into a lightweight Flask or FastAPI app
+  - OAuth client ID for the web application flow
+  - Dashboard: input tag/date, pick languages, click "Create Playlists"
+- **v5 — Scaling and Team Use**
+  - Multi-user support (each user authorizes their own YouTube account)
+  - Persist refresh tokens in a data store
+  - Error logging and monitoring for quota limits
+
+### ⚠️ Notes
+- Authenticate with the Google account that owns the target YouTube channel
+- If you manage multiple channels or brand accounts, pick the correct one during OAuth consent
+- Delete `token.json` if you need to sign in with a different account
+
+### 📦 Upload Preview (WIP)
+
+`youtube_uploader.py` provides a preview-only workflow for upcoming bulk video uploads:
+
+```bash
+python youtube_uploader.py --csv youtube_uploads_sample.csv
+```
+
+- CSV columns: `file_path` (local path to the video) and `playlist_hint` (existing legacy filename containing `[TAG]` and `[lang]`).
+- The script resolves the target playlist name, flags URLs vs. local files, and prints a summary.
+- Use `--date DDMMYYYY` to override the fallback date when the hint omits one.
+- Reminder: actual video uploads will require re-authorizing with the `youtube.upload` scope; this script is a staging step for that flow.
+- Add `--run` to perform uploads immediately. The CLI will:
+  - Download remote sources into a temp folder before upload.
+  - Set each video to `unlisted`, keep the filename as the YouTube title, and mark it as not made for kids.
+  - Ensure the destination playlist exists (creating it when missing) and append the uploaded video.
+  - Emit a timestamped results CSV summarizing successes, skips, and failures.
+
+### 🖥️ Web Drag & Drop Uploader
+
+- Visit `/youtube-uploader` (legacy UI) to drag and drop local video files.
+- Filenames should still contain `[TAG]` and `[lang]`; the UI previews the inferred playlist before upload.
+- The backend reuses the same pipeline as the CLI, including resumable uploads, playlist creation, and results CSV downloads.
+- Reports are stored under `uploads/youtube_reports/` and can be retrieved directly from the interface.
+
 ## 🐛 Troubleshooting
 
 ### Common Issues
