@@ -50,27 +50,6 @@ TOOLS_CONFIG = {
             "active": True,
             "description": "Upload videos and attach them to playlists in bulk"
         },
-        {
-            "name": "Static Generator (WIP)",
-            "icon": "fas fa-file-code",
-            "url": "/static-generator",
-            "active": True,
-            "description": "Generate static content and assets"
-        },
-        {
-            "name": "Hook Remixer (WIP)",
-            "icon": "fas fa-music",
-            "url": "/hook-remixer",
-            "active": True,
-            "description": "AI-powered music hook generation and remixing"
-        },
-        {
-            "name": "Montage Maker (WIP)",
-            "icon": "fas fa-film",
-            "url": "/montage-maker",
-            "active": True,
-            "description": "Automated video montage creation"
-        },
       
         # Add more tools here as you create them
         # {

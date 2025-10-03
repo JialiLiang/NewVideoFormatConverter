@@ -20,23 +20,6 @@ from make_playlists import (
 app_logger = logging.getLogger('youtube_playlist')
 app_logger.setLevel(logging.INFO)
 
-PLAYLIST_PASSWORD = os.environ.get('YOUTUBE_PLAYLIST_PASSWORD', 'PhotoroomUA2025').strip()
-
-
-def _check_password(provided: Optional[str]) -> Tuple[bool, Dict[str, str]]:
-    """Validate provided password for protected playlist endpoints."""
-    if not PLAYLIST_PASSWORD:
-        return True, {}
-
-    if (provided or '').strip() == PLAYLIST_PASSWORD:
-        return True, {}
-
-    app_logger.warning('Invalid password attempt for YouTube playlist endpoint')
-    return False, {
-        'success': False,
-        'error': 'Unauthorized: invalid password provided.'
-    }
-
 def _build_playlist_result(playlist_data: Dict[str, Any], playlist_url: str):
     playlist_title = (
         playlist_data.get('title')
@@ -211,10 +194,6 @@ def process_playlist():
         if not data:
             return jsonify({'error': 'No data provided'}), 400
 
-        is_valid, error_payload = _check_password(data.get('password'))
-        if not is_valid:
-            return jsonify(error_payload), 403
-
         playlist_url = data.get('playlist_url', '').strip()
         if not playlist_url:
             return jsonify({'error': 'Playlist URL is required'}), 400
@@ -244,10 +223,6 @@ def validate_playlist_url():
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
-
-        is_valid, error_payload = _check_password(data.get('password'))
-        if not is_valid:
-            return jsonify(error_payload), 403
 
         playlist_url = data.get('playlist_url', '').strip()
         if not playlist_url:
@@ -281,10 +256,6 @@ def create_playlists():
     """Create YouTube playlists based on the provided naming pattern."""
     try:
         data = request.get_json() or {}
-
-        is_valid, error_payload = _check_password(data.get('password'))
-        if not is_valid:
-            return jsonify(error_payload), 403
 
         base_tags_raw = data.get('base_tags')
         date_code = (data.get('date_code') or '').strip()

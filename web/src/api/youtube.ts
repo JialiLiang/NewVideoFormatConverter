@@ -18,10 +18,9 @@ export interface ExtractPlaylistResponse {
   error?: string;
 }
 
-export const extractPlaylist = async (playlistUrl: string, password: string) => {
+export const extractPlaylist = async (playlistUrl: string) => {
   const { data } = await apiClient.post<ExtractPlaylistResponse>('/api/extract-playlist', {
     playlist_url: playlistUrl,
-    password,
   });
   return data;
 };

@@ -68,7 +68,6 @@ export const YoutubePlaylistPage = () => {
   const [playlistUrl, setPlaylistUrl] = useState('');
   const [result, setResult] = useState<ExtractPlaylistResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [password, setPassword] = useState('');
 
   const hasResults = result?.success && !!result.video_ids?.length;
 
@@ -80,14 +79,10 @@ export const YoutubePlaylistPage = () => {
       toast({ status: 'warning', title: 'Enter a playlist URL first' });
       return;
     }
-    if (!password.trim()) {
-      toast({ status: 'warning', title: 'Enter the access password' });
-      return;
-    }
     setIsLoading(true);
     setResult(null);
     try {
-      const response = await extractPlaylist(url, password.trim());
+      const response = await extractPlaylist(url);
       setResult(response);
       toast({
         status: 'success',
@@ -194,18 +189,6 @@ export const YoutubePlaylistPage = () => {
                     <Icon as={FiLink} color="purple.300" />
                   </InputRightElement>
                 </InputGroup>
-              </FormControl>
-              <FormControl>
-                <FormLabel>Access password</FormLabel>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Enter password"
-                />
-                <Text color={bodyTextColor} fontSize="sm" mt={1}>
-                  Only teammates with the shared password can run this extractor.
-                </Text>
               </FormControl>
               <HStack spacing={3}>
                 <Button

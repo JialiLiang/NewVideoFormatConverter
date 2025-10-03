@@ -734,40 +734,6 @@ def download_adlocalizer_file_route(filename):
     except ImportError:
         return jsonify({'error': 'AdLocalizer functionality not available'}), 500
 
-# Import WIP tool routes
-@app.route('/static-generator')
-def static_generator():
-    from tools_config import TOOLS_CONFIG
-    tools = get_active_tools()
-    return render_template('wip_tool.html', 
-                         tool_name="Static Generator", 
-                         tool_description="Generate static content and assets",
-                         tool_icon="fas fa-file-code",
-                         tools=tools, 
-                         tools_config=TOOLS_CONFIG)
-
-@app.route('/hook-remixer')
-def hook_remixer():
-    from tools_config import TOOLS_CONFIG
-    tools = get_active_tools()
-    return render_template('wip_tool.html', 
-                         tool_name="Hook Remixer", 
-                         tool_description="AI-powered music hook generation and remixing",
-                         tool_icon="fas fa-music",
-                         tools=tools, 
-                         tools_config=TOOLS_CONFIG)
-
-@app.route('/montage-maker')
-def montage_maker():
-    from tools_config import TOOLS_CONFIG
-    tools = get_active_tools()
-    return render_template('wip_tool.html', 
-                         tool_name="Montage Maker", 
-                         tool_description="Automated video montage creation",
-                         tool_icon="fas fa-film",
-                         tools=tools, 
-                         tools_config=TOOLS_CONFIG)
-
 @app.route('/name-generator')
 def name_generator():
     from tools_config import TOOLS_CONFIG
