@@ -71,15 +71,15 @@ def _check_upload_password(provided: Optional[str]) -> tuple[bool, dict[str, str
 
 app = Flask(__name__)
 try:
-    _youtube_upload_max_mb = int(os.environ.get('YOUTUBE_UPLOAD_MAX_MB', '200'))
+    _youtube_upload_max_mb = int(os.environ.get('YOUTUBE_UPLOAD_MAX_MB', '0'))
 except (TypeError, ValueError):
-    _youtube_upload_max_mb = 200
+    _youtube_upload_max_mb = 0
 
 if _youtube_upload_max_mb and _youtube_upload_max_mb > 0:
     app.config['MAX_CONTENT_LENGTH'] = _youtube_upload_max_mb * 1024 * 1024
 else:
-    # Remove the cap to allow chunked uploads beyond the default Flask limit
-    app.config.pop('MAX_CONTENT_LENGTH', None)
+    # Set to None to disable the upload size limit
+    app.config['MAX_CONTENT_LENGTH'] = None
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_NAME'] = os.environ.get('SESSION_COOKIE_NAME', 'pr_session')

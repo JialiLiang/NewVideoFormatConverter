@@ -70,6 +70,6 @@ snapshots/
 backend/
 
 # Authentication and sensitive files
-auth.py
+# auth.py - safe to commit (no hardcoded secrets, uses env vars)
 client_secret.json
 token.json
