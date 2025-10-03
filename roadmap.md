@@ -1,32 +1,329 @@
-Google Login + React/Chakra 外壳 — 实施规划（v1.1）
-1. 架构方案图解（文字版）
-浏览器访问同域站点（例如 https://app.example.com），前端 Vite+React+Chakra 的静态资源由 Render CDN 或 Flask 静态托管。
-React 前端通过 axios withCredentials 调用同域下的 Flask API，避免跨域配置，仅需确保凭据透传。
-登录流程：/login 触发 GET /api/auth/google/login → 后端用 Authlib 发起 OAuth → Google 回调 /api/auth/google/callback → 后端设置 httpOnly 会话 Cookie（SameSite=Lax，Secure）→ 302 回 /app。
-React 初始化时调用 GET /api/me 校验会话；未登录跳转 /login。后续逐步将旧 Jinja 页面替换为 React 页面。
-2. 实施分期计划（里程碑）
-M1（OAuth 最小闭环）：配置 Authlib 与 Google 凭证、实现登录/回调/会话、/api/me 返回基本用户资料、自测登录流程。
-M2（React App Shell）：搭建 Vite+TS+React+Chakra、实现 /login、/app、/app/profile、基于 /api/me 的守卫与导航框架。
-M3（功能迁移）：为 Name Generator 抽取后端 API（若尚未独立）、在 React 中重写等效页面并与旧逻辑对齐、验证渐进迁移链路。
-M4（安全与观测）：上线速率限制/CSRF 保护、统一错误与空状态页面、接入基础日志与健康探针，确保部署可观测。
-3. 关键技术决策与推荐
-会话 Cookie：沿用 Flask 服务端会话 + httpOnly + SameSite=Lax，与同域部署协同、兼容旧栈。
-UI 框架：选用 Chakra UI，组件轻量、主题易定制，便于快速搭建 App Shell。
-前端栈：Vite + React + TypeScript，开发体验快速、类型约束清晰。
-HTTP 客户端：Axios withCredentials: true，统一处理同域 Cookie 与错误态。
-OAuth 库：Authlib for Flask，集成简洁、支持 Google OAuth2/OIDC。
-4. 最小接口与路由列表（定义）
-后端：GET /api/auth/google/login（启动 OAuth）；GET /api/auth/google/callback（处理 code、建立会话、302 /app）；POST /api/auth/logout（清理会话）；GET /api/me（返回登录用户信息，未登录 401）。
-前端：/login（“Continue with Google”按钮指向后端登录）；/app（App Shell 首页，受保护）；/app/profile（展示 /api/me 数据）；受保护路由组件（未登录自动重定向 /login）。
-5. 目录与环境变量建议
-目录：backend/（Flask 应用与旧 Jinja 模板）与 web/（Vite+React）并存；Root 下保留共享配置与脚本。
-环境变量：GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、GOOGLE_REDIRECT_URI、FRONTEND_URL、BACKEND_URL、SECRET_KEY；未来引入数据库时新增连接串。
-6. 本地与部署步骤
-本地：1）在 backend/.env 写入 Google/OAuth/Secret；2）web/.env 配置 VITE_API_BASE_URL 与 FRONTEND_URL; 3）启动 Flask（flask run 或 python app.py）；4）启动 Vite（默认 5173），配置代理指向 http://localhost:5000; 5）访问 /login 验证最小登录闭环。
-部署：1）Render 上分别部署 Flask Web Service 与 React 静态站点，或由 Flask 托管编译后的 web/dist; 2）前后端同域（子路径或子域）配置；3）Google Console 设置授权 JS 来源/重定向 URI；4）Render 环境变量与 Secret 同步；5）部署后检查 Cookie、回调与 /api/me。
-7. 风险与回滚
-Google redirect_uri 不匹配：保留旧流程或临时禁用 OAuth，实现快速回退。
-会话 Cookie 配置错误：提前在多浏览器验证 SameSite/Secure，必要时恢复旧登录。
-Name Generator API 抽象不足：若 React 无法直接调用，先保持 Jinja 页面，待 API 抽离完成再切换。
-速率限制或 CSRF 配置导致误封：上线前模拟高并发，必要时保留可切换的 feature flag。
-OAuth 时钟偏差：保持服务器时间同步，出现问题可临时放宽 clock_skew。
+# Development Roadmap
+
+## Overview
+
+This roadmap tracks the implementation of the **hybrid architecture** migration from a monolithic Flask + Jinja template app to a modern React frontend with Flask API backend.
+
+## Architecture Vision
+
+**Target State:**
+- **Frontend**: React + Vite + TypeScript + Chakra UI
+- **Backend**: Flask REST API
+- **Authentication**: Google OAuth 2.0 with session-based auth
+- **Migration Strategy**: Gradual feature migration, maintaining backward compatibility
+
+**Key Principles:**
+1. Same-domain deployment to avoid CORS complexity
+2. Session-based auth with httpOnly cookies
+3. Progressive migration of features from Jinja to React
+4. Maintain legacy routes during transition period
+
+---
+
+## Milestones & Implementation Status
+
+### ✅ M1: OAuth Minimum Viable Product (COMPLETED)
+
+**Goal**: Implement secure Google OAuth authentication flow
+
+**Tasks:**
+- [x] Set up Authlib with Google OAuth credentials
+- [x] Implement `/api/auth/google/login` endpoint
+- [x] Implement `/api/auth/google/callback` handler
+- [x] Create `/api/me` endpoint for user profile
+- [x] Configure session management (httpOnly, SameSite=Lax, Secure)
+- [x] Test end-to-end login flow locally
+
+**Outcome**: Users can authenticate with Google and maintain secure sessions.
+
+---
+
+### ✅ M2: React App Shell (COMPLETED)
+
+**Goal**: Build the foundational React application structure
+
+**Tasks:**
+- [x] Set up Vite + React + TypeScript project in `/web`
+- [x] Configure Chakra UI theme
+- [x] Implement `/login` page with Google OAuth button
+- [x] Create protected route guards (`ProtectedRoute.tsx`)
+- [x] Build app layout with navigation (`AppLayout.tsx`)
+- [x] Implement `/app` dashboard landing page
+- [x] Create `/app/profile` page displaying user info from `/api/me`
+- [x] Set up API client with Axios (withCredentials: true)
+- [x] Configure Vite dev server proxy to Flask backend
+
+**Outcome**: Users can log in, access protected routes, and see their profile.
+
+---
+
+### ✅ M3: Feature Migration - Phase 1 (COMPLETED)
+
+**Goal**: Migrate initial features to React interface
+
+**Phase 1 Features:**
+- [x] **Name Generator**
+  - [x] Extract backend API endpoints (if needed)
+  - [x] Build React form component
+  - [x] Implement filename generation logic
+  - [x] Add validation and AI correction features
+  - [x] Test parity with legacy Jinja version
+
+- [x] **Video Converter**
+  - [x] Create React upload interface with drag-and-drop
+  - [x] Implement format selection UI
+  - [x] Add real-time progress tracking
+  - [x] Build download interface for completed conversions
+  - [x] Test with various video formats and sizes
+
+- [x] **AdLocalizer** (Partial)
+  - [x] Build React interface for multi-step workflow
+  - [x] Implement transcription step
+  - [x] Add translation and language selection
+  - [x] Integrate voice generation
+  - [x] Complete video mixing flow
+
+**Outcome**: Core features available in both React and legacy UIs.
+
+---
+
+### 🔄 M4: Security & Observability (IN PROGRESS)
+
+**Goal**: Harden production readiness with security and monitoring
+
+**Tasks:**
+- [ ] Implement rate limiting on sensitive endpoints
+- [ ] Add CSRF protection for state-changing operations
+- [ ] Create unified error pages (404, 500, 403)
+- [ ] Implement empty state components for all features
+- [ ] Set up structured logging with log levels
+- [ ] Add health check endpoint with detailed status
+- [ ] Configure monitoring and alerting
+- [x] Document environment variables and configuration
+- [ ] Add input validation and sanitization
+- [ ] Implement request size limits
+
+**Target**: Production-ready application with proper security controls.
+
+---
+
+### 📋 M5: Feature Migration - Phase 2 (PLANNED)
+
+**Goal**: Migrate remaining features to React
+
+**Phase 2 Features:**
+- [ ] **YouTube Playlist Creator**
+  - [ ] Build React interface for batch playlist creation
+  - [ ] Implement preview and confirmation flow
+  - [ ] Add language selection interface
+
+- [ ] **YouTube Bulk Uploader**
+  - [ ] Create drag-and-drop upload interface
+  - [ ] Implement progress tracking for uploads
+  - [ ] Add results download and history view
+
+- [ ] **Language Mapping Tool**
+  - [ ] Create reference table component
+  - [ ] Add search and filter functionality
+  - [ ] Implement inline documentation
+
+---
+
+### 📋 M6: Enhanced Features (PLANNED)
+
+**Goal**: Add new capabilities and improvements
+
+**Features:**
+- [ ] **User Dashboard**
+  - [ ] Job history tracking
+  - [ ] Usage statistics
+  - [ ] Favorite presets and templates
+
+- [ ] **Collaboration**
+  - [ ] Share generated content with team members
+  - [ ] Comments and feedback on conversions
+  - [ ] Role-based access control
+
+- [ ] **Advanced Video Features**
+  - [ ] Batch watermarking
+  - [ ] Custom aspect ratio support
+  - [ ] Video trimming and editing
+
+- [ ] **API Documentation**
+  - [ ] Interactive API docs with Swagger/OpenAPI
+  - [ ] API key management for programmatic access
+  - [ ] Webhooks for job completion
+
+---
+
+### 📋 M7: Performance & Scaling (FUTURE)
+
+**Goal**: Optimize for high-traffic production use
+
+**Tasks:**
+- [ ] Implement Redis for session storage
+- [ ] Add background job queue (Celery/RQ)
+- [ ] Optimize video processing pipeline
+- [ ] Implement caching strategy
+- [ ] Add CDN for static assets
+- [ ] Database integration for persistent data
+- [ ] Horizontal scaling setup
+- [ ] Load testing and optimization
+
+---
+
+## Technical Decisions
+
+### Authentication
+- **Choice**: Session-based auth with httpOnly cookies
+- **Rationale**: Simple, secure, works seamlessly with same-domain deployment
+- **Alternative Considered**: JWT tokens (added complexity for refresh)
+
+### Frontend Framework
+- **Choice**: React + Vite + TypeScript
+- **Rationale**: Fast dev experience, strong typing, modern tooling
+- **Alternative Considered**: Vue, Svelte (team familiarity favored React)
+
+### UI Library
+- **Choice**: Chakra UI
+- **Rationale**: Lightweight, good theming, accessible components
+- **Alternative Considered**: Material-UI (heavier), Tailwind (more manual)
+
+### API Client
+- **Choice**: Axios with withCredentials
+- **Rationale**: Automatic cookie handling, good error handling
+- **Alternative Considered**: Fetch API (requires more boilerplate)
+
+### Deployment Strategy
+- **Choice**: Same-domain deployment (Flask serves React build)
+- **Rationale**: Avoids CORS, simpler configuration, cookie handling
+- **Alternative Considered**: Separate deployments (more complex)
+
+---
+
+## Risk Mitigation
+
+### Risk: OAuth redirect_uri mismatch
+- **Mitigation**: Maintain comprehensive env var documentation
+- **Fallback**: Keep legacy login available during transition
+
+### Risk: Session cookie issues in production
+- **Mitigation**: Test cookie settings early in staging
+- **Fallback**: Implement JWT fallback if needed
+
+### Risk: Name Generator API not ready
+- **Mitigation**: Keep Jinja version available until API stable
+- **Timeline**: Only migrate after thorough testing
+
+### Risk: Rate limiting causes false positives
+- **Mitigation**: Implement feature flags for gradual rollout
+- **Monitoring**: Track rate limit hits in logs
+
+### Risk: OAuth clock skew
+- **Mitigation**: Ensure server time synchronization
+- **Configuration**: Allow configurable clock_skew parameter
+
+---
+
+## Environment & Deployment
+
+### Directory Structure
+```
+NewVideoFormatConverter/
+├── app.py                  # Flask backend + legacy routes
+├── oauth_routes.py         # Google OAuth implementation
+├── *_app.py                # Feature modules
+├── templates/              # Legacy Jinja templates
+├── static/                 # Legacy static assets
+├── web/                    # React frontend
+│   ├── src/
+│   ├── dist/              # Built React app (production)
+│   └── package.json
+└── requirements.txt
+```
+
+### Environment Variables
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for complete list.
+
+**Critical:**
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
+- `SECRET_KEY`, `FRONTEND_URL`
+- `SESSION_COOKIE_SECURE` (true in production)
+
+### Local Development
+
+**Terminal 1 (Backend):**
+```bash
+python3 app.py --port 5000
+```
+
+**Terminal 2 (Frontend):**
+```bash
+cd web && npm run dev  # http://localhost:5173
+```
+
+### Production Deployment
+
+**Monolithic (Recommended):**
+1. Build React: `cd web && npm run build`
+2. Flask serves from `web/dist/`
+3. Single deployment to Render/Heroku
+
+**Separate Services:**
+1. Backend: Deploy Flask API
+2. Frontend: Deploy to Vercel/Netlify
+3. Configure CORS and cookie settings
+
+---
+
+## Current Focus (October 2025)
+
+**Immediate Priorities:**
+1. Complete security hardening (rate limiting, CSRF)
+2. Implement comprehensive error handling
+3. Add monitoring and observability
+4. Complete YouTube tools migration to React
+5. Performance optimization and load testing
+
+**Next Quarter:**
+- User dashboard with job history
+- API documentation and public API
+- Advanced video editing features
+- Team collaboration features
+
+---
+
+## Success Metrics
+
+**Phase 1 (Completed):**
+- ✅ OAuth login working end-to-end
+- ✅ React app shell with protected routes
+- ✅ 3+ features migrated to React
+- ✅ Zero breaking changes to legacy features
+
+**Phase 2 (In Progress):**
+- [ ] All features available in React UI
+- [ ] < 2s page load time
+- [ ] 99.5% uptime
+- [ ] Zero critical security vulnerabilities
+
+**Phase 3 (Future):**
+- [ ] 100+ active users
+- [ ] < 500ms API response time (p95)
+- [ ] 10,000+ video conversions/month
+- [ ] Public API with external integrations
+
+---
+
+## References
+
+- [README.md](README.md) - Project overview and usage
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment guide
+- [web/README.md](web/README.md) - React frontend docs
+
+---
+
+**Last Updated**: October 3, 2025  
+**Status**: Phase 1 Complete, Phase 2 In Progress  
+**Next Review**: December 2025

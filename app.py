@@ -19,7 +19,7 @@ from tools_config import get_active_tools
 from youtube_upload import build_plan, FEATURE_ALIASES, LANGUAGE_CODES, LANGUAGE_MAP
 from youtube_upload.runner import process_plans, write_results_csv
 from youtube_upload.uploader import YoutubeUploadClient, CredentialSetupError
-from auth import init_auth
+from oauth_routes import init_auth
 
 # Load environment variables from .env file
 try:
