@@ -14,6 +14,7 @@ import concurrent.futures
 import threading
 import time
 import argparse
+from typing import Optional
 from tools_config import get_active_tools
 from youtube_upload import build_plan, FEATURE_ALIASES, LANGUAGE_CODES, LANGUAGE_MAP
 from youtube_upload.runner import process_plans, write_results_csv
@@ -44,9 +45,41 @@ FEATURES = {"AIBG","IGSTORY","LOGO","ANIM","MIX","AIFILL","RETOUCH",
 DIMS = {"PO","SQ","LS"}
 
 
+UPLOAD_PASSWORD = (
+    os.environ.get('YOUTUBE_UPLOAD_PASSWORD')
+    or os.environ.get('YOUTUBE_PLAYLIST_PASSWORD')
+    or 'PhotoroomUA2025'
+).strip()
+
+
+def _check_upload_password(provided: Optional[str]) -> tuple[bool, dict[str, str]]:
+    """Validate the shared password required for YouTube bulk uploads."""
+
+    if not UPLOAD_PASSWORD:
+        return True, {}
+
+    if (provided or '').strip() == UPLOAD_PASSWORD:
+        return True, {}
+
+    app_logger.warning('Invalid password attempt for YouTube upload endpoint')
+    return False, {
+        'success': False,
+        'error': 'Unauthorized: invalid password provided.'
+    }
+
+
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB max file size (reduced for memory)
+try:
+    _youtube_upload_max_mb = int(os.environ.get('YOUTUBE_UPLOAD_MAX_MB', '200'))
+except (TypeError, ValueError):
+    _youtube_upload_max_mb = 200
+
+if _youtube_upload_max_mb and _youtube_upload_max_mb > 0:
+    app.config['MAX_CONTENT_LENGTH'] = _youtube_upload_max_mb * 1024 * 1024
+else:
+    # Remove the cap to allow chunked uploads beyond the default Flask limit
+    app.config.pop('MAX_CONTENT_LENGTH', None)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_NAME'] = os.environ.get('SESSION_COOKIE_NAME', 'pr_session')
@@ -528,6 +561,10 @@ def api_youtube_uploads():
     if not files:
         return jsonify({'success': False, 'error': 'No files uploaded'}), 400
 
+    is_valid, error_payload = _check_upload_password(request.form.get('password'))
+    if not is_valid:
+        return jsonify(error_payload), 401
+
     upload_temp_dir = Path(tempfile.mkdtemp(prefix='youtube_upload_', dir=app.config['UPLOAD_FOLDER']))
     rows = []
     saved_paths = []
@@ -619,6 +656,10 @@ def api_youtube_playlist_suggest():
     items = data.get('items')
     if not isinstance(items, list) or not items:
         return jsonify({'success': False, 'error': 'No items provided'}), 400
+
+    is_valid, error_payload = _check_upload_password(data.get('password'))
+    if not is_valid:
+        return jsonify(error_payload), 401
 
     try:
         uploader = YoutubeUploadClient(allow_browser=False)

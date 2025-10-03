@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 import requests
 import subprocess
 import ffmpeg
+
+from ffmpeg_config import FFMPEG_THREAD_STR
 from elevenlabs.client import ElevenLabs
 from elevenlabs import VoiceSettings
 
@@ -521,6 +523,7 @@ def extract_audio_from_video(video_path, output_audio_path):
             ffmpeg
             .input(str(video_path))
             .output(str(output_audio_path), acodec='pcm_s16le', ac=1, ar='16000')
+            .global_args('-threads', FFMPEG_THREAD_STR)
             .overwrite_output()
             .run(capture_stdout=True, capture_stderr=True)
         )
@@ -716,7 +719,7 @@ def mix_audio_with_video(audio_file, video_file, output_file, original_volume=0.
             str(output_file),
             acodec='aac',
             vcodec='copy'
-        ).overwrite_output().run(capture_stdout=True, capture_stderr=True)
+        ).global_args('-threads', FFMPEG_THREAD_STR).overwrite_output().run(capture_stdout=True, capture_stderr=True)
         
         return True
     except ffmpeg.Error as e:
@@ -1301,7 +1304,7 @@ def remove_vocals_from_video(video_path, output_directory, model_id=None):
             str(instrumental_video_path),
             acodec='aac',
             vcodec='copy'
-        ).overwrite_output().run(capture_stdout=True, capture_stderr=True)
+        ).global_args('-threads', FFMPEG_THREAD_STR).overwrite_output().run(capture_stdout=True, capture_stderr=True)
         
         # Clean up temporary audio
         try:

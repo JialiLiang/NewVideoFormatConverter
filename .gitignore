@@ -64,3 +64,12 @@ vocal_models/
 web/node_modules/
 web/dist/
 web/.env
+
+# Project-specific temporary and backup files
+snapshots/
+backend/
+
+# Authentication and sensitive files
+auth.py
+client_secret.json
+token.json

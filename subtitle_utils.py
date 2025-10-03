@@ -10,6 +10,8 @@ from moviepy.editor import CompositeVideoClip, ImageClip, VideoFileClip
 from moviepy.video.tools.subtitles import SubtitlesClip
 from PIL import Image, ImageDraw, ImageFont
 
+from ffmpeg_config import FFMPEG_THREADS
+
 try:  # Optional dependencies for proper RTL shaping
     import arabic_reshaper  # type: ignore
 except Exception:  # pragma: no cover - optional runtime dep
@@ -598,7 +600,7 @@ def burn_subtitles_onto_video(
             audio_codec="aac",
             temp_audiofile=str(output_file.with_suffix(".temp-audio.m4a")),
             remove_temp=True,
-            threads=2,
+            threads=FFMPEG_THREADS,
             fps=video_clip.fps or 25,
             verbose=False,
             logger=None,

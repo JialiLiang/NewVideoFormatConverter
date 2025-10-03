@@ -12,6 +12,8 @@ import concurrent.futures
 from functools import partial
 import logging
 
+from ffmpeg_config import FFMPEG_THREADS, FFMPEG_THREAD_STR
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -22,7 +24,7 @@ logging.basicConfig(
 # Set up ffmpeg path - try to use imageio-ffmpeg binary if system ffmpeg is not available
 try:
     # Try running ffmpeg to see if it's available
-    subprocess.run(["ffmpeg", "-version"], check=True, capture_output=True)
+    subprocess.run(["ffmpeg", "-threads", FFMPEG_THREAD_STR, "-version"], check=True, capture_output=True)
 except (subprocess.SubprocessError, FileNotFoundError):
     # If ffmpeg is not found, use imageio-ffmpeg binary
     import imageio_ffmpeg
@@ -62,21 +64,21 @@ def get_ffmpeg_params_for_processing():
             "codec": "h264_nvenc",
             "preset": "p2",  # Fastest NVIDIA preset
             "crf": "28",
-            "extra_params": ["-gpu", "0"]
+            "extra_params": ["-gpu", "0", "-threads", FFMPEG_THREAD_STR]
         }
     elif hw_accel == "h264_qsv":
         return {
             "codec": "h264_qsv", 
             "preset": "veryfast",
             "crf": "28",
-            "extra_params": ["-hwaccel", "qsv"]
+            "extra_params": ["-hwaccel", "qsv", "-threads", FFMPEG_THREAD_STR]
         }
     else:
         return {
             "codec": "libx264",
             "preset": "veryfast",
             "crf": "28", 
-            "extra_params": ["-threads", str(os.cpu_count() or 4)]
+            "extra_params": ["-threads", FFMPEG_THREAD_STR]
         }
 
 # Process a single video with the given format
@@ -221,7 +223,7 @@ def create_square_video(input_path, output_path):
             bitrate='6000k',  # High bitrate for better quality
             audio_bitrate='320k',  # High audio bitrate
             preset='veryfast',  # Faster encoding for better performance
-            threads=4,  # Use multiple threads for faster processing
+            threads=FFMPEG_THREADS,  # Control ffmpeg threads
             verbose=False,  # Suppress MoviePy verbose output
             logger=None,    # Disable MoviePy progress bars
             ffmpeg_params=[
@@ -274,6 +276,7 @@ def create_square_blur_video_direct(input_path, output_path):
             try:
                 subprocess.run([
                     ffmpeg_cmd, "-i", input_path, "-vn", "-acodec", "copy", 
+                    "-threads", FFMPEG_THREAD_STR,
                     audio_file
                 ], check=True, capture_output=True, text=True)
             except subprocess.CalledProcessError as e:
@@ -323,7 +326,7 @@ def create_square_blur_video_direct(input_path, output_path):
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 "scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080,boxblur=20:3", 
                 "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
-                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
+                "-threads", FFMPEG_THREAD_STR,  # Control ffmpeg threads
                 "-loglevel", "error",  # Only show errors
                 blurred_bg
             ], check=True, capture_output=True, text=True)
@@ -337,7 +340,7 @@ def create_square_blur_video_direct(input_path, output_path):
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={visible_width}:{visible_height}", 
                 "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
-                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
+                "-threads", FFMPEG_THREAD_STR,  # Control ffmpeg threads
                 resized_center
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -351,6 +354,7 @@ def create_square_blur_video_direct(input_path, output_path):
                     ffmpeg_cmd, "-i", blurred_bg, "-i", resized_center, "-i", audio_file,
                     "-filter_complex", f"[0:v][1:v] overlay={x_offset}:{y_offset} [outv]", 
                     "-map", "[outv]", "-map", "2:a", "-c:v", "libx264", "-c:a", "aac",
+                    "-threads", FFMPEG_THREAD_STR,
                     "-shortest", output_path
                 ], check=True, capture_output=True, text=True)
             else:
@@ -358,6 +362,7 @@ def create_square_blur_video_direct(input_path, output_path):
                     ffmpeg_cmd, "-i", blurred_bg, "-i", resized_center,
                     "-filter_complex", f"[0:v][1:v] overlay={x_offset}:{y_offset} [outv]", 
                     "-map", "[outv]", "-c:v", "libx264",
+                    "-threads", FFMPEG_THREAD_STR,
                     "-shortest", output_path
                 ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -424,6 +429,7 @@ def create_landscape_video_direct(input_path, output_path):
             try:
                 subprocess.run([
                     ffmpeg_cmd, "-i", input_path, "-vn", "-acodec", "copy", 
+                    "-threads", FFMPEG_THREAD_STR,
                     audio_file
                 ], check=True, capture_output=True, text=True)
             except subprocess.CalledProcessError as e:
@@ -491,7 +497,7 @@ def create_landscape_video_direct(input_path, output_path):
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,boxblur=20:5", 
                 "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
-                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
+                "-threads", FFMPEG_THREAD_STR,  # Control ffmpeg threads
                 blurred_bg
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -504,7 +510,7 @@ def create_landscape_video_direct(input_path, output_path):
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={target_width}:{target_height}", 
                 "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
-                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
+                "-threads", FFMPEG_THREAD_STR,  # Control ffmpeg threads
                 resized_center
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -523,6 +529,7 @@ def create_landscape_video_direct(input_path, output_path):
                     ffmpeg_cmd, "-i", blurred_bg, "-i", resized_center, "-i", audio_file,
                     "-filter_complex", f"[0:v][1:v] overlay={x_offset}:{y_offset} [outv]", 
                     "-map", "[outv]", "-map", "2:a", "-c:v", "libx264", "-c:a", "aac",
+                    "-threads", FFMPEG_THREAD_STR,
                     "-shortest", output_path
                 ], check=True, capture_output=True, text=True)
             else:
@@ -530,6 +537,7 @@ def create_landscape_video_direct(input_path, output_path):
                     ffmpeg_cmd, "-i", blurred_bg, "-i", resized_center,
                     "-filter_complex", f"[0:v][1:v] overlay={x_offset}:{y_offset} [outv]", 
                     "-map", "[outv]", "-c:v", "libx264",
+                    "-threads", FFMPEG_THREAD_STR,
                     "-shortest", output_path
                 ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -718,6 +726,7 @@ def create_vertical_blur_video_direct(input_path, output_path):
             try:
                 subprocess.run([
                     ffmpeg_cmd, "-i", input_path, "-vn", "-acodec", "copy", 
+                    "-threads", FFMPEG_THREAD_STR,
                     audio_file
                 ], check=True, capture_output=True, text=True)
             except subprocess.CalledProcessError as e:
@@ -770,7 +779,7 @@ def create_vertical_blur_video_direct(input_path, output_path):
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={canvas_width}:{canvas_height}:force_original_aspect_ratio=increase,crop={canvas_width}:{canvas_height},boxblur=20:3", 
                 "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
-                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
+                "-threads", FFMPEG_THREAD_STR,  # Control ffmpeg threads
                 blurred_bg
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -783,7 +792,7 @@ def create_vertical_blur_video_direct(input_path, output_path):
                 ffmpeg_cmd, "-i", input_path, "-vf", 
                 f"scale={visible_width}:{visible_height}", 
                 "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", 
-                "-threads", str(os.cpu_count() or 4),  # Use all CPU cores
+                "-threads", FFMPEG_THREAD_STR,  # Control ffmpeg threads
                 resized_center
             ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
@@ -797,6 +806,7 @@ def create_vertical_blur_video_direct(input_path, output_path):
                     ffmpeg_cmd, "-i", blurred_bg, "-i", resized_center, "-i", audio_file,
                     "-filter_complex", f"[0:v][1:v] overlay={x_offset}:{y_offset} [outv]", 
                     "-map", "[outv]", "-map", "2:a", "-c:v", "libx264", "-c:a", "aac",
+                    "-threads", FFMPEG_THREAD_STR,
                     "-shortest", output_path
                 ], check=True, capture_output=True, text=True)
             else:
@@ -804,6 +814,7 @@ def create_vertical_blur_video_direct(input_path, output_path):
                     ffmpeg_cmd, "-i", blurred_bg, "-i", resized_center,
                     "-filter_complex", f"[0:v][1:v] overlay={x_offset}:{y_offset} [outv]", 
                     "-map", "[outv]", "-c:v", "libx264",
+                    "-threads", FFMPEG_THREAD_STR,
                     "-shortest", output_path
                 ], check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:

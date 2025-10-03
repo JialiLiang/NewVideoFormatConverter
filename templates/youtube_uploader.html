@@ -118,12 +118,19 @@
                 <div class="status-alert alert" role="alert" id="statusAlert"></div>
 
                 <div class="mb-4">
+                    <label for="uploadPassword" class="form-label">Access password</label>
+                    <input type="password" class="form-control" id="uploadPassword" placeholder="Enter password">
+                    <div class="form-text">Same shared code as the playlist utilities.</div>
+                </div>
+
+                <div class="mb-4">
                     <div class="drop-zone" id="dropZone">
                         <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
                         <p class="mb-2">Drag & drop video files here</p>
                         <p class="text-muted mb-0">or click to choose files</p>
                         <input type="file" id="fileInput" accept="video/*" multiple hidden>
                     </div>
+                    <div class="form-text mt-2">Most processed creatives are about 50&nbsp;MB each—plan batches with that in mind.</div>
                 </div>
 
                 <div class="mb-4">
@@ -202,6 +209,7 @@
     const resultsTable = document.getElementById('resultsTable');
     const downloadReportLink = document.getElementById('downloadReportLink');
     const playlistSummary = document.getElementById('playlistSummary');
+    const passwordInput = document.getElementById('uploadPassword');
 
     const files = new Map(); // key -> { file, meta }
     const playlistDecisions = new Map(); // comboKey -> suggestion
@@ -229,6 +237,13 @@
     function clearStatus() {
         statusAlert.classList.remove('active');
         statusAlert.textContent = '';
+    }
+
+    function getPasswordValue() {
+        if (!passwordInput) {
+            return '';
+        }
+        return passwordInput.value.trim();
     }
 
     function todayDateCode() {
@@ -379,7 +394,8 @@
             fileList.appendChild(item);
         });
 
-        uploadBtn.disabled = hasInvalid || files.size === 0;
+        const passwordFilled = Boolean(getPasswordValue());
+        uploadBtn.disabled = hasInvalid || files.size === 0 || !passwordFilled;
         clearBtn.disabled = false;
 
         renderPlaylistSummary(groups, hasInvalid);
@@ -466,6 +482,18 @@
         fileInput.value = '';
     });
 
+    if (passwordInput) {
+        passwordInput.addEventListener('input', () => {
+            overridesConfirmed = false;
+            pendingOverrideConfirmation = false;
+            clearStatus();
+            refreshFileList();
+            if (files.size > 0 && getPasswordValue()) {
+                requestSuggestions();
+            }
+        });
+    }
+
     clearBtn.addEventListener('click', () => {
         files.clear();
         playlistDecisions.clear();
@@ -478,7 +506,7 @@
     });
 
     function toggleUploading(isUploading) {
-        uploadBtn.disabled = isUploading || files.size === 0;
+        uploadBtn.disabled = isUploading || files.size === 0 || !getPasswordValue();
         uploadSpinner.style.display = isUploading ? 'inline-block' : 'none';
         clearBtn.disabled = isUploading;
         dropZone.classList.toggle('disabled', isUploading);
@@ -515,6 +543,12 @@
             }
         }
 
+        const passwordValue = getPasswordValue();
+        if (!passwordValue) {
+            setStatus('Enter the access password before uploading.', 'warning');
+            return;
+        }
+
         clearStatus();
         resultsCard.style.display = 'none';
         downloadReportLink.style.display = 'none';
@@ -525,6 +559,8 @@
         files.forEach(({ file }) => {
             formData.append('files', file, file.name);
         });
+
+        formData.append('password', passwordValue);
 
         const overridesPayload = {};
         playlistDecisions.forEach((decision, key) => {
@@ -630,10 +666,23 @@
         }
 
         try {
+            const passwordValue = getPasswordValue();
+            if (!passwordValue) {
+                playlistDecisions.clear();
+                pendingOverrideConfirmation = false;
+                overridesConfirmed = false;
+                if (files.size > 0) {
+                    setStatus('Enter the access password to fetch playlist suggestions.', 'warning');
+                }
+                refreshFileList();
+                return;
+            }
+
             const response = await fetch('/api/youtube-playlists/suggest', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    password: passwordValue,
                     items: Array.from(combos.values()).map((meta) => ({
                         base_tag: meta.baseTag,
                         language: meta.language,
