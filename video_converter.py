@@ -436,14 +436,33 @@ def create_landscape_video_direct(input_path, output_path):
                        "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", 
                        input_path]
             result = subprocess.run(probe_cmd, capture_output=True, text=True, check=True)
-            orig_width, orig_height = map(int, result.stdout.strip().split('x'))
+
+            dimensions_raw = (result.stdout or "").strip()
+            if not dimensions_raw:
+                raise ValueError("ffprobe returned empty dimensions")
+
+            width_str, height_str = [part.strip() for part in dimensions_raw.split('x', 1)]
+            orig_width, orig_height = int(width_str), int(height_str)
         except subprocess.CalledProcessError as e:
             logging.error(f"Error getting video dimensions: {e.stderr}")
             raise
-        except ValueError as e:
-            logging.error(f"Error parsing video dimensions: {result.stdout}")
-            raise
-        
+        except (ValueError, AttributeError) as e:
+            logging.warning(f"Primary dimension parsing failed for {input_path}: {e}")
+
+            # Fallback: use moviepy to query the clip metadata
+            clip = None
+            try:
+                clip = VideoFileClip(input_path)
+                width, height = clip.size
+                orig_width, orig_height = int(width), int(height)
+                logging.info(f"Fallback dimension detection succeeded for {input_path}: {orig_width}x{orig_height}")
+            except Exception as fallback_exc:
+                logging.error(f"Fallback dimension detection failed for {input_path}: {fallback_exc}")
+                raise ValueError(f"Could not determine video dimensions: {fallback_exc}") from fallback_exc
+            finally:
+                if clip:
+                    clip.close()
+
         # Target dimensions for landscape (1920x1080)
         canvas_width = 1920
         canvas_height = 1080

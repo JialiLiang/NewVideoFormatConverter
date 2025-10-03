@@ -105,6 +105,19 @@
                             <small class="text-muted">We'll extract all video IDs from the playlist</small>
                         </div>
                     </div>
+                    <div class="mt-3" style="max-width: 600px; margin: 0 auto;">
+                        <label for="playlistPassword" class="form-label">Access password</label>
+                        <input 
+                            type="password"
+                            class="form-control"
+                            id="playlistPassword"
+                            placeholder="Enter password"
+                            required
+                        >
+                        <div class="form-text">
+                            <small class="text-muted">Protected tool — enter the shared password to run the extractor.</small>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Action Buttons -->
@@ -224,9 +237,15 @@ let currentResults = null;
 
 function extractPlaylist() {
     const playlistUrl = document.getElementById('playlistUrl').value.trim();
+    const playlistPassword = document.getElementById('playlistPassword').value.trim();
     
     if (!playlistUrl) {
         showError('Please enter a YouTube playlist URL');
+        return;
+    }
+
+    if (!playlistPassword) {
+        showError('Please enter the access password.');
         return;
     }
 
@@ -242,7 +261,8 @@ function extractPlaylist() {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            playlist_url: playlistUrl
+            playlist_url: playlistUrl,
+            password: playlistPassword
         })
     })
     .then(response => response.json())
@@ -401,6 +421,12 @@ function showToast(message, type = 'info') {
 
 // Handle Enter key in input field
 document.getElementById('playlistUrl').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        extractPlaylist();
+    }
+});
+
+document.getElementById('playlistPassword').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         extractPlaylist();
     }

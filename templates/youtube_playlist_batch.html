@@ -1,0 +1,590 @@
+{% extends "base.html" %}
+
+{% block title %}YouTube Playlist Batch Creator{% endblock %}
+
+{% set use_main_container = false %}
+{% set current_tool = "YouTube Playlist Batch Creator" %}
+
+{% block head %}
+<style>
+    .playlist-card {
+        border: 1px solid var(--border-2);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+    }
+    .playlist-card .card-header {
+        background: var(--surface-2);
+        border-bottom: 1px solid var(--border-2);
+    }
+    .form-section {
+        border: 1px solid var(--border-2);
+        border-radius: var(--radius-md);
+        padding: var(--space-lg);
+        margin-bottom: var(--space-lg);
+        background: var(--surface-1);
+    }
+    .language-grid,
+    .base-tag-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: var(--space-sm);
+    }
+    .language-chip {
+        display: inline-flex;
+        align-items: center;
+        background: var(--indigo-1);
+        color: white;
+        border-radius: var(--radius-xl);
+        padding: 0.25rem 0.75rem;
+        font-size: 0.85rem;
+        margin-right: 0.35rem;
+        margin-bottom: 0.35rem;
+    }
+    .language-chip button {
+        background: transparent;
+        border: none;
+        color: inherit;
+        padding: 0 0 0 0.5rem;
+        cursor: pointer;
+    }
+    .language-chip button:hover {
+        opacity: 0.75;
+    }
+    .results-card,
+    .preview-card {
+        display: none;
+    }
+    .results-card.active,
+    .preview-card.active {
+        display: block;
+    }
+    .status-alert {
+        display: none;
+    }
+    .status-alert.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content_custom %}
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <div class="card playlist-card">
+            <div class="card-header">
+                <h1 class="h3 mb-1">YouTube Playlist Batch Creator</h1>
+                <p class="mb-0 text-muted">Generate multiple unlisted playlists following the legacy naming pattern in one click.</p>
+            </div>
+            <div class="card-body">
+                <div class="status-alert alert" role="alert" id="statusAlert"></div>
+
+                <form id="playlistForm" class="mb-4">
+                    <div class="form-section">
+                        <h5>Access password</h5>
+                        <div class="mb-3">
+                            <label for="playlistPassword" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="playlistPassword" placeholder="Enter password" required>
+                            <div class="form-text">Only teammates with the shared password can launch playlist utilities.</div>
+                        </div>
+                    </div>
+                    <div class="form-section">
+                        <h5>Batch settings</h5>
+                        <div class="row g-4">
+                            <div class="col-md-7">
+                                <label class="form-label">Base tags</label>
+                                <div class="base-tag-grid">
+                                    {% for tag in base_tag_options %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="{{ tag }}" id="base_{{ tag }}" name="baseTagOption" {% if loop.first %}checked{% endif %}>
+                                        <label class="form-check-label" for="base_{{ tag }}">{{ tag }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="form-text">Select one or more tags to include in this batch.</div>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="dateCode" class="form-label">Date code (DDMMYYYY)</label>
+                                <input type="text" class="form-control" id="dateCode" required>
+                                <div class="form-text">Defaults to today; override for future launches if needed.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h5>Languages</h5>
+                        <p class="text-muted mb-3">Defaults to {{ default_language_codes|join(', ') }}. Uncheck any you do not need, or add new language codes below.</p>
+                        <div class="language-grid mb-3">
+                            {% for option in language_options %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="{{ option.code }}" id="lang_{{ option.code }}" name="languageOption" checked>
+                                <label class="form-check-label" for="lang_{{ option.code }}">{{ option.label }} <span class="text-muted">({{ option.code }})</span></label>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-6">
+                                <label for="customLanguage" class="form-label">Add language code</label>
+                                <input type="text" class="form-control" id="customLanguage" placeholder="e.g. ru">
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-outline-primary w-100 mt-4 mt-md-0" id="addLanguageBtn">Add</button>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-outline-secondary w-100 mt-4 mt-md-0" id="resetLanguagesBtn">Reset defaults</button>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 align-items-center mt-2">
+                            <div class="col-md-6">
+                                <button type="button" class="btn btn-outline-success w-100" id="selectAllLanguagesBtn">Select all</button>
+                            </div>
+                            <div class="col-md-6">
+                                <button type="button" class="btn btn-outline-danger w-100" id="deselectAllLanguagesBtn">Deselect all</button>
+                            </div>
+                        </div>
+
+                        <div class="mt-3" id="customLanguageChips"></div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg" id="createPlaylistsBtn">
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" id="createSpinner" style="display: none;"></span>
+                            Preview batch
+                        </button>
+                    </div>
+                </form>
+
+                <div class="preview-card card mb-4" id="previewCard">
+                    <div class="card-header">
+                        <h5 class="mb-0">Preview playlists</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="previewSummary" class="mb-3"></div>
+                        <div class="mb-3" style="max-height: 280px; overflow-y: auto;">
+                            <ul class="list-group" id="previewList"></ul>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-success" id="confirmBatchBtn">
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" id="confirmSpinner" style="display: none;"></span>
+                                Confirm & Create
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="cancelPreviewBtn">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="results-card card" id="resultsCard">
+                    <div class="card-header">
+                        <h5 class="mb-0">Batch results</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultsSummary" class="mb-3"></div>
+
+                        <div class="mb-4" id="createdSection" style="display: none;">
+                            <h6>Created playlists</h6>
+                            <ul class="list-group" id="createdList"></ul>
+                        </div>
+
+                        <div id="failedSection" style="display: none;">
+                            <h6>Failed playlists</h6>
+                            <ul class="list-group" id="failedList"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Tips</h2>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li>Playlist names follow the `[TAG]_[lang]_DDMMYYYY` convention.</li>
+                    <li>Playlists are created as unlisted; change visibility later in YouTube Studio if needed.</li>
+                    <li>Credentials are loaded from `token.json`. Run the CLI tool first if you need to authenticate again.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const languageOptions = {{ language_options | tojson }};
+    const defaultLanguageCodes = {{ default_language_codes | tojson }};
+    const customLanguages = new Set();
+    let pendingBatch = null;
+
+    const playlistForm = document.getElementById('playlistForm');
+    const passwordInput = document.getElementById('playlistPassword');
+    const dateCodeInput = document.getElementById('dateCode');
+    const customLanguageInput = document.getElementById('customLanguage');
+    const customLanguageChips = document.getElementById('customLanguageChips');
+    const addLanguageBtn = document.getElementById('addLanguageBtn');
+    const resetLanguagesBtn = document.getElementById('resetLanguagesBtn');
+    const selectAllLanguagesBtn = document.getElementById('selectAllLanguagesBtn');
+    const deselectAllLanguagesBtn = document.getElementById('deselectAllLanguagesBtn');
+    const createPlaylistsBtn = document.getElementById('createPlaylistsBtn');
+    const createSpinner = document.getElementById('createSpinner');
+    const statusAlert = document.getElementById('statusAlert');
+    const resultsCard = document.getElementById('resultsCard');
+    const resultsSummary = document.getElementById('resultsSummary');
+    const createdSection = document.getElementById('createdSection');
+    const createdList = document.getElementById('createdList');
+    const failedSection = document.getElementById('failedSection');
+    const failedList = document.getElementById('failedList');
+    const previewCard = document.getElementById('previewCard');
+    const previewSummary = document.getElementById('previewSummary');
+    const previewList = document.getElementById('previewList');
+    const confirmBatchBtn = document.getElementById('confirmBatchBtn');
+    const cancelPreviewBtn = document.getElementById('cancelPreviewBtn');
+    const confirmSpinner = document.getElementById('confirmSpinner');
+
+    function setDefaultDate() {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        dateCodeInput.value = `${day}${month}${year}`;
+    }
+
+    function resetDefaults() {
+        document.querySelectorAll('input[name="languageOption"]').forEach((checkbox) => {
+            checkbox.checked = defaultLanguageCodes.includes(checkbox.value);
+        });
+        customLanguages.clear();
+        renderCustomLanguages();
+        hidePreview();
+        pendingBatch = null;
+    }
+
+    function selectAllLanguages() {
+        document.querySelectorAll('input[name="languageOption"]').forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+        pendingBatch = null;
+        hidePreview();
+    }
+
+    function deselectAllLanguages() {
+        document.querySelectorAll('input[name="languageOption"]').forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        customLanguages.clear();
+        renderCustomLanguages();
+        pendingBatch = null;
+        hidePreview();
+    }
+
+    function renderCustomLanguages() {
+        customLanguageChips.innerHTML = '';
+        if (!customLanguages.size) {
+            customLanguageChips.innerHTML = '<p class="form-text mb-0">No custom language codes added yet.</p>';
+            return;
+        }
+
+        customLanguages.forEach((code) => {
+            const wrapper = document.createElement('span');
+            wrapper.className = 'language-chip';
+            wrapper.textContent = code;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.setAttribute('aria-label', `Remove ${code}`);
+            removeBtn.textContent = 'x';
+            removeBtn.addEventListener('click', () => {
+                customLanguages.delete(code);
+                renderCustomLanguages();
+                pendingBatch = null;
+                hidePreview();
+            });
+
+            wrapper.appendChild(removeBtn);
+            customLanguageChips.appendChild(wrapper);
+        });
+    }
+
+    function addCustomLanguage() {
+        const value = customLanguageInput.value.trim().toLowerCase();
+        if (!value) {
+            return;
+        }
+
+        const defaultCheckbox = document.querySelector(`input[name="languageOption"][value="${value}"]`);
+        if (defaultCheckbox) {
+            defaultCheckbox.checked = true;
+        } else {
+            customLanguages.add(value);
+            renderCustomLanguages();
+        }
+
+        customLanguageInput.value = '';
+        pendingBatch = null;
+        hidePreview();
+    }
+
+    function gatherBaseTags() {
+        const tags = [];
+        document.querySelectorAll('input[name="baseTagOption"]').forEach((checkbox) => {
+            if (checkbox.checked) {
+                tags.push(checkbox.value);
+            }
+        });
+        return tags;
+    }
+
+    function gatherLanguages() {
+        const selectedDefault = [];
+        languageOptions.forEach((option) => {
+            const checkbox = document.querySelector(`input[name="languageOption"][value="${option.code}"]`);
+            if (checkbox && checkbox.checked) {
+                selectedDefault.push(option.code);
+            }
+        });
+
+        const extras = Array.from(customLanguages);
+        const seen = new Set();
+        const combined = [];
+
+        selectedDefault.concat(extras).forEach((code) => {
+            if (!seen.has(code)) {
+                seen.add(code);
+                combined.push(code);
+            }
+        });
+
+        return combined;
+    }
+
+    function setStatus(message, type = 'info') {
+        statusAlert.className = `status-alert alert alert-${type}`;
+        statusAlert.textContent = message;
+        statusAlert.classList.add('active');
+    }
+
+    function clearStatus() {
+        statusAlert.classList.remove('active');
+        statusAlert.textContent = '';
+    }
+
+    function toggleLoading(isLoading) {
+        createPlaylistsBtn.disabled = isLoading;
+        createSpinner.style.display = isLoading ? 'inline-block' : 'none';
+    }
+
+    function toggleConfirmLoading(isLoading) {
+        confirmBatchBtn.disabled = isLoading;
+        cancelPreviewBtn.disabled = isLoading;
+        confirmSpinner.style.display = isLoading ? 'inline-block' : 'none';
+        createPlaylistsBtn.disabled = isLoading;
+        if (!isLoading) {
+            createSpinner.style.display = 'none';
+        }
+    }
+
+    function renderResults(data) {
+        resultsCard.classList.add('active');
+
+        const requestedCount = data.requested.length;
+        const createdCount = data.created.length;
+        const failedCount = data.failed.length;
+        resultsSummary.textContent = `${createdCount} playlists created, ${failedCount} failed out of ${requestedCount} requested.`;
+
+        if (createdCount > 0) {
+            createdSection.style.display = 'block';
+            createdList.innerHTML = '';
+            data.created.forEach((item) => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = item.name;
+
+                const link = document.createElement('a');
+                link.href = item.url;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.className = 'btn btn-sm btn-outline-primary';
+                link.textContent = 'View';
+
+                listItem.appendChild(nameSpan);
+                listItem.appendChild(link);
+                createdList.appendChild(listItem);
+            });
+        } else {
+            createdSection.style.display = 'none';
+        }
+
+        if (failedCount > 0) {
+            failedSection.style.display = 'block';
+            failedList.innerHTML = '';
+            data.failed.forEach((item) => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item list-group-item-warning';
+                listItem.textContent = `${item.name} - ${item.error}`;
+                failedList.appendChild(listItem);
+            });
+        } else {
+            failedSection.style.display = 'none';
+        }
+
+        return { requestedCount, createdCount, failedCount };
+    }
+
+    function buildPreviewPlaylists(baseTags, languages, dateCode) {
+        const names = [];
+        baseTags.forEach((tag) => {
+            languages.forEach((lang) => {
+                names.push(`[${tag}]_[${lang}]_${dateCode}`);
+            });
+        });
+        return names;
+    }
+
+    function renderPreview(batch) {
+        previewList.innerHTML = '';
+        batch.previewNames.forEach((name) => {
+            const item = document.createElement('li');
+            item.className = 'list-group-item';
+            item.textContent = name;
+            previewList.appendChild(item);
+        });
+
+        previewSummary.textContent = `${batch.previewNames.length} playlists will be created (${batch.baseTags.length} base tags x ${batch.languages.length} languages).`;
+        previewCard.classList.add('active');
+    }
+
+    function hidePreview() {
+        previewCard.classList.remove('active');
+        previewSummary.textContent = '';
+        previewList.innerHTML = '';
+    }
+
+    playlistForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        clearStatus();
+        resultsCard.classList.remove('active');
+        toggleLoading(false);
+
+        const passwordValue = passwordInput.value.trim();
+        const baseTags = gatherBaseTags();
+        const dateCode = dateCodeInput.value.trim();
+        const languages = gatherLanguages();
+
+        if (!passwordValue) {
+            setStatus('Enter the access password before generating a preview.', 'warning');
+            return;
+        }
+
+        if (!baseTags.length) {
+            setStatus('Select at least one base tag.', 'warning');
+            return;
+        }
+        if (!dateCode) {
+            setStatus('Date code is required.', 'warning');
+            return;
+        }
+        if (languages.length === 0) {
+            setStatus('Select or add at least one language.', 'warning');
+            return;
+        }
+
+        const previewNames = buildPreviewPlaylists(baseTags, languages, dateCode);
+        if (previewNames.length === 0) {
+            setStatus('No playlists would be created with the current selection.', 'warning');
+            return;
+        }
+
+        pendingBatch = { baseTags, languages, dateCode, previewNames };
+        renderPreview(pendingBatch);
+        setStatus('Preview ready. Confirm to launch playlist creation.', 'info');
+    });
+
+    addLanguageBtn.addEventListener('click', addCustomLanguage);
+    customLanguageInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addCustomLanguage();
+        }
+    });
+
+    resetLanguagesBtn.addEventListener('click', resetDefaults);
+    selectAllLanguagesBtn.addEventListener('click', selectAllLanguages);
+    deselectAllLanguagesBtn.addEventListener('click', deselectAllLanguages);
+
+    document.querySelectorAll('input[name="languageOption"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => {
+            pendingBatch = null;
+            hidePreview();
+        });
+    });
+
+    document.querySelectorAll('input[name="baseTagOption"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => {
+            pendingBatch = null;
+            hidePreview();
+        });
+    });
+
+    cancelPreviewBtn.addEventListener('click', () => {
+        pendingBatch = null;
+        hidePreview();
+        setStatus('Preview canceled. Adjust inputs and preview again.', 'secondary');
+        toggleLoading(false);
+    });
+
+    confirmBatchBtn.addEventListener('click', async () => {
+        if (!pendingBatch) {
+            setStatus('No pending preview to confirm.', 'warning');
+            return;
+        }
+
+        const passwordValue = passwordInput.value.trim();
+        if (!passwordValue) {
+            setStatus('Enter the access password to launch playlist creation.', 'warning');
+            return;
+        }
+
+        clearStatus();
+        toggleConfirmLoading(true);
+
+        try {
+            const response = await fetch('/api/youtube-playlists/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    base_tags: pendingBatch.baseTags,
+                    date_code: pendingBatch.dateCode,
+                    languages: pendingBatch.languages,
+                    password: passwordValue,
+                }),
+            });
+
+            const payload = await response.json();
+
+            if (!response.ok || !payload.success) {
+                const errorMessage = payload.error || 'Playlist creation failed.';
+                setStatus(errorMessage, 'danger');
+                return;
+            }
+
+            const summary = renderResults(payload);
+            hidePreview();
+            pendingBatch = null;
+
+            if (summary.failedCount > 0) {
+                setStatus('Batch completed with some errors.', 'warning');
+            } else {
+                setStatus('Batch completed successfully.', 'success');
+            }
+        } catch (error) {
+            setStatus(`Unexpected error: ${error}`, 'danger');
+        } finally {
+            toggleConfirmLoading(false);
+        }
+    });
+
+    setDefaultDate();
+    renderCustomLanguages();
+</script>
+{% endblock %}
